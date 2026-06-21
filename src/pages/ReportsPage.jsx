@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Trash2, Download, FileText, Search, Star, Filter } from 'lucide-react';
 import { getReports, deleteReport, toggleStar } from '../lib/db.js';
 import { useAuth } from '../hooks/useAuth.jsx';
-import { useToast } from '../hooks/useToast.js';
+import { useToast } from '../hooks/useToast.jsx';
 import { exportReportPDF } from '../utils/pdfExport.js';
 import { PageHeader } from '../components/ResultCard.jsx';
 
