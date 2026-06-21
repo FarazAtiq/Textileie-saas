@@ -7,6 +7,7 @@ import { useToast } from '../hooks/useToast.jsx';
 import { exportReportPDF } from '../utils/pdfExport.js';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Save, Download } from 'lucide-react';
+import { SMVSelector } from '../components/SMVSelector.jsx';
 
 // ── Shared save helper ───────────────────────────────────────
 function useSave(type, titleFn, inputs, results) {
