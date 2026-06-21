@@ -47,6 +47,8 @@ export function EfficiencyPage() {
           {[['shiftMinutes','Shift duration (minutes)'],['operators','Number of operators'],['unitsProduced','Units produced']].map(([k, l]) => (
             <div className="field" key={k}><label>{l}</label><input type="number" value={inp[k]} onChange={set(k)} /></div>
           ))}
+        <SMVSelector onSelect={t => setInp(p => ({ ...p, smv: t.total_smv }))} currentSMV={inp.smv} />
+          <div className="field"><label>Shift duration (minutes)</label>
           <div className="field"><label>SMV per unit (minutes)</label><input type="number" step="0.1" value={inp.smv} onChange={set('smv')} /></div>
           <FormulaNote>Efficiency = (Earned min ÷ Available min) × 100</FormulaNote>
         </div>
@@ -94,6 +96,8 @@ export function CapacityPage() {
       <CalcGrid>
         <div className="card">
           <h3 style={{ marginBottom: 16 }}>Inputs</h3>
+      <SMVSelector onSelect={t => setInp(p => ({ ...p, smv: t.total_smv }))} currentSMV={inp.smv} />
+          {[['machines','Machines / operators'],
           {[['machines','Machines / operators'],['shiftsPerDay','Shifts per day'],['shiftMinutes','Shift duration (min)'],['smv','SMV per unit (min)'],['efficiencyPct','Target efficiency (%)'],['workingDaysPerMonth','Working days / month']].map(([k, l]) => (
             <div className="field" key={k}><label>{l}</label><input type="number" value={inp[k]} onChange={set(k)} /></div>
           ))}
