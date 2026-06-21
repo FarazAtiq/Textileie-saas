@@ -183,7 +183,7 @@ export async function getSMVTemplates() {
   return data || [];
 }
 
-export async function createSMVTemplate({ name, garment_type, operations, total_smv }) {
+export async function createSMVTemplate({ name, garment_type, article_number, operations, total_smv }) {
   const { data: sessionData } = await supabase.auth.getSession();
   if (!sessionData.session) throw new Error('Not logged in');
 
@@ -193,6 +193,7 @@ export async function createSMVTemplate({ name, garment_type, operations, total_
       user_id: sessionData.session.user.id,
       name,
       garment_type,
+      article_number: article_number || '',
       operations,
       total_smv
     })
@@ -216,12 +217,14 @@ export async function getSMVDropdown() {
 
   const { data, error } = await supabase
     .from('smv_templates')
-    .select('id, name, garment_type, total_smv')
-    .order('name', { ascending: true });
+    .select('id, name, garment_type, article_number, total_smv')
+    .order('article_number', { ascending: true });
 
   if (error) {
     console.error('getSMVDropdown error:', error);
     return [];
   }
+  return data || [];
+}
   return data || [];
 }
