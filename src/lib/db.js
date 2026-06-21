@@ -28,7 +28,10 @@ export async function getProfile(userId) {
     .select('*')
     .eq('id', userId)
     .single();
-  if (error) throw error;
+  if (error) {
+    console.error('getProfile error:', error);
+    return null;
+  }
   return data;
 }
 
@@ -51,51 +54,96 @@ export async function getReports({ type, starred, limit = 50 } = {}) {
     .select('*')
     .order('created_at', { ascending: false })
     .limit(limit);
-  if (type)    query = query.eq('type', type);
+  if (type) query = query.eq('type', type);
   if (starred) query = query.eq('is_starred', true);
   const { data, error } = await query;
-  if (error) throw error;
-  return data;
+  if (error) {
+    console.error('getReports error:', error);
+    return [];
+  }
+  return data || [];
 }
 
 export async function getReportStats() {
-  // Total count
-  const { count: total } = await supabase
-    .from('reports')
-    .select('*', { count: 'exact', head: true });
+  try {
+    const { count: total } = await supabase
+      .from('reports')
+      .select('*', { count: 'exact', head: true });
 
-  // By type
-  const { data: byType } = await supabase
-    .from('reports')
-    .select('type')
-    .then(({ data }) => {
-      const counts = {};
-      (data || []).forEach(r => { counts[r.type] = (counts[r.type] || 0) + 1; });
-      return { data: counts };
-    });
+    const { data: allReports } = await supabase
+      .from('reports')
+      .select('type');
 
-  // Recent 5
-  const { data: recent } = await supabase
-    .from('reports')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(5);
+    const byType = {};
+    if (allReports) {
+      allReports.forEach(r => {
+        byType[r.type] = (byType[r.type] || 0) + 1;
+      });
+    }
 
-  return { total: total || 0, byType: byType || {}, recent: recent || [] };
+    const { data: recent } = await supabase
+      .from('reports')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    return {
+      total: total || 0,
+      byType: byType || {},
+      recent: recent || []
+    };
+  } catch (err) {
+    console.error('getReportStats error:', err);
+    return { total: 0, byType: {}, recent: [] };
+  }
 }
 
-export async function createReport({ type, title, inputs, results, notes = '', tags = [] }) {
-  const { data: { user } } = await supabase.auth.getUser();
-  const { data, error } = await supabase
-    .from('reports')
-    .insert({ user_id: user.id, type, title, inputs, results, notes, tags })
-    .select()
-    .single();
-  if (error) throw error;
+export async function createReport({ type, title, inputs, results, notes, tags }) {
+  try {
+    // Get current session
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError) {
+      console.error('Session error:', sessionError);
+      throw new Error('Session error: ' + sessionError.message);
+    }
 
-  // Log usage
-  await supabase.from('usage_log').insert({ user_id: user.id, action: 'report_created' });
-  return data;
+    if (!sessionData.session) {
+      console.error('No session found');
+      throw new Error('Not logged in - no session');
+    }
+
+    const userId = sessionData.session.user.id;
+    console.log('Creating report for user:', userId);
+    console.log('Report data:', { type, title, inputs, results });
+
+    const { data, error } = await supabase
+      .from('reports')
+      .insert({
+        user_id: userId,
+        type: type,
+        title: title,
+        inputs: inputs,
+        results: results,
+        notes: notes || '',
+        tags: tags || []
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Insert report error:', error);
+      console.error('Error details:', JSON.stringify(error));
+      throw new Error(error.message || 'Failed to insert report');
+    }
+
+    console.log('Report created successfully:', data);
+    return data;
+
+  } catch (err) {
+    console.error('createReport failed:', err);
+    throw err;
+  }
 }
 
 export async function updateReport(id, updates) {
@@ -110,7 +158,10 @@ export async function updateReport(id, updates) {
 }
 
 export async function deleteReport(id) {
-  const { error } = await supabase.from('reports').delete().eq('id', id);
+  const { error } = await supabase
+    .from('reports')
+    .delete()
+    .eq('id', id);
   if (error) throw error;
 }
 
@@ -125,15 +176,26 @@ export async function getSMVTemplates() {
     .from('smv_templates')
     .select('*')
     .order('created_at', { ascending: false });
-  if (error) throw error;
-  return data;
+  if (error) {
+    console.error('getSMVTemplates error:', error);
+    return [];
+  }
+  return data || [];
 }
 
 export async function createSMVTemplate({ name, garment_type, operations, total_smv }) {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData.session) throw new Error('Not logged in');
+
   const { data, error } = await supabase
     .from('smv_templates')
-    .insert({ user_id: user.id, name, garment_type, operations, total_smv })
+    .insert({
+      user_id: sessionData.session.user.id,
+      name,
+      garment_type,
+      operations,
+      total_smv
+    })
     .select()
     .single();
   if (error) throw error;
@@ -141,6 +203,9 @@ export async function createSMVTemplate({ name, garment_type, operations, total_
 }
 
 export async function deleteSMVTemplate(id) {
-  const { error } = await supabase.from('smv_templates').delete().eq('id', id);
+  const { error } = await supabase
+    .from('smv_templates')
+    .delete()
+    .eq('id', id);
   if (error) throw error;
 }
