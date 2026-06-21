@@ -15,15 +15,13 @@ export function useToast() {
         <div key={t.id} style={{
           padding: '10px 16px', borderRadius: 10, fontSize: 13, fontWeight: 500,
           boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-          animation: 'slideIn 0.2s ease',
           background: t.type === 'success' ? '#D1FAE5' : '#FEE2E2',
           color: t.type === 'success' ? '#065F46' : '#991B1B',
-          border: `1px solid ${t.type === 'success' ? '#6EE7B7' : '#FCA5A5'}`
+          border: t.type === 'success' ? '1px solid #6EE7B7' : '1px solid #FCA5A5'
         }}>
-          {t.type === 'success' ? '✓' : '✕'} {t.message}
+          {t.type === 'success' ? 'Done: ' : 'Error: '} {t.message}
         </div>
       ))}
-      <style>{`@keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }`}</style>
     </div>
   );
 
