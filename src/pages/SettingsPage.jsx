@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { updateProfile } from '../lib/db.js';
 import { supabase } from '../lib/supabase.js';
-import { useToast } from '../hooks/useToast.js';
+import { useToast } from '../hooks/useToast.jsx';
 import { PageHeader } from '../components/ResultCard.jsx';
 import { User, Building2, Lock, Info } from 'lucide-react';
 
