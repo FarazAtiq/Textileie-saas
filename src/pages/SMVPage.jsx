@@ -3,7 +3,7 @@ import { calcSMV, formatNum } from '../utils/calculations.js';
 import { PageHeader } from '../components/ResultCard.jsx';
 import { createReport, createSMVTemplate } from '../lib/db.js';
 import { useAuth } from '../hooks/useAuth.jsx';
-import { useToast } from '../hooks/useToast.js';
+import { useToast } from '../hooks/useToast.jsx';
 import { exportReportPDF } from '../utils/pdfExport.js';
 import { Plus, Trash2, Save, Download, BookOpen } from 'lucide-react';
 
