@@ -209,3 +209,19 @@ export async function deleteSMVTemplate(id) {
     .eq('id', id);
   if (error) throw error;
 }
+// ── Get SMV templates for dropdown ───────────────────────────
+export async function getSMVDropdown() {
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData.session) return [];
+
+  const { data, error } = await supabase
+    .from('smv_templates')
+    .select('id, name, garment_type, total_smv')
+    .order('name', { ascending: true });
+
+  if (error) {
+    console.error('getSMVDropdown error:', error);
+    return [];
+  }
+  return data || [];
+}
