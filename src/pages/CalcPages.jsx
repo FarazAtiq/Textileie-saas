@@ -3,7 +3,7 @@ import { calcEfficiency, calcCapacity, calcFabricYards, calcFabricGSM, calcThrea
 import { ResultCard, PageHeader, CalcGrid, FormulaNote } from '../components/ResultCard.jsx';
 import { createReport } from '../lib/db.js';
 import { useAuth } from '../hooks/useAuth.jsx';
-import { useToast } from '../hooks/useToast.js';
+import { useToast } from '../hooks/useToast.jsx';
 import { exportReportPDF } from '../utils/pdfExport.js';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Save, Download } from 'lucide-react';
