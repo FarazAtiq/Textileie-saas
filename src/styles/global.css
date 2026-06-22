@@ -143,5 +143,58 @@ label {
 .empty-state p { margin-top: 8px; font-size: 13px; }
 
 ::-webkit-scrollbar { width: 4px; height: 4px; }
+/* ── Mobile Responsive ─────────────────────────────────────── */
+@media (max-width: 768px) {
+
+  /* Hide sidebar on mobile */
+  aside {
+    display: none !important;
+  }
+
+  /* Full width main */
+  main {
+    padding: 16px !important;
+    width: 100vw !important;
+  }
+
+  /* Stack calc grid vertically */
+  .calc-grid-mobile,
+  div[style*="grid-template-columns: 1fr 1fr"],
+  div[style*="grid-template-columns: 1fr 300px"],
+  div[style*="grid-template-columns: 1fr 320px"],
+  div[style*="grid-template-columns: 1fr 380px"],
+  div[style*="repeat(4, 1fr)"],
+  div[style*="repeat(3, 1fr)"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Full width cards */
+  .card {
+    padding: 14px !important;
+    border-radius: 10px !important;
+  }
+
+  /* Smaller headings */
+  h1 { font-size: 18px !important; }
+  h2 { font-size: 15px !important; }
+  h3 { font-size: 13px !important; }
+
+  /* Result value smaller */
+  .result-value {
+    font-size: 22px !important;
+  }
+
+  /* Full width buttons */
+  .btn-full { width: 100% !important; }
+
+  /* Table scroll on mobile */
+  .data-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .data-table {
+    min-width: 500px;
+  }
+}
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
