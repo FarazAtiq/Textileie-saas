@@ -1,7 +1,5 @@
 import { supabase } from './supabase.js';
 
-// ── Auth ──────────────────────────────────────────────────────
-
 export async function signUp({ email, password, full_name, company_name }) {
   const { data, error } = await supabase.auth.signUp({
     email, password,
@@ -45,8 +43,6 @@ export async function updateProfile(userId, updates) {
   if (error) throw error;
   return data;
 }
-
-// ── Reports ───────────────────────────────────────────────────
 
 export async function getReports({ type, starred, limit = 50 } = {}) {
   let query = supabase
@@ -100,22 +96,17 @@ export async function getReportStats() {
 
 export async function createReport({ type, title, inputs, results, notes, tags }) {
   try {
-    // Get current session
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-    
+
     if (sessionError) {
-      console.error('Session error:', sessionError);
       throw new Error('Session error: ' + sessionError.message);
     }
 
     if (!sessionData.session) {
-      console.error('No session found');
-      throw new Error('Not logged in - no session');
+      throw new Error('Not logged in');
     }
 
     const userId = sessionData.session.user.id;
-    console.log('Creating report for user:', userId);
-    console.log('Report data:', { type, title, inputs, results });
 
     const { data, error } = await supabase
       .from('reports')
@@ -132,14 +123,10 @@ export async function createReport({ type, title, inputs, results, notes, tags }
       .single();
 
     if (error) {
-      console.error('Insert report error:', error);
-      console.error('Error details:', JSON.stringify(error));
       throw new Error(error.message || 'Failed to insert report');
     }
 
-    console.log('Report created successfully:', data);
     return data;
-
   } catch (err) {
     console.error('createReport failed:', err);
     throw err;
@@ -169,8 +156,6 @@ export async function toggleStar(id, current) {
   return updateReport(id, { is_starred: !current });
 }
 
-// ── SMV Templates ─────────────────────────────────────────────
-
 export async function getSMVTemplates() {
   const { data, error } = await supabase
     .from('smv_templates')
@@ -191,14 +176,15 @@ export async function createSMVTemplate({ name, garment_type, article_number, op
     .from('smv_templates')
     .insert({
       user_id: sessionData.session.user.id,
-      name,
-      garment_type,
+      name: name,
+      garment_type: garment_type || '',
       article_number: article_number || '',
-      operations,
-      total_smv
+      operations: operations,
+      total_smv: total_smv
     })
     .select()
     .single();
+
   if (error) throw error;
   return data;
 }
@@ -210,7 +196,7 @@ export async function deleteSMVTemplate(id) {
     .eq('id', id);
   if (error) throw error;
 }
-// ── Get SMV templates for dropdown ───────────────────────────
+
 export async function getSMVDropdown() {
   const { data: sessionData } = await supabase.auth.getSession();
   if (!sessionData.session) return [];
@@ -224,7 +210,5 @@ export async function getSMVDropdown() {
     console.error('getSMVDropdown error:', error);
     return [];
   }
-  return data || [];
-}
   return data || [];
 }
