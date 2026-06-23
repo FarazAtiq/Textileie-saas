@@ -285,9 +285,10 @@ export function EfficiencyPage() {
               { label: 'Lost minutes', value: formatNum(r.lostMinutes, 1) + ' min' },
               { label: 'Output per operator', value: formatNum(r.outputPerOperator, 1) + ' pcs' },
               { label: 'Target output (100%)', value: formatNum(r.targetOutput, 0) + ' pcs' },
-              {/* AI Analysis Button */}
-                <AIAnalysis type="efficiency" data={active} results={r} lines={lines} />
+            
             ]}
+            {/* AI Analysis Button */}
+            <AIAnalysis type="efficiency" data={active} results={r} lines={lines} />  
             onSave={save}
             saving={saving}
           />
@@ -484,6 +485,7 @@ export function CapacityPage() {
               { label: 'Monthly capacity', value: r.monthlyCapacity.toLocaleString() + ' pcs', highlight: true },
               { label: 'Minutes per piece', value: formatNum(r.minutesPerPiece) + ' min' },
             ]}
+            <AIAnalysis type="capacity" data={active} results={r} lines={lines} />
             onSave={save}
             saving={saving}
           />
