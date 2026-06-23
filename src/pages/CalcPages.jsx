@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { calcEfficiency, calcCapacity, calcFabricYards, calcFabricGSM, calcThread, calcCosting, calcYarnCount, formatNum, efficiencyColor } from '../utils/calculations.js';
 import { ResultCard, PageHeader, CalcGrid, FormulaNote } from '../components/ResultCard.jsx';
 import { SMVSelector } from '../components/SMVSelector.jsx';
+import { AIAnalysis } from '../components/AIAnalysis.jsx';
 import { createReport } from '../lib/db.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useToast } from '../hooks/useToast.jsx';
 import { exportReportPDF } from '../utils/pdfExport.js';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Save, Download, Plus, Trash2, FileText } from 'lucide-react';
-import { AIAnalysis } from '../components/AIAnalysis.jsx';
 
 function useSave(type, titleFn, inputs, results) {
   const [saving, setSaving] = useState(false);
@@ -34,14 +34,12 @@ function useSave(type, titleFn, inputs, results) {
   return { save, doExport, saving, ToastContainer, profile };
 }
 
-// ── Shared multi-line PDF export ─────────────────────────────
 function exportAllLinesPDF({ lines, type, companyName, userName }) {
   import('jspdf').then(({ default: jsPDF }) => {
     import('jspdf-autotable').then(({ default: autoTable }) => {
       const doc = new jsPDF('landscape');
       const now = new Date().toLocaleDateString('en-PK');
 
-      // Header
       doc.setFillColor(15, 41, 66);
       doc.rect(0, 0, 297, 22, 'F');
       doc.setFillColor(13, 122, 107);
@@ -55,30 +53,30 @@ function exportAllLinesPDF({ lines, type, companyName, userName }) {
 
       if (type === 'efficiency') {
         const rows = lines.map((l, i) => {
-          const r = calcEfficiency(l);
+          const eff = l.operators > 0 && l.smv > 0
+            ? ((l.unitsProduced * l.smv) / (l.shiftMinutes * l.operators) * 100).toFixed(1)
+            : 0;
           return [
             'Line ' + (l.lineNumber || (i + 1)),
             l.articleNumber || '—',
             l.smv + ' min',
             l.operators,
             l.unitsProduced,
-            r.earnedMinutes.toFixed(1) + ' min',
-            r.availableMinutes + ' min',
-            r.lostMinutes.toFixed(1) + ' min',
-            r.outputPerOperator.toFixed(1) + ' pcs',
-            r.efficiency.toFixed(1) + '%'
+            ((l.unitsProduced * l.smv)).toFixed(1) + ' min',
+            (l.shiftMinutes * l.operators) + ' min',
+            eff + '%'
           ];
         });
 
         autoTable(doc, {
           startY: 28,
-          head: [['Line', 'Article#', 'SMV', 'Operators', 'Units Produced', 'Earned Min', 'Available Min', 'Lost Min', 'Output/Op', 'Efficiency']],
+          head: [['Line', 'Article#', 'SMV', 'Operators', 'Units Produced', 'Earned Min', 'Available Min', 'Efficiency']],
           body: rows,
           theme: 'striped',
           headStyles: { fillColor: [15, 41, 66], textColor: 255, fontSize: 8 },
           bodyStyles: { fontSize: 8 },
           didParseCell: (data) => {
-            if (data.column.index === 9 && data.section === 'body') {
+            if (data.column.index === 7 && data.section === 'body') {
               const val = parseFloat(data.cell.raw);
               if (val >= 75) data.cell.styles.textColor = [5, 150, 105];
               else if (val >= 55) data.cell.styles.textColor = [217, 119, 6];
@@ -89,8 +87,7 @@ function exportAllLinesPDF({ lines, type, companyName, userName }) {
           margin: { left: 14, right: 14 }
         });
 
-        // Summary
-        const allEff = lines.map(l => calcEfficiency(l).efficiency);
+        const allEff = lines.map(l => l.operators > 0 && l.smv > 0 ? ((l.unitsProduced * l.smv) / (l.shiftMinutes * l.operators) * 100) : 0);
         const avgEff = allEff.reduce((a, b) => a + b, 0) / allEff.length;
         const finalY = doc.lastAutoTable.finalY + 8;
         doc.setFillColor(228, 244, 241);
@@ -99,11 +96,11 @@ function exportAllLinesPDF({ lines, type, companyName, userName }) {
         doc.setTextColor(13, 122, 107);
         doc.text('Total lines: ' + lines.length, 18, finalY + 10);
         doc.text('Average efficiency: ' + avgEff.toFixed(1) + '%', 80, finalY + 10);
-        doc.text('Best line: Line ' + (lines[allEff.indexOf(Math.max(...allEff))]?.lineNumber || '—') + ' (' + Math.max(...allEff).toFixed(1) + '%)', 180, finalY + 10);
+        doc.text('Best: Line ' + (lines[allEff.indexOf(Math.max(...allEff))]?.lineNumber || '—') + ' (' + Math.max(...allEff).toFixed(1) + '%)', 180, finalY + 10);
 
       } else {
         const rows = lines.map((l, i) => {
-          const r = calcCapacity(l);
+          const daily = l.smv > 0 ? Math.floor((l.machines * l.shiftsPerDay * l.shiftMinutes * (l.efficiencyPct / 100)) / l.smv) : 0;
           return [
             'Line ' + (l.lineNumber || (i + 1)),
             l.articleNumber || '—',
@@ -111,15 +108,15 @@ function exportAllLinesPDF({ lines, type, companyName, userName }) {
             l.machines,
             l.shiftsPerDay,
             l.efficiencyPct + '%',
-            r.dailyCapacity.toLocaleString() + ' pcs',
-            r.weeklyCapacity.toLocaleString() + ' pcs',
-            r.monthlyCapacity.toLocaleString() + ' pcs'
+            daily.toLocaleString() + ' pcs',
+            (daily * 6).toLocaleString() + ' pcs',
+            (daily * l.workingDaysPerMonth).toLocaleString() + ' pcs'
           ];
         });
 
         autoTable(doc, {
           startY: 28,
-          head: [['Line', 'Article#', 'SMV', 'Machines', 'Shifts', 'Efficiency', 'Daily Capacity', 'Weekly Capacity', 'Monthly Capacity']],
+          head: [['Line', 'Article#', 'SMV', 'Machines', 'Shifts', 'Efficiency', 'Daily', 'Weekly', 'Monthly']],
           body: rows,
           theme: 'striped',
           headStyles: { fillColor: [15, 41, 66], textColor: 255, fontSize: 8 },
@@ -127,17 +124,16 @@ function exportAllLinesPDF({ lines, type, companyName, userName }) {
           margin: { left: 14, right: 14 }
         });
 
-        // Summary
-        const allCaps = lines.map(l => calcCapacity(l).dailyCapacity);
-        const totalDaily = allCaps.reduce((a, b) => a + b, 0);
+        const totalDaily = lines.reduce((sum, l) => sum + (l.smv > 0 ? Math.floor((l.machines * l.shiftsPerDay * l.shiftMinutes * (l.efficiencyPct / 100)) / l.smv) : 0), 0);
+        const totalMonthly = lines.reduce((sum, l) => sum + (l.smv > 0 ? Math.floor((l.machines * l.shiftsPerDay * l.shiftMinutes * (l.efficiencyPct / 100)) / l.smv) * l.workingDaysPerMonth : 0), 0);
         const finalY = doc.lastAutoTable.finalY + 8;
         doc.setFillColor(228, 244, 241);
         doc.rect(14, finalY, 269, 16, 'F');
         doc.setFontSize(9); doc.setFont('helvetica', 'bold');
         doc.setTextColor(13, 122, 107);
         doc.text('Total lines: ' + lines.length, 18, finalY + 10);
-        doc.text('Total daily capacity: ' + totalDaily.toLocaleString() + ' pcs', 80, finalY + 10);
-        doc.text('Total monthly: ' + lines.map(l => calcCapacity(l).monthlyCapacity).reduce((a, b) => a + b, 0).toLocaleString() + ' pcs', 200, finalY + 10);
+        doc.text('Total daily: ' + totalDaily.toLocaleString() + ' pcs', 80, finalY + 10);
+        doc.text('Total monthly: ' + totalMonthly.toLocaleString() + ' pcs', 180, finalY + 10);
       }
 
       doc.setFontSize(7); doc.setTextColor(150);
@@ -148,7 +144,7 @@ function exportAllLinesPDF({ lines, type, companyName, userName }) {
 }
 
 // ════════════════════════════════════════════════════════════
-// EFFICIENCY PAGE — WITH MULTI LINE
+// EFFICIENCY
 // ════════════════════════════════════════════════════════════
 const newEffLine = (num) => ({
   id: Date.now() + num,
@@ -165,21 +161,11 @@ export function EfficiencyPage() {
   const [activeIdx, setActiveIdx] = useState(0);
   const { toast, ToastContainer } = useToast();
   const { profile } = useAuth();
-  const [saving, setSaving] = useS
-    tate(false);
+  const [saving, setSaving] = useState(false);
 
   const setLine = (id, k, v) => setLines(lines.map(l => l.id === id ? { ...l, [k]: v } : l));
-  const addLine = () => {
-    const newLine = newEffLine(lines.length + 1);
-    setLines([...lines, newLine]);
-    setActiveIdx(lines.length);
-  };
-  const removeLine = (id) => {
-    if (lines.length === 1) return;
-    const idx = lines.findIndex(l => l.id === id);
-    setLines(lines.filter(l => l.id !== id));
-    setActiveIdx(Math.max(0, idx - 1));
-  };
+  const addLine = () => { const n = newEffLine(lines.length + 1); setLines([...lines, n]); setActiveIdx(lines.length); };
+  const removeLine = (id) => { if (lines.length === 1) return; const idx = lines.findIndex(l => l.id === id); setLines(lines.filter(l => l.id !== id)); setActiveIdx(Math.max(0, idx - 1)); };
 
   const active = lines[activeIdx] || lines[0];
   const r = calcEfficiency(active);
@@ -190,8 +176,7 @@ export function EfficiencyPage() {
       await createReport({
         type: 'efficiency',
         title: 'Efficiency — Line ' + active.lineNumber + (active.articleNumber ? ' Art#' + active.articleNumber : '') + ' — ' + new Date().toLocaleDateString(),
-        inputs: active,
-        results: r
+        inputs: active, results: r
       });
       toast('Line ' + active.lineNumber + ' efficiency saved');
     } catch (err) { toast('Failed: ' + err.message, 'error'); }
@@ -203,70 +188,47 @@ export function EfficiencyPage() {
       <ToastContainer />
       <PageHeader title="Efficiency Calculator" subtitle="Calculate efficiency for each production line" badge={{ text: 'IE Formula' }} />
 
-      {/* Line tabs */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
         {lines.map((l, i) => (
-          <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
-            <button
-              onClick={() => setActiveIdx(i)}
-              style={{
-                padding: '6px 14px', border: 'none', borderRadius: '6px 0 0 6px',
-                background: activeIdx === i ? 'var(--navy)' : 'var(--bg)',
-                color: activeIdx === i ? 'white' : 'var(--text-secondary)',
-                fontWeight: activeIdx === i ? 600 : 400,
-                cursor: 'pointer', fontSize: 13, fontFamily: 'inherit',
-                borderTop: '1px solid var(--border)',
-                borderBottom: '1px solid var(--border)',
-                borderLeft: '1px solid var(--border)'
-              }}
-            >
+          <div key={l.id} style={{ display: 'flex', alignItems: 'center' }}>
+            <button onClick={() => setActiveIdx(i)} style={{
+              padding: '6px 14px', border: 'none', borderRadius: '6px 0 0 6px',
+              background: activeIdx === i ? 'var(--navy)' : 'var(--bg)',
+              color: activeIdx === i ? 'white' : 'var(--text-secondary)',
+              fontWeight: activeIdx === i ? 600 : 400,
+              cursor: 'pointer', fontSize: 13, fontFamily: 'inherit',
+              borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', borderLeft: '1px solid var(--border)'
+            }}>
               Line {l.lineNumber}
-              {l.articleNumber && (
-                <span style={{ marginLeft: 6, fontSize: 10, opacity: 0.7 }}>#{l.articleNumber}</span>
-              )}
+              {l.articleNumber && <span style={{ marginLeft: 6, fontSize: 10, opacity: 0.7 }}>#{l.articleNumber}</span>}
             </button>
             {lines.length > 1 && (
-              <button
-                onClick={() => removeLine(l.id)}
-                style={{
-                  padding: '6px 8px', border: '1px solid var(--border)',
-                  borderRadius: '0 6px 6px 0', borderLeft: 'none',
-                  background: activeIdx === i ? 'var(--navy)' : 'var(--bg)',
-                  color: activeIdx === i ? 'rgba(255,255,255,0.5)' : 'var(--text-muted)',
-                  cursor: 'pointer', fontSize: 11
-                }}
-              >
+              <button onClick={() => removeLine(l.id)} style={{
+                padding: '6px 8px', border: '1px solid var(--border)', borderRadius: '0 6px 6px 0', borderLeft: 'none',
+                background: activeIdx === i ? 'var(--navy)' : 'var(--bg)',
+                color: activeIdx === i ? 'rgba(255,255,255,0.5)' : 'var(--text-muted)', cursor: 'pointer'
+              }}>
                 <Trash2 size={11} />
               </button>
             )}
           </div>
         ))}
-        <button className="btn btn-secondary btn-sm" onClick={addLine}>
-          <Plus size={13} /> Add line
-        </button>
-      {lines.length > 1 && (
-        <button
-          className="btn btn-sm"
-          onClick={() => exportAllLinesPDF({ lines, type: 'efficiency', companyName: profile?.company_name, userName: profile?.full_name })}
-          style={{background: 'var(--teal)', color: 'white',
-          border: 'none', marginLeft: 'auto'
-          }}
-        >
-          <FileText size={13} /> All lines PDF
+        <button className="btn btn-secondary btn-sm" onClick={addLine}><Plus size={13} /> Add line</button>
+        {lines.length > 1 && (
+          <button className="btn btn-sm" onClick={() => exportAllLinesPDF({ lines, type: 'efficiency', companyName: profile?.company_name, userName: profile?.full_name })}
+            style={{ background: 'var(--teal)', color: 'white', border: 'none', marginLeft: 'auto' }}>
+            <FileText size={13} /> All lines PDF
           </button>
-      )}
+        )}
       </div>
 
       <CalcGrid>
         <div className="card">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, padding: '10px 14px', background: 'var(--navy)', borderRadius: 8 }}>
             <div style={{ color: 'white', fontSize: 13, fontWeight: 600 }}>Line {active.lineNumber}</div>
-            <input
-              value={active.articleNumber || ''}
-              onChange={e => setLine(active.id, 'articleNumber', e.target.value)}
+            <input value={active.articleNumber || ''} onChange={e => setLine(active.id, 'articleNumber', e.target.value)}
               placeholder="Article# (e.g. 4233)"
-              style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', borderRadius: 6, padding: '5px 10px', fontSize: 13, fontFamily: 'JetBrains Mono', fontWeight: 600 }}
-            />
+              style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', borderRadius: 6, padding: '5px 10px', fontSize: 13, fontFamily: 'JetBrains Mono', fontWeight: 600 }} />
           </div>
           <SMVSelector onSelect={t => setLine(active.id, 'smv', t.total_smv)} />
           <div className="field"><label>Shift duration (minutes)</label><input type="number" value={active.shiftMinutes} onChange={e => setLine(active.id, 'shiftMinutes', parseFloat(e.target.value) || 0)} /></div>
@@ -287,15 +249,12 @@ export function EfficiencyPage() {
               { label: 'Lost minutes', value: formatNum(r.lostMinutes, 1) + ' min' },
               { label: 'Output per operator', value: formatNum(r.outputPerOperator, 1) + ' pcs' },
               { label: 'Target output (100%)', value: formatNum(r.targetOutput, 0) + ' pcs' },
-            
             ]}
-            {/* AI Analysis Button */}
-            <AIAnalysis type="efficiency" data={active} results={r} lines={lines} />  
             onSave={save}
             saving={saving}
           />
+          <AIAnalysis type="efficiency" data={active} results={r} lines={lines} />
 
-          {/* All lines summary */}
           {lines.length > 1 && (
             <div className="card">
               <h3 style={{ marginBottom: 12 }}>All lines summary</h3>
@@ -314,10 +273,7 @@ export function EfficiencyPage() {
                     </div>
                     <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                       <span style={{ fontSize: 12, opacity: 0.7 }}>{l.operators} ops</span>
-                      <span style={{
-                        fontWeight: 700, fontSize: 14, fontFamily: 'JetBrains Mono',
-                        color: activeIdx === i ? 'white' : efficiencyColor(lr.efficiency)
-                      }}>
+                      <span style={{ fontWeight: 700, fontSize: 14, fontFamily: 'JetBrains Mono', color: activeIdx === i ? 'white' : efficiencyColor(lr.efficiency) }}>
                         {lr.efficiency.toFixed(1)}%
                       </span>
                     </div>
@@ -345,7 +301,7 @@ export function EfficiencyPage() {
 }
 
 // ════════════════════════════════════════════════════════════
-// CAPACITY PAGE — WITH MULTI LINE
+// CAPACITY
 // ════════════════════════════════════════════════════════════
 const newCapLine = (num) => ({
   id: Date.now() + num,
@@ -367,23 +323,13 @@ export function CapacityPage() {
   const [saving, setSaving] = useState(false);
 
   const setLine = (id, k, v) => setLines(lines.map(l => l.id === id ? { ...l, [k]: v } : l));
-  const addLine = () => {
-    const newLine = newCapLine(lines.length + 1);
-    setLines([...lines, newLine]);
-    setActiveIdx(lines.length);
-  };
-  const removeLine = (id) => {
-    if (lines.length === 1) return;
-    const idx = lines.findIndex(l => l.id === id);
-    setLines(lines.filter(l => l.id !== id));
-    setActiveIdx(Math.max(0, idx - 1));
-  };
+  const addLine = () => { const n = newCapLine(lines.length + 1); setLines([...lines, n]); setActiveIdx(lines.length); };
+  const removeLine = (id) => { if (lines.length === 1) return; const idx = lines.findIndex(l => l.id === id); setLines(lines.filter(l => l.id !== id)); setActiveIdx(Math.max(0, idx - 1)); };
 
   const active = lines[activeIdx] || lines[0];
   const r = calcCapacity(active);
-
-  const totalDaily = lines.reduce((sum, l) => sum + calcCapacity(l).dailyCapacity, 0);
-  const totalMonthly = lines.reduce((sum, l) => sum + calcCapacity(l).monthlyCapacity, 0);
+  const totalDaily = lines.reduce((sum, l) => sum + (l.smv > 0 ? Math.floor((l.machines * l.shiftsPerDay * l.shiftMinutes * (l.efficiencyPct / 100)) / l.smv) : 0), 0);
+  const totalMonthly = lines.reduce((sum, l) => sum + (l.smv > 0 ? Math.floor((l.machines * l.shiftsPerDay * l.shiftMinutes * (l.efficiencyPct / 100)) / l.smv) * l.workingDaysPerMonth : 0), 0);
 
   const save = async () => {
     setSaving(true);
@@ -391,8 +337,7 @@ export function CapacityPage() {
       await createReport({
         type: 'capacity',
         title: 'Capacity — Line ' + active.lineNumber + (active.articleNumber ? ' Art#' + active.articleNumber : '') + ' — ' + new Date().toLocaleDateString(),
-        inputs: active,
-        results: r
+        inputs: active, results: r
       });
       toast('Line ' + active.lineNumber + ' capacity saved');
     } catch (err) { toast('Failed: ' + err.message, 'error'); }
@@ -404,52 +349,36 @@ export function CapacityPage() {
       <ToastContainer />
       <PageHeader title="Capacity Planning" subtitle="Calculate capacity for each production line" badge={{ text: 'IE Formula' }} />
 
-      {/* Line tabs */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
         {lines.map((l, i) => (
           <div key={l.id} style={{ display: 'flex', alignItems: 'center' }}>
-            <button
-              onClick={() => setActiveIdx(i)}
-              style={{
-                padding: '6px 14px', border: 'none', borderRadius: '6px 0 0 6px',
-                background: activeIdx === i ? 'var(--navy)' : 'var(--bg)',
-                color: activeIdx === i ? 'white' : 'var(--text-secondary)',
-                fontWeight: activeIdx === i ? 600 : 400,
-                cursor: 'pointer', fontSize: 13, fontFamily: 'inherit',
-                borderTop: '1px solid var(--border)',
-                borderBottom: '1px solid var(--border)',
-                borderLeft: '1px solid var(--border)'
-              }}
-            >
+            <button onClick={() => setActiveIdx(i)} style={{
+              padding: '6px 14px', border: 'none', borderRadius: '6px 0 0 6px',
+              background: activeIdx === i ? 'var(--navy)' : 'var(--bg)',
+              color: activeIdx === i ? 'white' : 'var(--text-secondary)',
+              fontWeight: activeIdx === i ? 600 : 400,
+              cursor: 'pointer', fontSize: 13, fontFamily: 'inherit',
+              borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', borderLeft: '1px solid var(--border)'
+            }}>
               Line {l.lineNumber}
               {l.articleNumber && <span style={{ marginLeft: 6, fontSize: 10, opacity: 0.7 }}>#{l.articleNumber}</span>}
             </button>
             {lines.length > 1 && (
-              <button
-                onClick={() => removeLine(l.id)}
-                style={{
-                  padding: '6px 8px', border: '1px solid var(--border)',
-                  borderRadius: '0 6px 6px 0', borderLeft: 'none',
-                  background: activeIdx === i ? 'var(--navy)' : 'var(--bg)',
-                  color: activeIdx === i ? 'rgba(255,255,255,0.5)' : 'var(--text-muted)',
-                  cursor: 'pointer'
-                }}
-              >
+              <button onClick={() => removeLine(l.id)} style={{
+                padding: '6px 8px', border: '1px solid var(--border)', borderRadius: '0 6px 6px 0', borderLeft: 'none',
+                background: activeIdx === i ? 'var(--navy)' : 'var(--bg)',
+                color: activeIdx === i ? 'rgba(255,255,255,0.5)' : 'var(--text-muted)', cursor: 'pointer'
+              }}>
                 <Trash2 size={11} />
               </button>
             )}
           </div>
         ))}
-        <button className="btn btn-secondary btn-sm" onClick={addLine}>
-          <Plus size={13} /> Add line
-        </button>
+        <button className="btn btn-secondary btn-sm" onClick={addLine}><Plus size={13} /> Add line</button>
         {lines.length > 1 && (
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={() => exportAllLinesPDF({ lines, type: 'capacity', companyName: profile?.company_name, userName: profile?.full_name })}
-            style={{ marginLeft: 'auto', color: 'var(--teal)', borderColor: 'var(--teal)' }}
-          >
-            <FileText size={13} /> Export all lines PDF
+          <button className="btn btn-sm" onClick={() => exportAllLinesPDF({ lines, type: 'capacity', companyName: profile?.company_name, userName: profile?.full_name })}
+            style={{ background: 'var(--teal)', color: 'white', border: 'none', marginLeft: 'auto' }}>
+            <FileText size={13} /> All lines PDF
           </button>
         )}
       </div>
@@ -458,12 +387,9 @@ export function CapacityPage() {
         <div className="card">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, padding: '10px 14px', background: 'var(--navy)', borderRadius: 8 }}>
             <div style={{ color: 'white', fontSize: 13, fontWeight: 600 }}>Line {active.lineNumber}</div>
-            <input
-              value={active.articleNumber || ''}
-              onChange={e => setLine(active.id, 'articleNumber', e.target.value)}
+            <input value={active.articleNumber || ''} onChange={e => setLine(active.id, 'articleNumber', e.target.value)}
               placeholder="Article# (e.g. 4233)"
-              style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', borderRadius: 6, padding: '5px 10px', fontSize: 13, fontFamily: 'JetBrains Mono', fontWeight: 600 }}
-            />
+              style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', borderRadius: 6, padding: '5px 10px', fontSize: 13, fontFamily: 'JetBrains Mono', fontWeight: 600 }} />
           </div>
           <SMVSelector onSelect={t => setLine(active.id, 'smv', t.total_smv)} />
           <div className="field"><label>Machines / operators</label><input type="number" value={active.machines} onChange={e => setLine(active.id, 'machines', parseFloat(e.target.value) || 0)} /></div>
@@ -487,12 +413,11 @@ export function CapacityPage() {
               { label: 'Monthly capacity', value: r.monthlyCapacity.toLocaleString() + ' pcs', highlight: true },
               { label: 'Minutes per piece', value: formatNum(r.minutesPerPiece) + ' min' },
             ]}
-            <AIAnalysis type="capacity" data={active} results={r} lines={lines} />
             onSave={save}
             saving={saving}
           />
+          <AIAnalysis type="capacity" data={active} results={r} lines={lines} />
 
-          {/* All lines summary */}
           {lines.length > 1 && (
             <div className="card">
               <h3 style={{ marginBottom: 12 }}>All lines summary</h3>
@@ -531,11 +456,7 @@ export function CapacityPage() {
         <div className="card" style={{ marginTop: 20 }}>
           <h3 style={{ marginBottom: 16 }}>Factory total capacity</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-            {[
-              ['Total daily', totalDaily.toLocaleString() + ' pcs', 'var(--teal)'],
-              ['Total weekly', (totalDaily * 6).toLocaleString() + ' pcs', 'var(--blue)'],
-              ['Total monthly', totalMonthly.toLocaleString() + ' pcs', 'var(--green)']
-            ].map(([l, v, c]) => (
+            {[['Total daily', totalDaily.toLocaleString() + ' pcs', 'var(--teal)'], ['Total weekly', (totalDaily * 6).toLocaleString() + ' pcs', 'var(--blue)'], ['Total monthly', totalMonthly.toLocaleString() + ' pcs', 'var(--green)']].map(([l, v, c]) => (
               <div key={l} style={{ padding: 16, background: 'var(--bg)', borderRadius: 10, textAlign: 'center' }}>
                 <div style={{ fontSize: 22, fontWeight: 700, color: c, fontFamily: 'JetBrains Mono' }}>{v}</div>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{l}</div>
