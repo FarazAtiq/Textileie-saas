@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Trash2, Download, FileText, Search, Star } from 'lucide-react';
+import { Trash2, Download, FileText, Search, Star, Sheet } from 'lucide-react';
 import { getReports, deleteReport, toggleStar } from '../lib/db.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useToast } from '../hooks/useToast.jsx';
@@ -21,6 +21,176 @@ function getKeyResult(r) {
     case 'costing':    return res.fobPrice != null ? '$' + res.fobPrice + ' FOB' : '—';
     case 'yarn':       return res.ne != null ? 'Ne ' + res.ne : '—';
     default:           return '—';
+  }
+}
+
+// ── Excel export function ─────────────────────────────────
+function exportReportExcel(r) {
+  try {
+    const inputs  = r.inputs  || {};
+    const results = r.results || {};
+
+    // Build rows
+    const inputRows  = Object.entries(inputs).map(([k, v]) => [
+      k.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()), String(v)
+    ]);
+    const resultRows = Object.entries(results).map(([k, v]) => [
+      k.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()), String(v)
+    ]);
+
+    // Build HTML table for Excel
+    const now = new Date().toLocaleString('en-PK');
+    let html = `
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:x="urn:schemas-microsoft-com:office:excel"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta charset="UTF-8">
+  <!--[if gte mso 9]>
+  <xml><x:ExcelWorkbook><x:ExcelWorksheets>
+    <x:ExcelWorksheet><x:Name>${r.type.toUpperCase()} Report</x:Name>
+    <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+    </x:ExcelWorksheet>
+  </x:ExcelWorksheets></x:ExcelWorkbook></xml>
+  <![endif]-->
+  <style>
+    body { font-family: Arial; font-size: 11pt; }
+    .header { background: #0F2942; color: white; font-weight: bold; font-size: 14pt; padding: 8px; }
+    .subheader { background: #0D7A6B; color: white; font-size: 10pt; padding: 4px 8px; }
+    .section-title { background: #E4F4F1; color: #0F2942; font-weight: bold; font-size: 11pt; padding: 6px 8px; }
+    .col-header { background: #0F2942; color: white; font-weight: bold; padding: 5px 8px; }
+    .result-header { background: #0D7A6B; color: white; font-weight: bold; padding: 5px 8px; }
+    .even { background: #F4F7FA; }
+    .odd  { background: white; }
+    .value { font-weight: bold; color: #0D7A6B; }
+    td, th { padding: 5px 8px; border: 1px solid #D8E4EE; }
+    .meta { color: #4A6080; font-size: 9pt; }
+  </style>
+</head>
+<body>
+  <table>
+    <!-- Header -->
+    <tr><td colspan="2" class="header">🧵 TextileIE — Industrial Engineering Suite</td></tr>
+    <tr><td colspan="2" class="subheader">Report: ${r.title}</td></tr>
+    <tr><td colspan="2" class="meta">Generated: ${now} | Type: ${r.type.toUpperCase()}</td></tr>
+    <tr><td colspan="2"></td></tr>
+
+    <!-- Inputs -->
+    <tr><td colspan="2" class="section-title">📥 Inputs</td></tr>
+    <tr>
+      <th class="col-header">Parameter</th>
+      <th class="col-header">Value</th>
+    </tr>
+    ${inputRows.map((row, i) => `
+    <tr class="${i % 2 === 0 ? 'even' : 'odd'}">
+      <td>${row[0]}</td>
+      <td class="value">${row[1]}</td>
+    </tr>`).join('')}
+
+    <tr><td colspan="2"></td></tr>
+
+    <!-- Results -->
+    <tr><td colspan="2" class="section-title">📊 Results</td></tr>
+    <tr>
+      <th class="result-header">Metric</th>
+      <th class="result-header">Value</th>
+    </tr>
+    ${resultRows.map((row, i) => `
+    <tr class="${i % 2 === 0 ? 'even' : 'odd'}">
+      <td>${row[0]}</td>
+      <td class="value">${row[1]}</td>
+    </tr>`).join('')}
+
+    <tr><td colspan="2"></td></tr>
+    <tr><td colspan="2" class="meta">TextileIE © ${new Date().getFullYear()} — Confidential</td></tr>
+  </table>
+</body>
+</html>`;
+
+    // Download as .xls
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href     = url;
+    link.download = 'TextileIE-' + r.type + '-' + Date.now() + '.xls';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error('Excel export error:', err);
+    alert('Excel export failed: ' + err.message);
+  }
+}
+
+// ── Export ALL reports to one Excel file ──────────────────
+function exportAllReportsExcel(reports, companyName) {
+  try {
+    const now = new Date().toLocaleString('en-PK');
+
+    let rows = reports.map((r, i) => {
+      const res = r.results || {};
+      const inp = r.inputs  || {};
+      return `
+      <tr class="${i % 2 === 0 ? 'even' : 'odd'}">
+        <td>${i + 1}</td>
+        <td>${r.title}</td>
+        <td>${TYPE_LABEL[r.type] || r.type}</td>
+        <td class="value">${getKeyResult(r)}</td>
+        <td>${new Date(r.created_at).toLocaleDateString('en-PK')}</td>
+        <td>${r.is_starred ? '★' : ''}</td>
+      </tr>`;
+    }).join('');
+
+    const html = `
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:x="urn:schemas-microsoft-com:office:excel"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial; font-size: 11pt; }
+    .header { background: #0F2942; color: white; font-weight: bold; font-size: 14pt; padding: 8px; }
+    .subheader { background: #0D7A6B; color: white; font-size: 10pt; padding: 4px 8px; }
+    .col-header { background: #0F2942; color: white; font-weight: bold; padding: 6px 8px; }
+    .even { background: #F4F7FA; }
+    .odd  { background: white; }
+    .value { font-weight: bold; color: #0D7A6B; }
+    .meta { color: #4A6080; font-size: 9pt; }
+    td, th { padding: 5px 8px; border: 1px solid #D8E4EE; }
+  </style>
+</head>
+<body>
+  <table>
+    <tr><td colspan="6" class="header">🧵 TextileIE — All Reports Export</td></tr>
+    <tr><td colspan="6" class="subheader">${companyName || 'Factory'} | Generated: ${now}</td></tr>
+    <tr><td colspan="6"></td></tr>
+    <tr>
+      <th class="col-header">#</th>
+      <th class="col-header">Report Title</th>
+      <th class="col-header">Type</th>
+      <th class="col-header">Key Result</th>
+      <th class="col-header">Date</th>
+      <th class="col-header">Starred</th>
+    </tr>
+    ${rows}
+    <tr><td colspan="6"></td></tr>
+    <tr><td colspan="6" class="meta">Total reports: ${reports.length} | TextileIE © ${new Date().getFullYear()}</td></tr>
+  </table>
+</body>
+</html>`;
+
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href     = url;
+    link.download = 'TextileIE-All-Reports-' + Date.now() + '.xls';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error('Excel export error:', err);
   }
 }
 
@@ -63,7 +233,7 @@ export default function ReportsPage() {
     } catch { toast('Failed to update', 'error'); }
   };
 
-  const doExport = (r) => exportReportPDF({
+  const doExportPDF = (r) => exportReportPDF({
     type: r.type, title: r.title,
     inputs: r.inputs, results: r.results,
     companyName: profile?.company_name,
@@ -80,18 +250,27 @@ export default function ReportsPage() {
       <ToastContainer />
       <PageHeader title="Reports" subtitle="All your saved calculation reports" />
 
-      {/* Search + starred */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        <div style={{ position: 'relative', flex: 1 }}>
+      {/* Search + starred + export all */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
           <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search reports..." style={{ paddingLeft: 30, width: '100%' }} />
         </div>
         <button className={`btn btn-sm ${starOnly ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setStarOnly(s => !s)}>
-          <Star size={13} />
+          <Star size={13} /> Starred
         </button>
+        {filtered.length > 0 && (
+          <button
+            className="btn btn-sm"
+            onClick={() => exportAllReportsExcel(filtered, profile?.company_name)}
+            style={{ background: '#217346', color: 'white', border: 'none' }}
+          >
+            <FileText size={13} /> Export all to Excel
+          </button>
+        )}
       </div>
 
-      {/* Filter tabs — scrollable on mobile */}
+      {/* Filter tabs */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 16, overflowX: 'auto', paddingBottom: 4, WebkitOverflowScrolling: 'touch' }}>
         {FILTER_TABS.map(t => (
           <button key={t} onClick={() => setFilter(t)}
@@ -107,7 +286,7 @@ export default function ReportsPage() {
         {filtered.length} report{filtered.length !== 1 ? 's' : ''}
       </div>
 
-      {/* Reports list — CARD style on mobile instead of table */}
+      {/* Reports — card layout works on both mobile and desktop */}
       {loading ? (
         <div className="empty-state"><p>Loading reports...</p></div>
       ) : filtered.length === 0 ? (
@@ -117,9 +296,10 @@ export default function ReportsPage() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {filtered.map((r, i) => (
+          {filtered.map((r) => (
             <div key={r.id} className="card" style={{ padding: '14px 16px' }}>
-              {/* Top row — title + star */}
+
+              {/* Top row */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                 <div style={{ flex: 1, paddingRight: 12 }}>
                   <div style={{ fontWeight: 600, fontSize: 14, lineHeight: 1.4 }}>{r.title}</div>
@@ -132,7 +312,7 @@ export default function ReportsPage() {
                 </button>
               </div>
 
-              {/* Middle row — type badge + key result */}
+              {/* Type + result */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
                 <span className={`badge badge-${TYPE_BADGE[r.type] || 'teal'}`}>
                   {TYPE_LABEL[r.type] || r.type}
@@ -142,21 +322,28 @@ export default function ReportsPage() {
                 </span>
               </div>
 
-              {/* Bottom row — action buttons FULL WIDTH on mobile */}
-              <div style={{ display: 'flex', gap: 8 }}>
+              {/* Action buttons — 3 buttons full width */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                 <button
                   className="btn btn-secondary btn-sm"
-                  onClick={() => doExport(r)}
-                  style={{ flex: 1, justifyContent: 'center' }}
+                  onClick={() => doExportPDF(r)}
+                  style={{ justifyContent: 'center' }}
                 >
-                  <Download size={13} /> Export PDF
+                  <Download size={12} /> PDF
+                </button>
+                <button
+                  className="btn btn-sm"
+                  onClick={() => exportReportExcel(r)}
+                  style={{ justifyContent: 'center', background: '#217346', color: 'white', border: 'none' }}
+                >
+                  <FileText size={12} /> Excel
                 </button>
                 <button
                   className="btn btn-danger btn-sm"
                   onClick={() => del(r.id)}
-                  style={{ flex: 1, justifyContent: 'center' }}
+                  style={{ justifyContent: 'center' }}
                 >
-                  <Trash2 size={13} /> Delete
+                  <Trash2 size={12} /> Delete
                 </button>
               </div>
             </div>
