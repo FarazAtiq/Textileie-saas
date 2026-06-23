@@ -164,7 +164,8 @@ export function EfficiencyPage() {
   const [activeIdx, setActiveIdx] = useState(0);
   const { toast, ToastContainer } = useToast();
   const { profile } = useAuth();
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useS
+    tate(false);
 
   const setLine = (id, k, v) => setLines(lines.map(l => l.id === id ? { ...l, [k]: v } : l));
   const addLine = () => {
@@ -283,6 +284,8 @@ export function EfficiencyPage() {
               { label: 'Lost minutes', value: formatNum(r.lostMinutes, 1) + ' min' },
               { label: 'Output per operator', value: formatNum(r.outputPerOperator, 1) + ' pcs' },
               { label: 'Target output (100%)', value: formatNum(r.targetOutput, 0) + ' pcs' },
+              {/* AI Analysis Button */}
+                <AIAnalysis type="efficiency" data={active} results={r} lines={lines} />
             ]}
             onSave={save}
             saving={saving}
