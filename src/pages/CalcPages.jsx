@@ -244,15 +244,17 @@ export function EfficiencyPage() {
         <button className="btn btn-secondary btn-sm" onClick={addLine}>
           <Plus size={13} /> Add line
         </button>
-        {lines.length > 1 && (
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={() => exportAllLinesPDF({ lines, type: 'efficiency', companyName: profile?.company_name, userName: profile?.full_name })}
-            style={{ marginLeft: 'auto', color: 'var(--teal)', borderColor: 'var(--teal)' }}
-          >
-            <FileText size={13} /> Export all lines PDF
+      {lines.length > 1 && (
+        <button
+          className="btn btn-sm"
+          onClick={() => exportAllLinesPDF({ lines, type: 'efficiency', companyName: profile?.company_name, userName: profile?.full_name })}
+          style={{background: 'var(--teal)', color: 'white',
+          border: 'none', marginLeft: 'auto'
+          }}
+        >
+          <FileText size={13} /> All lines PDF
           </button>
-        )}
+      )}
       </div>
 
       <CalcGrid>
