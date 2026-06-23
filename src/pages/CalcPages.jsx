@@ -8,6 +8,7 @@ import { useToast } from '../hooks/useToast.jsx';
 import { exportReportPDF } from '../utils/pdfExport.js';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Save, Download, Plus, Trash2, FileText } from 'lucide-react';
+import { AIAnalysis } from '../components/AIAnalysis.jsx';
 
 function useSave(type, titleFn, inputs, results) {
   const [saving, setSaving] = useState(false);
