@@ -10,6 +10,7 @@ import { exportReportPDF } from '../utils/pdfExport.js';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Save, Download, Plus, Trash2, FileText } from 'lucide-react';
 import { PremiumDownload } from '../components/PremiumDownload.jsx';
+import { Crown } from 'lucide-react';
 
 function useSave(type, titleFn, inputs, results) {
   const [saving, setSaving] = useState(false);
@@ -327,6 +328,7 @@ export function CapacityPage() {
   const { toast, ToastContainer } = useToast();
   const { profile } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [showPremium, setShowPremium] = useState(false);
 
   const setLine = (id, k, v) => setLines(lines.map(l => l.id === id ? { ...l, [k]: v } : l));
   const addLine = () => { const n = newCapLine(lines.length + 1); setLines([...lines, n]); setActiveIdx(lines.length); };
@@ -423,6 +425,10 @@ export function CapacityPage() {
             saving={saving}
           />
           <AIAnalysis type="capacity" data={active} results={r} lines={lines} />
+          {showPremium && <PremiumDownload type="capacity" data={active} onClose={() => setShowPremium(false)} />}
+          <button onClick={() => setShowPremium(true)} style={{ width: '100%', padding: '10px', border: '2px solid #7C3AED', borderRadius: 8, background: 'white', color: '#7C3AED', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'inherit', marginTop: 8 }}>
+            <Crown size={15} /> Download Premium Report — $5
+          </button>
 
           {lines.length > 1 && (
             <div className="card">
