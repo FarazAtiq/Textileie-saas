@@ -909,6 +909,73 @@ ${rows}
     </div>
   );
 }
+// ════════════════════════════════════════════════════════════
+// COSTING
+// ════════════════════════════════════════════════════════════
+export function CostingPage() {
+  const [inp, setInp] = useState({ fabricCostPerUnit: 3.5, cmt: 1.2, overhead: 0.4, profit: 20, agentCommPct: 5, bankChargePct: 1, freightPerUnit: 0.3, dutyPct: 0 });
+  const set = k => e => setInp(p => ({ ...p, [k]: parseFloat(e.target.value) || 0 }));
+  const r = calcCosting(inp);
+  const { save, doExport, saving, ToastContainer } = useSave('costing', () => 'Costing — ' + new Date().toLocaleDateString(), inp, r);
+
+  const bars = [
+    { label: 'Fabric', v: inp.fabricCostPerUnit, color: 'var(--teal)' },
+    { label: 'CMT', v: inp.cmt, color: 'var(--blue)' },
+    { label: 'Overhead', v: inp.overhead, color: 'var(--amber)' },
+    { label: 'Freight', v: inp.freightPerUnit, color: 'var(--purple)' },
+    { label: 'Profit', v: r.profitAmount, color: 'var(--green)' },
+  ];
+
+  return (
+    <div>
+      <ToastContainer />
+      <PageHeader title="Costing Sheet" subtitle="Build FOB price and analyse profit margin" badge={{ text: 'IE Formula' }} />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        <div className="card">
+          <h3 style={{ marginBottom: 16 }}>Cost components</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            {[['fabricCostPerUnit', 'Fabric / unit ($)'], ['cmt', 'CMT / unit ($)'], ['overhead', 'Overhead / unit ($)'], ['freightPerUnit', 'Freight / unit ($)'], ['agentCommPct', 'Agent comm (%)'], ['bankChargePct', 'Bank charge (%)'], ['dutyPct', 'Duty (%)'], ['profit', 'Profit margin (%)']].map(([k, l]) => (
+              <div className="field" key={k}><label>{l}</label><input type="number" step="0.01" value={inp[k]} onChange={set(k)} /></div>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="card">
+            <h3 style={{ marginBottom: 16 }}>FOB Price</h3>
+            <div style={{ textAlign: 'center', padding: '14px 0 18px', borderBottom: '1px solid var(--border-light)', marginBottom: 16 }}>
+              <div style={{ fontSize: 38, fontWeight: 600, color: 'var(--teal)', fontFamily: 'JetBrains Mono' }}>${formatNum(r.fobPrice)}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 4 }}>FOB price per unit</div>
+            </div>
+            {[['Total production cost', '$' + formatNum(r.totalProductionCost)], ['Agent commission', '$' + formatNum(r.agentCommission)], ['Bank charge', '$' + formatNum(r.bankCharge)], ['Duty', '$' + formatNum(r.duty)], ['Profit (' + inp.profit + '%)', '$' + formatNum(r.profitAmount)]].map(([l, v]) => (
+              <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border-light)', fontSize: 13 }}>
+                <span style={{ color: 'var(--text-secondary)' }}>{l}</span>
+                <span style={{ fontFamily: 'JetBrains Mono', fontWeight: 500 }}>{v}</span>
+              </div>
+            ))}
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={save} disabled={saving}><Save size={14} />{saving ? 'Saving...' : 'Save report'}</button>
+              <button className="btn btn-secondary" onClick={() => doExport('FOB Costing Sheet')}><Download size={14} /></button>
+            </div>
+          </div>
+          <div className="card">
+            <h3 style={{ marginBottom: 12 }}>Cost breakdown</h3>
+            {bars.map(b => (
+              <div key={b.label} style={{ marginBottom: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>{b.label}</span>
+                  <span style={{ color: b.color, fontFamily: 'JetBrains Mono' }}>{r.fobPrice > 0 ? ((b.v / r.fobPrice) * 100).toFixed(1) : 0}%</span>
+                </div>
+                <div style={{ height: 6, background: 'var(--border-light)', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: r.fobPrice > 0 ? ((b.v / r.fobPrice) * 100) + '%' : '0%', background: b.color, borderRadius: 3 }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ════════════════════════════════════════════════════════════
 // YARN COUNT
