@@ -553,123 +553,356 @@ export function FabricPage() {
 }
 
 // ════════════════════════════════════════════════════════════
-// THREAD
+// THREAD — FULL OPERATION WISE LIKE COATS FORMAT
 // ════════════════════════════════════════════════════════════
-const STITCHES = [
-  { value: 'lockstitch', label: 'Lock Stitch (301)', ratio: 2.5 },
-  { value: 'chainstitch', label: 'Chain Stitch (401)', ratio: 6.6 },
-  { value: 'overlock3', label: 'Overlock 3T (504)', ratio: 12 },
-  { value: 'overlock4', label: 'Overlock 4T (514)', ratio: 14 },
-  { value: 'flatseam', label: 'Flat Seam (605)', ratio: 18 },
-  { value: 'coverstitch', label: 'Cover Stitch (406)', ratio: 10 },
+const STITCH_OPTIONS = [
+  { code: '301', name: 'Lock Stitch',            ratio: 2.5  },
+  { code: '101', name: 'Chain Stitch (1T)',       ratio: 4.0  },
+  { code: '401', name: 'Chain Stitch (2T)',       ratio: 5.5  },
+  { code: '503', name: 'Overlock 2T',             ratio: 12.0 },
+  { code: '504', name: 'Overlock 3T',             ratio: 14.0 },
+  { code: '512', name: 'Safety Stitch 4T',        ratio: 18.0 },
+  { code: '516', name: 'Safety Stitch 5T',        ratio: 20.0 },
+  { code: '304', name: 'Zigzag Lockstitch',       ratio: 7.0  },
+  { code: '406', name: 'Coverstitch 3T',          ratio: 18.0 },
+  { code: '602', name: 'Coverstitch 4T',          ratio: 25.0 },
+  { code: '605', name: 'Flatseam 5T',             ratio: 28.0 },
 ];
 
+const newThreadOp = (num) => ({
+  id: Date.now() + num,
+  seqNo: num,
+  operationName: '',
+  seamLength: 30,
+  stitchCode: '504',
+  ratio: 14.0,
+});
+
 export function ThreadPage() {
-  const [inp, setInp] = useState({ seamLength: 200, stitchType: 'lockstitch', spi: 12 });
-  const set = k => e => setInp(p => ({ ...p, [k]: e.target.value }));
-  const r = calcThread(inp);
-  const { save, doExport, saving, ToastContainer } = useSave('thread', () => 'Thread — ' + inp.stitchType + ' — ' + new Date().toLocaleDateString(), inp, r);
+  const [style, setStyle]       = useState('T-Shirt');
+  const [buyer, setBuyer]       = useState('');
+  const [articleNo, setArticleNo] = useState('');
+  const [wastePct, setWastePct] = useState(10);
+  const [ops, setOps]           = useState([
+    { id: 1, seqNo: 1, operationName: 'Shoulder join',     seamLength: 28,  stitchCode: '504', ratio: 14.0 },
+    { id: 2, seqNo: 2, operationName: 'Neck rib overlock', seamLength: 60,  stitchCode: '504', ratio: 14.0 },
+    { id: 3, seqNo: 3, operationName: 'Neck T/S',          seamLength: 60,  stitchCode: '401', ratio: 5.5  },
+    { id: 4, seqNo: 4, operationName: 'Sleeve attach',     seamLength: 48,  stitchCode: '504', ratio: 14.0 },
+    { id: 5, seqNo: 5, operationName: 'Sleeve T/S',        seamLength: 48,  stitchCode: '301', ratio: 2.5  },
+    { id: 6, seqNo: 6, operationName: 'Side seam',         seamLength: 128, stitchCode: '504', ratio: 14.0 },
+    { id: 7, seqNo: 7, operationName: 'Sleeve hem',        seamLength: 76,  stitchCode: '406', ratio: 18.0 },
+    { id: 8, seqNo: 8, operationName: 'Bottom hem',        seamLength: 102, stitchCode: '406', ratio: 18.0 },
+  ]);
+  const [saving, setSaving]     = useState(false);
+  const { toast, ToastContainer } = useToast();
+  const { profile } = useAuth();
+
+  const setOp = (id, k, v) => setOps(ops.map(o => {
+    if (o.id !== id) return o;
+    if (k === 'stitchCode') {
+      const found = STITCH_OPTIONS.find(s => s.code === v);
+      return { ...o, stitchCode: v, ratio: found ? found.ratio : o.ratio };
+    }
+    return { ...o, [k]: v };
+  }));
+
+  const addOp = () => {
+    const newOp = newThreadOp(ops.length + 1);
+    setOps([...ops, newOp]);
+  };
+
+  const removeOp = (id) => setOps(ops.filter(o => o.id !== id).map((o, i) => ({ ...o, seqNo: i + 1 })));
+
+  // Calculations
+  const calcOp = (op) => {
+    const consumption = op.seamLength * op.ratio;
+    const estimated   = consumption * (1 + wastePct / 100);
+    return { consumption: +consumption.toFixed(1), estimated: +estimated.toFixed(1) };
+  };
+
+  const totalConsumption = ops.reduce((s, op) => s + calcOp(op).consumption, 0);
+  const totalEstimated   = ops.reduce((s, op) => s + calcOp(op).estimated, 0);
+  const totalMeters      = +(totalEstimated / 100).toFixed(3);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await createReport({
+        type: 'thread',
+        title: `Thread — ${articleNo || style} — ${new Date().toLocaleDateString()}`,
+        inputs:  { style, buyer, articleNo, wastePct, totalOperations: ops.length },
+        results: { totalConsumptionCm: totalConsumption.toFixed(1), totalEstimatedCm: totalEstimated.toFixed(1), totalMeters, wastePct }
+      });
+      toast('Thread report saved');
+    } catch (err) { toast('Failed: ' + err.message, 'error'); }
+    finally { setSaving(false); }
+  };
+
+  const exportPDF = () => {
+    import('jspdf').then(({ default: jsPDF }) => {
+      import('jspdf-autotable').then(({ default: autoTable }) => {
+        const doc = new jsPDF('landscape');
+        const now = new Date().toLocaleDateString('en-PK');
+
+        // Header
+        doc.setFillColor(15, 41, 66);
+        doc.rect(0, 0, 297, 22, 'F');
+        doc.setFillColor(13, 122, 107);
+        doc.rect(0, 20, 297, 3, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+        doc.text('Thread Consumption Calculation Template', 14, 13);
+        doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+        doc.text(profile?.company_name || '', 220, 10);
+        doc.text('Date: ' + now, 220, 16);
+
+        // Info row
+        doc.setFillColor(228, 244, 241);
+        doc.rect(14, 27, 269, 14, 'F');
+        doc.setTextColor(15, 41, 66);
+        doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+        doc.text('Style: ' + style, 18, 36);
+        doc.text('Buyer: ' + (buyer || '—'), 80, 36);
+        doc.text('Article#: ' + (articleNo || '—'), 140, 36);
+        doc.text('Wastage: ' + wastePct + '%', 200, 36);
+        doc.setFontSize(11);
+        doc.setTextColor(13, 122, 107);
+        doc.text('Total: ' + totalMeters + ' m', 240, 36);
+
+        // Operations table
+        autoTable(doc, {
+          startY: 46,
+          head: [['Seq', 'Operation Name', 'Seam Length (cm)', 'Stitch Type', 'Ratio', 'Consumption (cm)', 'Est. Thread (cm)']],
+          body: ops.map((op, i) => {
+            const c = calcOp(op);
+            const stitch = STITCH_OPTIONS.find(s => s.code === op.stitchCode);
+            return [
+              i + 1,
+              op.operationName || 'Operation ' + (i+1),
+              op.seamLength,
+              (stitch?.code || op.stitchCode) + ' ' + (stitch?.name || ''),
+              op.ratio,
+              c.consumption,
+              c.estimated
+            ];
+          }),
+          foot: [['', 'TOTAL', '', '', '', totalConsumption.toFixed(1), totalEstimated.toFixed(1)]],
+          theme: 'striped',
+          headStyles: { fillColor: [15, 41, 66], textColor: 255, fontSize: 8, fontStyle: 'bold' },
+          footStyles: { fillColor: [13, 122, 107], textColor: 255, fontSize: 9, fontStyle: 'bold' },
+          bodyStyles: { fontSize: 8 },
+          columnStyles: {
+            0: { cellWidth: 12, halign: 'center' },
+            1: { cellWidth: 65 },
+            2: { cellWidth: 28, halign: 'right' },
+            3: { cellWidth: 45 },
+            4: { cellWidth: 15, halign: 'center' },
+            5: { cellWidth: 30, halign: 'right' },
+            6: { cellWidth: 35, halign: 'right', fontStyle: 'bold' }
+          },
+          margin: { left: 14, right: 14 }
+        });
+
+        // Summary
+        const finalY = doc.lastAutoTable.finalY + 8;
+        doc.setFillColor(255, 235, 59);
+        doc.rect(14, finalY, 269, 16, 'F');
+        doc.setFontSize(10); doc.setFont('helvetica', 'bold');
+        doc.setTextColor(15, 41, 66);
+        doc.text('Total Thread Consumption (in cm): ' + totalEstimated.toFixed(1) + ' cm', 18, finalY + 10);
+        doc.text('Total in meters: ' + totalMeters + ' m', 180, finalY + 10);
+
+        doc.setFontSize(7); doc.setTextColor(150);
+        doc.text('TextileIE — ' + (profile?.company_name || '') + ' | Thread Consumption Report', 14, 200);
+        doc.save('Thread-' + (articleNo || style) + '-' + Date.now() + '.pdf');
+      });
+    });
+  };
+
+  const exportExcel = () => {
+    const rows = ops.map((op, i) => {
+      const c = calcOp(op);
+      const stitch = STITCH_OPTIONS.find(s => s.code === op.stitchCode);
+      return `<tr class="${i%2===0?'even':'odd'}">
+        <td style="text-align:center">${i+1}</td>
+        <td>${op.operationName || 'Operation '+(i+1)}</td>
+        <td style="text-align:right">${op.seamLength}</td>
+        <td>${op.stitchCode} ${stitch?.name || ''}</td>
+        <td style="text-align:center">${op.ratio}</td>
+        <td style="text-align:right">${c.consumption}</td>
+        <td style="text-align:right;font-weight:bold;color:#0D7A6B">${c.estimated}</td>
+      </tr>`;
+    }).join('');
+
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="UTF-8"><style>
+body{font-family:Arial;font-size:10pt}
+.header{background:#0F2942;color:white;font-weight:bold;font-size:13pt;padding:8px}
+.info{background:#E4F4F1;color:#0F2942;font-weight:bold;padding:6px}
+.total-highlight{background:#FFEB3B;color:#0F2942;font-weight:bold;font-size:11pt;padding:6px}
+.col-header{background:#0F2942;color:white;font-weight:bold;padding:5px 8px;text-align:center}
+.even{background:#F4F7FA}.odd{background:white}
+td,th{padding:5px 8px;border:1px solid #D8E4EE}
+</style></head>
+<body><table>
+<tr><td colspan="7" class="header">Thread Consumption Calculation Template — TextileIE</td></tr>
+<tr>
+  <td colspan="2" class="info">Style: ${style}</td>
+  <td colspan="2" class="info">Buyer: ${buyer || '—'}</td>
+  <td class="info">Article#: ${articleNo || '—'}</td>
+  <td class="info">Wastage: ${wastePct}%</td>
+  <td class="info" style="color:#0D7A6B;font-size:12pt">Total: ${totalMeters} m</td>
+</tr>
+<tr>
+  <th class="col-header">Seq No.</th>
+  <th class="col-header">Operations name</th>
+  <th class="col-header">Seam length (cm)</th>
+  <th class="col-header">Stitch type</th>
+  <th class="col-header">Ratio</th>
+  <th class="col-header">Consumption (cm)</th>
+  <th class="col-header">Estimated thread consumption (cm)</th>
+</tr>
+${rows}
+<tr>
+  <td colspan="5" class="total-highlight" style="text-align:right">Total Thread consumption (in cm)</td>
+  <td class="total-highlight" style="text-align:right">${totalConsumption.toFixed(1)}</td>
+  <td class="total-highlight" style="text-align:right">${totalEstimated.toFixed(1)}</td>
+</tr>
+<tr><td colspan="7" style="color:#666;font-size:9pt;padding:6px">TextileIE © ${new Date().getFullYear()} — Generated: ${new Date().toLocaleString('en-PK')}</td></tr>
+</table></body></html>`;
+
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = 'Thread-' + (articleNo || style) + '-' + Date.now() + '.xls';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  };
 
   return (
     <div>
       <ToastContainer />
-      <PageHeader title="Thread Consumption" subtitle="Thread usage by stitch class and seam length" badge={{ text: 'IE Formula' }} />
-      <CalcGrid>
-        <div className="card">
-          <h3 style={{ marginBottom: 16 }}>Inputs</h3>
-          <div className="field"><label>Total seam length (cm)</label><input type="number" value={inp.seamLength} onChange={set('seamLength')} /></div>
-          <div className="field"><label>Stitch type</label>
-            <select value={inp.stitchType} onChange={set('stitchType')}>
-              {STITCHES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-            </select>
+      <PageHeader title="Thread Consumption" subtitle="Operation-wise thread calculation per Coats standard format" badge={{ text: 'IE Formula' }} />
+
+      {/* Style info header */}
+      <div className="card" style={{ marginBottom: 20, padding: '14px 20px', background: 'var(--navy)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 120px', gap: 16 }}>
+          <div>
+            <label style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginBottom: 4, display: 'block', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Style</label>
+            <input value={style} onChange={e => setStyle(e.target.value)} placeholder="T-Shirt"
+              style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', borderRadius: 6, padding: '7px 10px', width: '100%', fontSize: 14, fontWeight: 600 }} />
           </div>
-          <div className="field"><label>Stitches per inch (SPI)</label><input type="number" value={inp.spi} onChange={set('spi')} min="6" max="20" /></div>
-          <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--teal-light)', borderRadius: 8, fontSize: 12, color: 'var(--teal)' }}>
-            Consumption ratio: <strong>{STITCHES.find(s => s.value === inp.stitchType)?.ratio}x seam length</strong>
+          <div>
+            <label style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginBottom: 4, display: 'block', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Buyer</label>
+            <input value={buyer} onChange={e => setBuyer(e.target.value)} placeholder="XYZ"
+              style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', borderRadius: 6, padding: '7px 10px', width: '100%', fontSize: 14 }} />
+          </div>
+          <div>
+            <label style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginBottom: 4, display: 'block', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Article #</label>
+            <input value={articleNo} onChange={e => setArticleNo(e.target.value)} placeholder="4233"
+              style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', borderRadius: 6, padding: '7px 10px', width: '100%', fontSize: 14, fontFamily: 'JetBrains Mono', fontWeight: 700 }} />
+          </div>
+          <div>
+            <label style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginBottom: 4, display: 'block', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Wastage %</label>
+            <input type="number" value={wastePct} onChange={e => setWastePct(parseFloat(e.target.value) || 0)}
+              style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', borderRadius: 6, padding: '7px 10px', width: '100%', fontSize: 14, fontFamily: 'JetBrains Mono' }} />
           </div>
         </div>
-        <ResultCard title="Thread Results" mainValue={formatNum(r.grossMeters, 1) + ' m'} mainLabel="Gross thread per garment"
-          rows={[
-            { label: 'Thread per cm', value: formatNum(r.threadPerCm, 3) + ' cm', highlight: true },
-            { label: 'Net thread', value: formatNum(r.netMeters) + ' m' },
-            { label: 'Waste (10%)', value: formatNum(r.wasteMeters) + ' m' },
-            { label: 'Gross thread', value: formatNum(r.grossMeters) + ' m', highlight: true },
-          ]}
-          onSave={save} onExport={() => doExport('Thread Consumption')} saving={saving}
-        />
-      </CalcGrid>
-    </div>
-  );
-}
+      </div>
 
-// ════════════════════════════════════════════════════════════
-// COSTING
-// ════════════════════════════════════════════════════════════
-export function CostingPage() {
-  const [inp, setInp] = useState({ fabricCostPerUnit: 3.5, cmt: 1.2, overhead: 0.4, profit: 20, agentCommPct: 5, bankChargePct: 1, freightPerUnit: 0.3, dutyPct: 0 });
-  const set = k => e => setInp(p => ({ ...p, [k]: parseFloat(e.target.value) || 0 }));
-  const r = calcCosting(inp);
-  const { save, doExport, saving, ToastContainer } = useSave('costing', () => 'Costing — ' + new Date().toLocaleDateString(), inp, r);
-
-  const bars = [
-    { label: 'Fabric', v: inp.fabricCostPerUnit, color: 'var(--teal)' },
-    { label: 'CMT', v: inp.cmt, color: 'var(--blue)' },
-    { label: 'Overhead', v: inp.overhead, color: 'var(--amber)' },
-    { label: 'Freight', v: inp.freightPerUnit, color: 'var(--purple)' },
-    { label: 'Profit', v: r.profitAmount, color: 'var(--green)' },
-  ];
-
-  return (
-    <div>
-      <ToastContainer />
-      <PageHeader title="Costing Sheet" subtitle="Build FOB price and analyse profit margin" badge={{ text: 'IE Formula' }} />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-        <div className="card">
-          <h3 style={{ marginBottom: 16 }}>Cost components</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {[['fabricCostPerUnit', 'Fabric / unit ($)'], ['cmt', 'CMT / unit ($)'], ['overhead', 'Overhead / unit ($)'], ['freightPerUnit', 'Freight / unit ($)'], ['agentCommPct', 'Agent comm (%)'], ['bankChargePct', 'Bank charge (%)'], ['dutyPct', 'Duty (%)'], ['profit', 'Profit margin (%)']].map(([k, l]) => (
-              <div className="field" key={k}><label>{l}</label><input type="number" step="0.01" value={inp[k]} onChange={set(k)} /></div>
-            ))}
-          </div>
+      {/* Operations table */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 20 }}>
+        {/* Table header */}
+        <div style={{ display: 'grid', gridTemplateColumns: '40px 2fr 100px 180px 80px 110px 120px 36px', gap: 8, padding: '10px 16px', background: 'var(--navy)', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          <div>Seq</div>
+          <div>Operation name</div>
+          <div>Seam (cm)</div>
+          <div>Stitch type</div>
+          <div>Ratio</div>
+          <div>Consump. (cm)</div>
+          <div>Est. thread (cm)</div>
+          <div></div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div className="card">
-            <h3 style={{ marginBottom: 16 }}>FOB Price</h3>
-            <div style={{ textAlign: 'center', padding: '14px 0 18px', borderBottom: '1px solid var(--border-light)', marginBottom: 16 }}>
-              <div style={{ fontSize: 38, fontWeight: 600, color: 'var(--teal)', fontFamily: 'JetBrains Mono' }}>${formatNum(r.fobPrice)}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 4 }}>FOB price per unit</div>
-            </div>
-            {[['Total production cost', '$' + formatNum(r.totalProductionCost)], ['Agent commission', '$' + formatNum(r.agentCommission)], ['Bank charge', '$' + formatNum(r.bankCharge)], ['Duty', '$' + formatNum(r.duty)], ['Profit (' + inp.profit + '%)', '$' + formatNum(r.profitAmount)]].map(([l, v]) => (
-              <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border-light)', fontSize: 13 }}>
-                <span style={{ color: 'var(--text-secondary)' }}>{l}</span>
-                <span style={{ fontFamily: 'JetBrains Mono', fontWeight: 500 }}>{v}</span>
+
+        {/* Operations rows */}
+        <div style={{ padding: '8px 16px' }}>
+          {ops.map((op, idx) => {
+            const c = calcOp(op);
+            return (
+              <div key={op.id} style={{ display: 'grid', gridTemplateColumns: '40px 2fr 100px 180px 80px 110px 120px 36px', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', textAlign: 'center' }}>{idx + 1}</div>
+                <input value={op.operationName} onChange={e => setOp(op.id, 'operationName', e.target.value)} placeholder={'Operation ' + (idx+1)} style={{ fontSize: 12 }} />
+                <input type="number" value={op.seamLength} onChange={e => setOp(op.id, 'seamLength', parseFloat(e.target.value) || 0)} style={{ fontSize: 12 }} />
+                <select value={op.stitchCode} onChange={e => setOp(op.id, 'stitchCode', e.target.value)} style={{ fontSize: 11 }}>
+                  {STITCH_OPTIONS.map(s => <option key={s.code} value={s.code}>{s.code} {s.name}</option>)}
+                </select>
+                <div style={{ fontSize: 12, fontFamily: 'JetBrains Mono', color: 'var(--text-secondary)', textAlign: 'center', padding: '7px 0' }}>{op.ratio}</div>
+                <div style={{ fontSize: 13, fontFamily: 'JetBrains Mono', color: 'var(--text-primary)', textAlign: 'right', padding: '7px 0' }}>{c.consumption}</div>
+                <div style={{ fontSize: 14, fontFamily: 'JetBrains Mono', fontWeight: 700, color: 'var(--teal)', textAlign: 'right', padding: '7px 0' }}>{c.estimated}</div>
+                <button onClick={() => removeOp(op.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}>
+                  <Trash2 size={14} />
+                </button>
               </div>
-            ))}
-            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-              <button className="btn btn-primary" style={{ flex: 1 }} onClick={save} disabled={saving}><Save size={14} />{saving ? 'Saving...' : 'Save report'}</button>
-              <button className="btn btn-secondary" onClick={() => doExport('FOB Costing Sheet')}><Download size={14} /></button>
-            </div>
-          </div>
-          <div className="card">
-            <h3 style={{ marginBottom: 12 }}>Cost breakdown</h3>
-            {bars.map(b => (
-              <div key={b.label} style={{ marginBottom: 10 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>{b.label}</span>
-                  <span style={{ color: b.color, fontFamily: 'JetBrains Mono' }}>{r.fobPrice > 0 ? ((b.v / r.fobPrice) * 100).toFixed(1) : 0}%</span>
-                </div>
-                <div style={{ height: 6, background: 'var(--border-light)', borderRadius: 3, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: r.fobPrice > 0 ? ((b.v / r.fobPrice) * 100) + '%' : '0%', background: b.color, borderRadius: 3 }} />
-                </div>
-              </div>
-            ))}
-          </div>
+            );
+          })}
+        </div>
+
+        {/* Totals row */}
+        <div style={{ display: 'grid', gridTemplateColumns: '40px 2fr 100px 180px 80px 110px 120px 36px', gap: 8, padding: '12px 16px', background: '#FFF9C4', borderTop: '2px solid #F9A825' }}>
+          <div></div>
+          <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--navy)' }}>TOTAL THREAD CONSUMPTION</div>
+          <div></div><div></div><div></div>
+          <div style={{ fontWeight: 700, fontSize: 14, fontFamily: 'JetBrains Mono', color: 'var(--navy)', textAlign: 'right' }}>{totalConsumption.toFixed(1)}</div>
+          <div style={{ fontWeight: 700, fontSize: 16, fontFamily: 'JetBrains Mono', color: 'var(--teal)', textAlign: 'right' }}>{totalEstimated.toFixed(1)}</div>
+          <div></div>
+        </div>
+
+        {/* Total in meters highlight */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', background: 'var(--teal)', color: 'white' }}>
+          <span style={{ fontSize: 13, fontWeight: 500 }}>Total thread consumption including {wastePct}% wastage</span>
+          <span style={{ fontSize: 22, fontWeight: 700, fontFamily: 'JetBrains Mono' }}>{totalMeters} meters</span>
+        </div>
+      </div>
+
+      {/* Action buttons */}
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <button className="btn btn-secondary btn-sm" onClick={addOp}><Plus size={13} /> Add operation</button>
+        <button className="btn btn-primary" onClick={save} disabled={saving} style={{ flex: 1 }}><Save size={14} />{saving ? 'Saving...' : 'Save report'}</button>
+        <button className="btn btn-secondary" onClick={exportPDF}><Download size={14} /> PDF</button>
+        <button className="btn btn-sm" onClick={exportExcel} style={{ background: '#217346', color: 'white', border: 'none' }}><FileText size={13} /> Excel</button>
+      </div>
+
+      {/* Stitch reference */}
+      <div className="card" style={{ marginTop: 20 }}>
+        <h3 style={{ marginBottom: 14 }}>Stitch type reference (Coats standard)</h3>
+        <div style={{ overflowX: 'auto' }}>
+          <table className="data-table" style={{ minWidth: 500 }}>
+            <thead><tr><th>Code</th><th>Stitch type</th><th>Ratio</th><th>Common use</th></tr></thead>
+            <tbody>
+              {[
+                ['301', 'Lock Stitch',          '2.5',  'Shirt yoke, pocket, label attach'],
+                ['401', 'Chain Stitch 2T',       '5.5',  'Denim seams, heavy stitching'],
+                ['504', 'Overlock 3T',           '14.0', 'Edge finishing, knitwear seams'],
+                ['503', 'Overlock 2T',           '12.0', 'Edge finishing'],
+                ['512', 'Safety Stitch 4T',      '18.0', 'Trouser inseam, heavy seams'],
+                ['516', 'Safety Stitch 5T',      '20.0', 'Sportswear, heavy duty'],
+                ['406', 'Coverstitch 3T',        '18.0', 'Hem, sleeve hem, T-shirt hem'],
+                ['605', 'Flatseam 5T',           '28.0', 'Sportswear, seamless joins'],
+              ].map(([code, name, ratio, use]) => (
+                <tr key={code}>
+                  <td><span style={{ fontFamily: 'JetBrains Mono', fontWeight: 700, background: 'var(--navy)', color: 'white', padding: '2px 8px', borderRadius: 4, fontSize: 12 }}>{code}</span></td>
+                  <td style={{ fontWeight: 500 }}>{name}</td>
+                  <td style={{ fontFamily: 'JetBrains Mono', color: 'var(--teal)', fontWeight: 700 }}>{ratio}×</td>
+                  <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{use}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
   );
 }
-
 // ════════════════════════════════════════════════════════════
 // YARN COUNT
 // ════════════════════════════════════════════════════════════
