@@ -163,6 +163,7 @@ export function EfficiencyPage() {
   const { toast, ToastContainer } = useToast();
   const { profile } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [showPremium, setShowPremium] = useState(false);
 
   const setLine = (id, k, v) => setLines(lines.map(l => l.id === id ? { ...l, [k]: v } : l));
   const addLine = () => { const n = newEffLine(lines.length + 1); setLines([...lines, n]); setActiveIdx(lines.length); };
@@ -255,6 +256,10 @@ export function EfficiencyPage() {
             saving={saving}
           />
           <AIAnalysis type="efficiency" data={active} results={r} lines={lines} />
+          {showPremium && <PremiumDownload type="efficiency" data={active} onClose={() => setShowPremium(false)} />}
+          <button onClick={() => setShowPremium(true)} style={{ width: '100%', padding: '10px', border: '2px solid #7C3AED', borderRadius: 8, background: 'white', color: '#7C3AED', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'inherit', marginTop: 8 }}>
+            <Crown size={15} /> Download Premium Report — $5
+          </button>
 
           {lines.length > 1 && (
             <div className="card">
