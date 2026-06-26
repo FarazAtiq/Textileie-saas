@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TextileIE — Free IE Calculators for Textile Factories | Pakistan</title>
+  <meta name="description" content="TextileIE is a free online industrial engineering calculator suite for textile factory managers. Calculate SMV, efficiency, capacity, fabric consumption, thread consumption and FOB costing instantly.">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', Arial, sans-serif; color: #0F2942; }
+    .hero { background: linear-gradient(135deg, #0F2942, #0D3D35); padding: 80px 24px; text-align: center; color: white; }
+    .hero h1 { font-size: 42px; font-weight: 700; margin-bottom: 16px; }
+    .hero p { font-size: 18px; opacity: 0.8; max-width: 600px; margin: 0 auto 32px; line-height: 1.6; }
+    .btn { display: inline-block; padding: 16px 40px; background: #0D7A6B; color: white; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 16px; }
+    .features { padding: 80px 24px; max-width: 1100px; margin: 0 auto; }
+    .features h2 { font-size: 32px; text-align: center; margin-bottom: 48px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; }
+    .card { padding: 28px; border: 1px solid #EBF2F8; border-radius: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .card h3 { font-size: 18px; margin-bottom: 10px; color: #0F2942; }
+    .card p { font-size: 14px; color: #4A6080; line-height: 1.6; }
+    .icon { font-size: 32px; margin-bottom: 14px; }
+    .stats { background: #F4F7FA; padding: 60px 24px; text-align: center; }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; max-width: 800px; margin: 0 auto; }
+    .stat-num { font-size: 36px; font-weight: 700; color: #0D7A6B; }
+    .stat-label { font-size: 14px; color: #4A6080; margin-top: 4px; }
+    footer { padding: 40px 24px; text-align: center; background: #0F2942; color: rgba(255,255,255,0.6); font-size: 13px; }
+    @media (max-width: 600px) { .hero h1 { font-size: 28px; } .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+  </style>
+</head>
+<body>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div style="font-size:48px; margin-bottom:20px">🧵</div>
+    <h1>TextileIE</h1>
+    <p>Free Industrial Engineering calculators for textile factory managers. Calculate SMV, efficiency, capacity, fabric & thread consumption instantly.</p>
+    <a href="/login" class="btn">Start calculating — it's free</a>
+  </section>
+
+  <!-- Features -->
+  <section class="features">
+    <h2>7 powerful IE calculators in one place</h2>
+    <div class="grid">
+      <div class="card"><div class="icon">📊</div><h3>Efficiency Calculator</h3><p>Calculate line and operator efficiency using earned vs available minutes. Benchmark against world-class 75% standard.</p></div>
+      <div class="card"><div class="icon">🏭</div><h3>Capacity Planning</h3><p>Plan daily, weekly and monthly production capacity across multiple lines. Get factory total capacity instantly.</p></div>
+      <div class="card"><div class="icon">⏱</div><h3>SMV / SAM Calculator</h3><p>Build operation breakdown and calculate Standard Minute Value. Save article-wise SMV library for reuse.</p></div>
+      <div class="card"><div class="icon">🧶</div><h3>Fabric Consumption</h3><p>Calculate fabric usage in yards or by GSM method. Get total order consumption and fabric cost instantly.</p></div>
+      <div class="card"><div class="icon">✂️</div><h3>Thread Consumption</h3><p>Operation-wise thread calculation in Coats standard format. Supports all stitch classes — 301, 504, 406 and more.</p></div>
+      <div class="card"><div class="icon">💵</div><h3>FOB Costing Sheet</h3><p>Calculate FOB price with fabric, CMT, overhead, agent commission, bank charges and profit margin.</p></div>
+      <div class="card"><div class="icon">#</div><h3>Yarn Count Calculator</h3><p>Convert between Ne, Tex and Nm yarn count systems instantly. Reference table for common yarn counts.</p></div>
+      <div class="card"><div class="icon">🤖</div><h3>AI IE Analyzer</h3><p>Get specific recommendations to improve efficiency and capacity. Textile industry-specific advice based on your actual data.</p></div>
+    </div>
+  </section>
+
+  <!-- Stats -->
+  <section class="stats">
+    <h2 style="margin-bottom:40px; font-size:28px">Built for textile industry professionals</h2>
+    <div class="stats-grid">
+      <div><div class="stat-num">7</div><div class="stat-label">IE Calculators</div></div>
+      <div><div class="stat-num">PDF</div><div class="stat-label">Export reports</div></div>
+      <div><div class="stat-num">Excel</div><div class="stat-label">Export format</div></div>
+      <div><div class="stat-num">Free</div><div class="stat-label">Basic plan</div></div>
+    </div>
+  </section>
+
+  <!-- Why TextileIE -->
+  <section style="padding: 80px 24px; max-width: 800px; margin: 0 auto;">
+    <h2 style="font-size:28px; margin-bottom:24px; text-align:center">Why textile factories use TextileIE</h2>
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      {['Save time — calculate SMV and efficiency in seconds instead of Excel', 'All calculators in one place — no switching between files', 'Save reports — access past calculations anytime', 'Export to PDF and Excel — share with buyers and management', 'Article-wise SMV library — save once, use everywhere', 'AI recommendations — know exactly how to improve efficiency', 'Works on mobile — use on factory floor from your phone', 'Made for Pakistan — understands local textile industry needs'].map((item, i) => `
+      <div style="display:flex; gap:12px; padding:14px 18px; background:#F4F7FA; border-radius:10px; font-size:14px; color:#0F2942;">
+        <span style="color:#0D7A6B; font-weight:700; flex-shrink:0">✓</span> ${item}
+      </div>`).join('')}
+    </div>
+    <div style="text-align:center; margin-top:48px;">
+      <a href="/login" style="display:inline-block; padding:16px 48px; background:#0F2942; color:white; text-decoration:none; border-radius:10px; font-weight:700; font-size:16px;">Create free account →</a>
+    </div>
+  </section>
+
+  <!-- FAQ for SEO -->
+  <section style="padding:60px 24px; background:#F4F7FA;">
+    <div style="max-width:800px; margin:0 auto;">
+      <h2 style="font-size:28px; margin-bottom:32px; text-align:center">Frequently asked questions</h2>
+      <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {"@type":"Question","name":"What is SMV in textile?","acceptedAnswer":{"@type":"Answer","text":"SMV stands for Standard Minute Value. It is the time in minutes that a trained operator needs to complete one operation at standard pace with normal allowances. SMV is used to calculate efficiency, capacity, and operator requirements."}},
+          {"@type":"Question","name":"How to calculate efficiency in textile factory?","acceptedAnswer":{"@type":"Answer","text":"Efficiency = (Earned minutes / Available minutes) x 100. Earned minutes = Units produced x SMV. Available minutes = Number of operators x Shift duration in minutes."}},
+          {"@type":"Question","name":"How to calculate fabric consumption?","acceptedAnswer":{"@type":"Answer","text":"Fabric consumption per unit = Garment length (cm) / 91.44 (to convert to yards). Gross consumption = Net consumption x (1 + wastage%). Total for order = Gross consumption x Order quantity."}},
+          {"@type":"Question","name":"What is thread consumption ratio?","acceptedAnswer":{"@type":"Answer","text":"Thread consumption ratio is the amount of thread used per centimeter of seam. For Lockstitch 301, ratio is 2.5. For Overlock 504, ratio is 14. Thread consumption = Seam length x ratio + 10-15% wastage."}},
+          {"@type":"Question","name":"What is FOB price in textile?","acceptedAnswer":{"@type":"Answer","text":"FOB (Free On Board) price is the garment price that includes all costs up to loading on the ship. It includes fabric cost, CMT (Cut Make Trim), overhead, agent commission, bank charges, and profit margin."}}
+        ]
+      }
+      </script>
+      {[
+        ['What is SMV in textile?', 'SMV (Standard Minute Value) is the time in minutes a trained operator needs to complete one operation at standard pace. Used to calculate efficiency, capacity, and manpower requirements.'],
+        ['How to calculate efficiency in textile?', 'Efficiency = (Earned minutes ÷ Available minutes) × 100. Earned minutes = Units produced × SMV. Available minutes = Operators × Shift duration.'],
+        ['How to calculate fabric consumption?', 'Net consumption = Garment length ÷ 91.44 (yards). Gross = Net × (1 + wastage%). Total for order = Gross × Order quantity.'],
+        ['What is thread consumption ratio?', 'Amount of thread per cm of seam. Lock stitch 301 = 2.5x. Overlock 504 = 14x. Consumption = Seam length × ratio + 10-15% wastage.'],
+        ['What is FOB price?', 'FOB price includes all costs up to ship loading: fabric + CMT + overhead + agent commission + bank charges + profit margin.'],
+      ].map(([q, a]) => `
+      <div style="margin-bottom:20px; padding:20px 24px; background:white; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+        <div style="font-weight:700; font-size:15px; margin-bottom:8px; color:#0F2942;">${q}</div>
+        <div style="font-size:14px; color:#4A6080; line-height:1.7;">${a}</div>
+      </div>`).join('')}
+    </div>
+  </section>
+
+  <footer>
+    <div style="font-size:20px; margin-bottom:8px">🧵</div>
+    <div style="font-weight:700; color:white; font-size:16px; margin-bottom:6px">TextileIE</div>
+    <p>Industrial Engineering Suite for Textile Factories</p>
+    <p style="margin-top:8px">© 2026 TextileIE · Made for Pakistan 🇵🇰 textile industry</p>
+  </footer>
+
+</body>
+</html>
