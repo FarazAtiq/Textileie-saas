@@ -1,10 +1,4 @@
 User-agent: *
 Allow: /
 
-# Sitemaps
 Sitemap: https://textileie.com/sitemap.xml
-
-# Disallow auth pages from indexing
-Disallow: /dashboard
-Disallow: /settings
-Disallow: /reports
