@@ -682,38 +682,91 @@ export function ThreadPage() {
         doc.text('Total: ' + totalMeters + ' m', 240, 36);
 
         // Operations table
-        autoTable(doc, {
-          startY: 46,
-          head: [['Seq', 'Operation Name', 'Seam Length (cm)', 'Stitch Type', 'Ratio', 'Consumption (cm)', 'Est. Thread (cm)']],
-          body: ops.map((op, i) => {
-            const c = calcOp(op);
-            const stitch = STITCH_OPTIONS.find(s => s.code === op.stitchCode);
-            return [
-              i + 1,
-              op.operationName || 'Operation ' + (i+1),
-              op.seamLength,
-              (stitch?.code || op.stitchCode) + ' ' + (stitch?.name || ''),
-              op.ratio,
-              c.consumption,
-              c.estimated
-            ];
-          }),
-          foot: [['', 'TOTAL', '', '', '', totalConsumption.toFixed(1), totalEstimated.toFixed(1)]],
-          theme: 'striped',
-          headStyles: { fillColor: [15, 41, 66], textColor: 255, fontSize: 8, fontStyle: 'bold' },
-          footStyles: { fillColor: [13, 122, 107], textColor: 255, fontSize: 9, fontStyle: 'bold' },
-          bodyStyles: { fontSize: 8 },
-          columnStyles: {
-            0: { cellWidth: 12, halign: 'center' },
-            1: { cellWidth: 65 },
-            2: { cellWidth: 28, halign: 'right' },
-            3: { cellWidth: 45 },
-            4: { cellWidth: 15, halign: 'center' },
-            5: { cellWidth: 30, halign: 'right' },
-            6: { cellWidth: 35, halign: 'right', fontStyle: 'bold' }
-          },
-          margin: { left: 14, right: 14 }
-        });
+        {/* Operations table */}
+<div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 20 }}>
+  {/* Desktop header — hidden on mobile */}
+  <div style={{ display: 'grid', gridTemplateColumns: '40px 2fr 100px 180px 60px 100px 110px 36px', gap: 8, padding: '10px 16px', background: 'var(--navy)', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.06em' }}
+    className="thread-desktop-header">
+    <div>Seq</div>
+    <div>Operation name</div>
+    <div>Seam (cm)</div>
+    <div>Stitch type</div>
+    <div>Ratio</div>
+    <div>Consump.</div>
+    <div>Est. thread</div>
+    <div></div>
+  </div>
+
+  <div style={{ padding: '8px 16px' }}>
+    {ops.map((op, idx) => {
+      const c = calcOp(op);
+      return (
+        <div key={op.id} style={{ marginBottom: 14, padding: '12px', background: 'var(--bg)', borderRadius: 10, border: '1px solid var(--border-light)' }}>
+          {/* Row header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 28, height: 28, background: 'var(--navy)', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{idx + 1}</span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Operation {idx + 1}</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 16, fontWeight: 700, fontFamily: 'JetBrains Mono', color: 'var(--teal)' }}>{c.estimated} cm</span>
+              <button onClick={() => removeOp(op.id)} style={{ background: 'var(--red-light)', border: 'none', cursor: 'pointer', color: 'var(--red)', padding: '4px 8px', borderRadius: 6 }}>
+                <Trash2 size={13} />
+              </button>
+            </div>
+          </div>
+
+          {/* Operation name - full width */}
+          <div className="field" style={{ marginBottom: 10 }}>
+            <label>Operation name</label>
+            <input value={op.operationName} onChange={e => setOp(op.id, 'operationName', e.target.value)} placeholder={'e.g. Shoulder join, Side seam...'} style={{ fontSize: 13 }} />
+          </div>
+
+          {/* Stitch type - full width */}
+          <div className="field" style={{ marginBottom: 10 }}>
+            <label>Stitch type</label>
+            <select value={op.stitchCode} onChange={e => setOp(op.id, 'stitchCode', e.target.value)} style={{ fontSize: 13 }}>
+              {STITCH_OPTIONS.map(s => <option key={s.code} value={s.code}>{s.code} — {s.name}</option>)}
+            </select>
+          </div>
+
+          {/* Seam length + ratio + consumption in a row */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Seam (cm)</label>
+              <input type="number" value={op.seamLength} onChange={e => setOp(op.id, 'seamLength', parseFloat(e.target.value) || 0)} style={{ fontSize: 13, textAlign: 'center' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Ratio</label>
+              <div style={{ padding: '7px 10px', background: 'white', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13, fontFamily: 'JetBrains Mono', textAlign: 'center', color: 'var(--text-secondary)' }}>{op.ratio}</div>
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Net (cm)</label>
+              <div style={{ padding: '7px 10px', background: 'white', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13, fontFamily: 'JetBrains Mono', textAlign: 'center', color: 'var(--text-primary)' }}>{c.consumption}</div>
+            </div>
+          </div>
+        </div>
+      );
+    })}
+  </div>
+
+  {/* Totals */}
+  <div style={{ padding: '12px 16px', background: '#FFF9C4', borderTop: '2px solid #F9A825' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--navy)' }}>TOTAL THREAD CONSUMPTION</div>
+      <div style={{ textAlign: 'right' }}>
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Net: {totalConsumption.toFixed(1)} cm</div>
+        <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'JetBrains Mono', color: 'var(--navy)' }}>Est: {totalEstimated.toFixed(1)} cm</div>
+      </div>
+    </div>
+  </div>
+
+  {/* Total meters */}
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'var(--teal)', color: 'white' }}>
+    <span style={{ fontSize: 13, fontWeight: 500 }}>Total including {wastePct}% wastage</span>
+    <span style={{ fontSize: 24, fontWeight: 700, fontFamily: 'JetBrains Mono' }}>{totalMeters} m</span>
+  </div>
+</div>
 
         // Summary
         const finalY = doc.lastAutoTable.finalY + 8;
