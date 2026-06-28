@@ -7,10 +7,14 @@ import { useToast } from '../hooks/useToast.jsx';
 import { exportReportPDF } from '../utils/pdfExport.js';
 import { Plus, Trash2, Save, Download, BookOpen } from 'lucide-react';
 
-const MACHINES = ['SNL','DNL','Overlock 3T','Overlock 4T','Overlock 5T','Flatseam','Bartack','Buttonhole','Button Attach','Kansai','Feed Off Arm','Manual'];
-const GARMENTS = ['T-Shirt','Polo Shirt','Trousers','Jacket','Jeans','Shorts','Dress','Skirt','Formal Shirt','Hoodie','Sweatshirt','Pajama'];
-const newOp = () => ({ id: Date.now(), name: '', machine: 'SNL', basicTime: 1.0, allowancePct: 15 });
-
+const MACHINES = ['SNL','DNL','Overlock 3T','Overlock 4T','Overlock 5T','Flatseam','Bartack','Buttonhole','Button Attach','Kansai','Feed Off Arm','Manual',// Lapping
+'Spreading Machine','Manual Spreading','Auto Spreader',
+// Cutting
+'Straight Knife','Band Knife','Round Knife','Die Cutter','Laser Cutter','Notcher','Drill Machine',
+// Bundling
+'Manual Bundling','Ticket Machine','Sticker Machine',];
+const GARMENTS = ['T-Shirt','Polo Shirt','Trousers','Jacket','Jeans','Shorts','Dress','Skirt','Formal Shirt','Hoodie','Sweatshirt','Pajama', 'sports wear', 'denim jacket'];
+const newOp = () => ({ id: Date.now(), name: '', machine: 'SNL', basicTime: 1.0, allowancePct: 15, processType: 'sewing' });
 export default function SMVPage() {
   const [ops, setOps] = useState([
     { id: 1, name: 'Attach collar',  machine: 'DNL',         basicTime: 1.2, allowancePct: 15 },
@@ -117,11 +121,21 @@ const exportPDF = () => {
       // Operations table
       autoTable(doc, {
         startY: 60,
-        head: [['Sr#', 'Operation Name', 'Machine', 'Basic Time', 'Allow %', 'SMV']],
-        body: ops.map((op, i) => [
-          i + 1,
-          op.name || 'Operation ' + (i + 1),
-          op.machine || 'SNL',
+        head: {['Operation', 'Process', 'Machine', 'Basic (min)', 'Allow %', 'SMV', ''].map((h, i) => (
+        body: ops.map((op, i) => {
+  const processLabels = {
+    sewing: 'Sewing', lapping: 'Lapping', cutting: 'Cutting',
+    bundling: 'Bundling', embroidery: 'Embroidery', printing: 'Printing',
+    heat_transfer: 'Heat Transfer', applique: 'Applique', rhinestone: 'Rhinestone',
+    pressing: 'Pressing', folding: 'Folding', packing: 'Packing',
+    tagging: 'Tagging', inline_qc: 'Inline QC', final_qc: 'Final QC',
+    measurement: 'Measurement'
+  };
+  return [
+    i + 1,
+    op.name || 'Operation ' + (i+1),
+    processLabels[op.processType] || 'Sewing',
+    op.machine || 'SNL',
           (parseFloat(op.basicTime) || 0).toFixed(3),
           (parseFloat(op.allowancePct) || 0) + '%',
           ((op.basicTime || 0) * (1 + (op.allowancePct || 0) / 100)).toFixed(3)
@@ -132,12 +146,13 @@ const exportPDF = () => {
         footStyles: { fillColor: [13, 122, 107], textColor: 255, fontSize: 9, fontStyle: 'bold' },
         bodyStyles: { fontSize: 9 },
         columnStyles: {
-          0: { cellWidth: 12, halign: 'center' },
-          1: { cellWidth: 75 },
-          2: { cellWidth: 28 },
-          3: { cellWidth: 25, halign: 'right' },
-          4: { cellWidth: 20, halign: 'center' },
-          5: { cellWidth: 25, halign: 'right', fontStyle: 'bold' }
+         0: { cellWidth: 10, halign: 'center' },
+         1: { cellWidth: 60 },
+         2: { cellWidth: 22 },
+         3: { cellWidth: 25 },
+         4: { cellWidth: 22, halign: 'right' },
+         5: { cellWidth: 18, halign: 'center' },
+         6: { cellWidth: 22, halign: 'right', fontStyle: 'bold' }
         },
         margin: { left: 14, right: 14 }
       });
@@ -205,14 +220,47 @@ const exportPDF = () => {
               </select>
             </div>
           </div>
+          <select
+  value={op.processType || 'sewing'}
+  onChange={e => setOp(op.id, 'processType', e.target.value)}
+  style={{ fontSize: 11 }}
+>
+  <optgroup label="── Sewing ──">
+    <option value="sewing">🧵 Sewing</option>
+  </optgroup>
+  <optgroup label="── Cutting Room ──">
+    <option value="lapping">📐 Lapping</option>
+    <option value="cutting">✂️ Cutting</option>
+    <option value="bundling">📦 Bundling</option>
+  </optgroup>
+  <optgroup label="── Embellishment ──">
+    <option value="embroidery">🌸 Embroidery</option>
+    <option value="printing">🖨️ Printing</option>
+    <option value="heat_transfer">🔥 Heat Transfer</option>
+    <option value="applique">🎨 Applique</option>
+    <option value="rhinestone">💎 Rhinestone</option>
+    <option value="smocking">🧶 Smocking</option>
+  </optgroup>
+  <optgroup label="── Finishing ──">
+    <option value="pressing">👕 Pressing / Iron</option>
+    <option value="folding">📋 Folding</option>
+    <option value="packing">📦 Packing</option>
+    <option value="tagging">🏷️ Tagging</option>
+  </optgroup>
+  <optgroup label="── Quality ──">
+    <option value="inline_qc">🔍 Inline QC</option>
+    <option value="final_qc">✅ Final QC</option>
+    <option value="measurement">📏 Measurement Check</option>
+  </optgroup>
+</select>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <div>
-              <h3>Operation breakdown</h3>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>
-                {ops.length} operations · SMV = <strong style={{ color: 'var(--teal)' }}>{r.totalSMV.toFixed(3)} min</strong>
-              </p>
-            </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }
+           <div>
+            <h3>Operation breakdown</h3>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>
+             Sewing · Cutting · Embellishment · {ops.length} operations · SMV = <strong style={{ color: 'var(--teal)' }}>{r.totalSMV.toFixed(3)} min</strong>
+            </p>
+           </div>
             <button className="btn btn-primary btn-sm" onClick={() => setOps([...ops, newOp()])}>
               <Plus size={13} /> Add operation
             </button>
@@ -227,7 +275,20 @@ const exportPDF = () => {
 
           <div style={{ marginTop: 8 }}>
             {ops.map((op, idx) => (
-              <div key={op.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 90px 90px 70px 28px', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+              <div key={op.id} style={{
+  display: 'grid',
+  gridTemplateColumns: '2fr 1fr 1.2fr 80px 80px 65px 28px',
+  gap: 8, marginBottom: 8, alignItems: 'center',
+  padding: '6px 8px', borderRadius: 8,
+  background: op.processType === 'lapping' ? '#FFF3E0' :
+              op.processType === 'cutting' ? '#FCE4EC' :
+              op.processType === 'bundling' ? '#F3E5F5' :
+              ['embroidery','printing','heat_transfer','applique','rhinestone','smocking'].includes(op.processType) ? '#E8F5E9' :
+              ['pressing','folding','packing','tagging'].includes(op.processType) ? '#E3F2FD' :
+              ['inline_qc','final_qc','measurement'].includes(op.processType) ? '#FFF8E1' :
+              'transparent',
+  border: '1px solid var(--border-light)'
+}}>
                 <input value={op.name} onChange={e => setOp(op.id, 'name', e.target.value)} placeholder={`Operation ${idx + 1}`} />
                 <select value={op.machine} onChange={e => setOp(op.id, 'machine', e.target.value)}>
                   {MACHINES.map(m => <option key={m}>{m}</option>)}
