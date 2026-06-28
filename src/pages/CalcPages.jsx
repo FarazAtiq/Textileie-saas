@@ -681,7 +681,6 @@ export function ThreadPage() {
         doc.setTextColor(13, 122, 107);
         doc.text('Total: ' + totalMeters + ' m', 240, 36);
 
-        // Operations table
         {/* Operations table */}
 <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 20 }}>
   {/* Desktop header — hidden on mobile */}
@@ -767,6 +766,7 @@ export function ThreadPage() {
     <span style={{ fontSize: 24, fontWeight: 700, fontFamily: 'JetBrains Mono' }}>{totalMeters} m</span>
   </div>
 </div>
+       
 
         // Summary
         const finalY = doc.lastAutoTable.finalY + 8;
