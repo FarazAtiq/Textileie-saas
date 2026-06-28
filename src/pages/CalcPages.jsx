@@ -810,7 +810,7 @@ body{font-family:Arial;font-size:10pt}
 td,th{padding:5px 8px;border:1px solid #D8E4EE}
 </style></head>
 <body><table>
-<tr><td colspan="7" class="header">Thread Consumption Calculation Template — TextileIE</td></tr>
+<tr><td colspan="7" class="header">Thread Consumption — TextileIE</td></tr>
 <tr>
   <td colspan="2" class="info">Style: ${style}</td>
   <td colspan="2" class="info">Buyer: ${buyer || '—'}</td>
