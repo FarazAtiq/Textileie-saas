@@ -613,7 +613,7 @@ function calcOp(op, wastePct) {
   };
 }
 
-export default function ThreadPage() {
+export function ThreadPage() {
   const [style,     setStyle]     = useState('T-Shirt');
   const [buyer,     setBuyer]     = useState('');
   const [articleNo, setArticleNo] = useState('');
