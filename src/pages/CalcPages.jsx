@@ -987,6 +987,7 @@ export default function ThreadPage() {
       {/* ── Total yellow row ── */}
       <div style={{ padding: '14px 16px', background: '#FFF9C4', border: '2px solid #F9A825', borderRadius: 10, marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--navy)' }}>TOTAL THREAD CONSUMPTION (in cm)</div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Net: {totalConsumption.toFixed(1)}</div>
