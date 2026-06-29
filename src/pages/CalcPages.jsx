@@ -993,10 +993,9 @@ export default function ThreadPage() {
             <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Net: {totalConsumption.toFixed(1)}</div>
             <div style={{ fontSize: 20, fontWeight: 700, fontFamily: 'JetBrains Mono', color: 'var(--navy)' }}>{totalEstimated.toFixed(1)} cm</div>
           </div>
-          </div>
         </div>
-      </div>
-
+      </div>  
+    </div>
       {/* ── Action buttons ── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
         <button className="btn btn-primary btn-full" onClick={handleSave} disabled={saving}>
