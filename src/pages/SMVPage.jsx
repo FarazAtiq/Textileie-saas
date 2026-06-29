@@ -456,7 +456,5 @@ ${rows}
     </div>
   );
 }
-ENDOFFILE
-echo "SMVPage done"
-Output
+
 
