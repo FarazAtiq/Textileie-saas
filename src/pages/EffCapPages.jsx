@@ -330,7 +330,7 @@ export function EfficiencyPage() {
           return (
             <div key={l.id} style={{ display: 'flex', alignItems: 'center' }}>
               <button onClick={() => setActiveIdx(i)} style={{
-                padding: '6px 12px', border: 'none',
+                padding: '6px 12px',
                 borderRadius: lines.length > 1 ? '6px 0 0 6px' : '6px',
                 background: activeIdx === i ? (dept?.dot || 'var(--navy)') : 'var(--bg)',
                 color: activeIdx === i ? 'white' : 'var(--text-secondary)',
