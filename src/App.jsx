@@ -10,8 +10,9 @@ import NotFoundPage from './pages/NotFoundPage.jsx';
 import {
   EfficiencyPage,
   CapacityPage,
+} from './pages/EffCapPages.jsx';
+import {
   FabricPage,
-  ThreadPage,
   CostingPage,
   YarnPage,
 } from './pages/CalcPages.jsx';
