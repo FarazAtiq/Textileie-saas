@@ -125,7 +125,7 @@ export default function CostingPage() {
         'Agent commission': '$' + agentComm.toFixed(2),
         'Bank charge': '$' + bankCharge.toFixed(2),
         'Duty': '$' + duty.toFixed(2),
-        'Profit (' + profitPct + '%)': '$' + profitAmount.toFixed(2),
+        [`Profit (${profitPct}%)`]: '$' + profitAmount.toFixed(2),
         'FOB Price': '$' + fobPrice.toFixed(2),
       },
       companyName: profile?.company_name,
