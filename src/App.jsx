@@ -16,9 +16,7 @@ import {
   CostingPage,
   YarnPage,
 } from './pages/CalcPages.jsx';
-import {
-  ThreadPage
-} from './pages/ThreadPage.jsx';
+import ThreadPage from './pages/ThreadPage.jsx';
 import './styles/global.css';
 
 function PrivateRoute({ children }) {
