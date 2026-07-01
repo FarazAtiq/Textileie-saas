@@ -569,19 +569,18 @@ function ConverterTab() {
   const calculate = () => {
     const w = parseFloat(weightOrLength) || 0;
     const g = parseFloat(gsmVal) || 0;
-    const widthCm = widthUnit === 'inch' ? inchToCm(parseFloat(width) || 0) : (parseFloat(width) || 0);
-
+    const widthInches = widthUnit === 'cm' ? cmToInch(parseFloat(width) || 0) : (parseFloat(width) || 0);
     if (!g || !widthCm || !w) { setResult(null); return; }
 
     if (mode === 'kg') {
       // input is weight in kg -> compute length
-      const meters = calcKgToMeter({ weightKg: w, gsm: g, widthCm });
+      const meters = calcKgToMeter({ weightKg: w, gsm: g, widthInches });
       if (outputUnit === 'M') setResult({ value: meters, unit: 'meters' });
       else if (outputUnit === 'Y') setResult({ value: metersToYards(meters), unit: 'yards' });
       else setResult({ value: w, unit: 'kg (input)' });
     } else {
       // input is length in meters -> compute weight
-      const kg = calcMeterToKg({ lengthM: w, gsm: g, widthCm });
+      const kg = calcMeterToKg({ lengthM: w, gsm: g, widthInches });
       if (outputUnit === 'K') setResult({ value: kg, unit: 'kg' });
       else if (outputUnit === 'Y') setResult({ value: metersToYards(w), unit: 'yards (input converted)' });
       else setResult({ value: w, unit: 'meters (input)' });
