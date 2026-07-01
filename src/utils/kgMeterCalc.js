@@ -20,7 +20,7 @@ export function calcKgToMeter({ weightKg, gsm, widthInches }) {
 
 export function calcMeterToKg({ lengthM, gsm, widthInches }) {
   if (!gsm || !widthInches || !lengthM) return 0;
-  const kg = 0.00000254 * lengthM * gsm * widthInches;
+  const kg = 0.0000254 * lengthM * gsm * widthInches;
   return +kg.toFixed(4);
 }
 
