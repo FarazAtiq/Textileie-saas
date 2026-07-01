@@ -570,7 +570,7 @@ function ConverterTab() {
     const w = parseFloat(weightOrLength) || 0;
     const g = parseFloat(gsmVal) || 0;
     const widthInches = widthUnit === 'cm' ? cmToInch(parseFloat(width) || 0) : (parseFloat(width) || 0);
-    if (!g || !widthCm || !w) { setResult(null); return; }
+    if (!g || !widthInches || !w) { setResult(null); widthInches }
 
     if (mode === 'kg') {
       // input is weight in kg -> compute length
