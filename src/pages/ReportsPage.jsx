@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Trash2, Download, FileText, Search, Star, Calendar, BarChart2, X, TrendingUp, AlertTriangle, CheckCircle, Target, Lightbulb } from 'lucide-react';
-import { getReports, deleteReport, toggleStar } from '../lib/db.js';
+import { Trash2, Download, FileText, Search, Star, Calendar, BarChart2, X, TrendingUp, AlertTriangle, CheckCircle, Target, Lightbulb, Edit3, Save } from 'lucide-react';
+import { getReports, deleteReport, toggleStar, updateReport } from '../lib/db.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useToast } from '../hooks/useToast.jsx';
 import { exportReportPDF } from '../utils/pdfExport.js';
@@ -261,6 +261,7 @@ function ReportDetailModal({ report, onClose, onExportPDF, onExportExcel, onExpo
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button onClick={() => { onClose(); window.dispatchEvent(new CustomEvent('textileie-edit-report', { detail: report })); }} className="btn btn-sm" style={{ background: 'var(--amber)', color: 'white', border: 'none' }}><Edit3 size={13} /> Edit</button>
             {isBom ? (
               <>
                 <button onClick={onExportBomPDF} className="btn btn-sm" style={{ background: 'rgba(255,255,255,0.15)', color: 'white', border: 'none' }}><Download size={13} /> BOM PDF</button>
@@ -485,6 +486,62 @@ function ReportDetailModal({ report, onClose, onExportPDF, onExportExcel, onExpo
 // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
 // MAIN REPORTS PAGE
 // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+
+
+function ReportEditModal({ report, onClose, onSaved }) {
+  const [title, setTitle] = useState(report.title || '');
+  const [notes, setNotes] = useState(report.notes || '');
+  const [inputsText, setInputsText] = useState(JSON.stringify(report.inputs || {}, null, 2));
+  const [resultsText, setResultsText] = useState(JSON.stringify(report.results || {}, null, 2));
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  const save = async () => {
+    let inputs, results;
+    try {
+      inputs = JSON.parse(inputsText || '{}');
+      results = JSON.parse(resultsText || '{}');
+    } catch (err) {
+      toast('Inputs/results must be valid JSON', 'error');
+      return;
+    }
+    setSaving(true);
+    try {
+      const updated = await updateReport(report.id, { title, notes, inputs, results });
+      toast('Report updated');
+      onSaved?.(updated);
+    } catch (err) {
+      toast('Update failed: ' + err.message, 'error');
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div style={{ background: 'white', borderRadius: 16, width: '100%', maxWidth: 820, maxHeight: '94vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '16px 20px', background: 'var(--navy)', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontWeight: 700 }}>Edit Report</div>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 8, color: 'white', cursor: 'pointer', padding: 8 }}><X size={16}/></button>
+        </div>
+        <div style={{ padding: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="field"><label>Report title</label><input value={title} onChange={e => setTitle(e.target.value)} /></div>
+          <div className="field"><label>Notes</label><textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} /></div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div className="field"><label>Inputs JSON</label><textarea value={inputsText} onChange={e => setInputsText(e.target.value)} rows={16} style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12 }} /></div>
+            <div className="field"><label>Results JSON</label><textarea value={resultsText} onChange={e => setResultsText(e.target.value)} rows={16} style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12 }} /></div>
+          </div>
+          <div style={{ padding: 10, background: 'var(--amber-light)', borderRadius: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
+            This edits the saved report record. Calculator pages can still create new reports; this modal fixes mistakes in saved reports.
+          </div>
+        </div>
+        <div style={{ padding: 16, borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" onClick={save} disabled={saving}><Save size={14}/> {saving ? 'Saving...' : 'Save Changes'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ReportsPage() {
   const [reports, setReports]       = useState([]);
   const [loading, setLoading]       = useState(true);
@@ -493,6 +550,7 @@ export default function ReportsPage() {
   const [search, setSearch]         = useState('');
   const [starOnly, setStarOnly]     = useState(false);
   const [selected, setSelected]     = useState(null);
+  const [editingReport, setEditingReport] = useState(null);
   const { profile } = useAuth();
   const { toast, ToastContainer } = useToast();
 
@@ -506,6 +564,12 @@ export default function ReportsPage() {
   };
 
   useEffect(() => { load(); }, [typeFilter, starOnly]);
+
+  useEffect(() => {
+    const handler = (e) => setEditingReport(e.detail);
+    window.addEventListener('textileie-edit-report', handler);
+    return () => window.removeEventListener('textileie-edit-report', handler);
+  }, []);
 
   const del = async (id) => {
     if (!confirm('Delete this report?')) return;
@@ -560,6 +624,17 @@ export default function ReportsPage() {
   return (
     <div>
       <ToastContainer />
+      {editingReport && (
+        <ReportEditModal
+          report={editingReport}
+          onClose={() => setEditingReport(null)}
+          onSaved={(updated) => {
+            setReports(prev => prev.map(x => x.id === updated.id ? updated : x));
+            setSelected(updated);
+            setEditingReport(null);
+          }}
+        />
+      )}
       {selected && (
         <ReportDetailModal
           report={selected}
@@ -697,12 +772,15 @@ export default function ReportsPage() {
                         )}
                       </div>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: isBom ? '1fr 1fr 1fr 1fr' : '1fr 1fr 1fr', gap: 8 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: isBom ? '1fr 1fr 1fr 1fr 1fr' : '1fr 1fr 1fr 1fr', gap: 8 }}>
                         {isBom && (
                           <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); handleBomPDF(r); }} style={{ justifyContent: 'center', background: 'var(--teal)', color: 'white', border: 'none' }}>
                             <Download size={12} /> BOM PDF
                           </button>
                         )}
+                        <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); setEditingReport(r); }} style={{ justifyContent: 'center', background: 'var(--amber)', color: 'white', border: 'none' }}>
+                          <Edit3 size={12} /> Edit
+                        </button>
                         <button className="btn btn-secondary btn-sm" onClick={(e) => { e.stopPropagation(); exportReportPDF({ type: r.type, title: r.title, inputs: r.inputs, results: r.results, companyName: profile?.company_name, userName: profile?.full_name }); }} style={{ justifyContent: 'center' }}>
                           <Download size={12} /> PDF
                         </button>
