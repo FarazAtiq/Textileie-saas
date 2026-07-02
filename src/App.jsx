@@ -12,7 +12,6 @@ import {
   CapacityPage,
 } from './pages/EffCapPages.jsx';
 import FabricPage from './pages/FabricPage.jsx';
-import YarnPage from './pages/YarnPage.jsx'; 
 import CostingPage from './pages/CostingPage.jsx';
 import ThreadPage from './pages/ThreadPage.jsx';
 import './styles/global.css';
