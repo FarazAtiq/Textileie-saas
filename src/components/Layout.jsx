@@ -9,7 +9,7 @@ import { useState } from 'react';
 const NAV = [
   { section: 'Overview' },
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { label: 'Style Library', to={item.path}: '/styles', icon: FolderOpen },
+  { to: '/styles', icon: FolderOpen, label: 'Style Library' },
   { to: '/reports',   icon: FileText,        label: 'Reports' },
   { section: 'IE Calculators' },
   { to: '/efficiency', icon: TrendingUp, label: 'Efficiency' },
