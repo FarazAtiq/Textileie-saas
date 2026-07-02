@@ -37,19 +37,29 @@ function StyleForm({ editing, onCancel, onSaved }) {
   const removeColor = (idx) => setForm(prev => ({ ...prev, colors: prev.colors.filter((_, i) => i !== idx) }));
   const addSize = () => setForm(prev => ({ ...prev, sizes: [...prev.sizes, { size_name: '', ratio: 1, scale_pct: 0 }] }));
   const removeSize = (idx) => setForm(prev => ({ ...prev, sizes: prev.sizes.filter((_, i) => i !== idx) }));
+const save = async () => {
+  if (!form.article_number.trim()) {
+    toast('Article number is required', 'error');
+    return;
+  }
 
-  const save = async () => {
-    if (!form.article_number.trim()) { toast('Article number is required', 'error'); return; }
-    setSaving(true);
-    try {
-      if (editing?.id) await updateStyle(editing.id, form);
-      else await createStyle(form);
-      toast(editing ? 'Style updated' : 'Style created');
-      onSaved?.();
-    } catch (err) { toast('Failed: ' + err.message, 'error'); }
-    finally { setSaving(false); }
-  };
+  setSaving(true);
+  try {
+    if (editing?.id) {
+      await updateStyle(editing.id, form);
+      toast('Style updated');
+    } else {
+      await createStyle(form);
+      toast('Style created');
+    }
 
+    await onSaved?.();
+  } catch (err) {
+    toast('Failed: ' + err.message, 'error');
+  } finally {
+    setSaving(false);
+  }
+};
   return (
     <div className="card" style={{ padding: 16, marginBottom: 18 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14 }}>
@@ -130,7 +140,7 @@ export default function StyleLibraryPage() {
   };
 
   const closeForm = () => { setShowForm(false); setEditing(null); };
-  const saved = () => { closeForm(); load(); };
+ const saved = async () => { closeForm(); await load(); };
 
   return (
     <div>
