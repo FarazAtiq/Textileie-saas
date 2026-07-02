@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import {
-  LayoutDashboard, TrendingUp, Factory, Clock, Layers,
+  LayoutDashboard, FolderOpen, TrendingUp, Factory, Clock, Layers,
   Scissors, DollarSign, FileText, LogOut, Hash, Settings, Menu, X
 } from 'lucide-react';
 import { useState } from 'react';
