@@ -47,6 +47,32 @@ const MACHINES_BY_PROCESS = {
 
 const GARMENTS = ['T-Shirt','Polo Shirt','Trousers','Jacket','Jeans','Shorts','Dress','Skirt','Formal Shirt','Hoodie','Sweatshirt','Pajama','Sportswear','Denim Jacket','Abaya'];
 
+const PROCESS_DEPARTMENT = {
+  lapping: 'cutting', cutting: 'cutting', bundling: 'cutting',
+  sewing: 'sewing',
+  embroidery: 'embellishment', printing: 'embellishment', heat_transfer: 'embellishment', applique: 'embellishment', rhinestone: 'embellishment', smocking: 'embellishment',
+  pressing: 'finishing', folding: 'finishing', packing: 'finishing', tagging: 'finishing',
+  inline_qc: 'qc', final_qc: 'qc', measurement: 'qc',
+};
+const DEPARTMENT_LABEL = { cutting: 'Cutting', sewing: 'Sewing', embellishment: 'Embellishment', finishing: 'Finishing', qc: 'QC' };
+const DEPARTMENTS = ['combined', 'cutting', 'sewing', 'embellishment', 'finishing', 'qc'];
+
+function makeSMVSummary(operations) {
+  const init = { combined: { label: 'Combined', count: 0, basicTime: 0, allowance: 0, smv: 0 } };
+  operations.forEach(op => {
+    const dept = PROCESS_DEPARTMENT[op.processType] || 'sewing';
+    if (!init[dept]) init[dept] = { label: DEPARTMENT_LABEL[dept] || dept, count: 0, basicTime: 0, allowance: 0, smv: 0 };
+    const basic = parseFloat(op.basicTime) || 0;
+    const smv = basic * (1 + ((parseFloat(op.allowancePct) || 0) / 100));
+    const allowance = smv - basic;
+    [init.combined, init[dept]].forEach(row => {
+      row.count += 1; row.basicTime += basic; row.allowance += allowance; row.smv += smv;
+    });
+  });
+  return init;
+}
+
+
 const newOp = () => ({
   id: Date.now() + Math.random(),
   name: '',
@@ -74,6 +100,7 @@ export default function SMVPage() {
   const [templateName, setTemplateName]   = useState('');
   const [saving, setSaving]               = useState(false);
   const [savingTpl, setSavingTpl]         = useState(false);
+  const [smvView, setSmvView]               = useState('combined');
   const { profile } = useAuth();
   const { toast, ToastContainer } = useToast();
 
@@ -86,7 +113,10 @@ export default function SMVPage() {
     return { ...o, [k]: v };
   }));
 
-  const r = calcSMV(ops);
+  const smvSummary = makeSMVSummary(ops);
+  const activeOps = smvView === 'combined' ? ops : ops.filter(o => (PROCESS_DEPARTMENT[o.processType] || 'sewing') === smvView);
+  const r = calcSMV(activeOps);
+  const combined = calcSMV(ops);
 
   const handleArticleChange = (val) => {
     setArticleNumber(val);
@@ -104,8 +134,8 @@ export default function SMVPage() {
       await createReport({
         type: 'smv',
         title: 'SMV — ' + (articleNumber ? 'Art#' + articleNumber + ' · ' : '') + garmentType + ' — ' + new Date().toLocaleDateString(),
-        inputs: { articleNumber, garmentType, totalOperations: ops.length },
-        results: { totalSMV: r.totalSMV, basicTime: r.totalBasicTime, allowance: r.totalAllowanceTime, dailyOutput: r.dailyOutputPerOperator, opsFor500: r.operatorsFor500pcs }
+        inputs: { articleNumber, garmentType, smvView, totalOperations: activeOps.length, combinedOperations: ops.length },
+        results: { totalSMV: r.totalSMV, combinedSMV: combined.totalSMV, departmentBreakdown: smvSummary, basicTime: r.totalBasicTime, allowance: r.totalAllowanceTime, dailyOutput: r.dailyOutputPerOperator, opsFor500: r.operatorsFor500pcs, operations: activeOps }
       });
       toast('SMV report saved');
     } catch (err) { toast('Failed: ' + err.message, 'error'); }
@@ -117,7 +147,7 @@ export default function SMVPage() {
     if (!articleNumber.trim()) { toast('Enter an article number', 'error'); return; }
     setSavingTpl(true);
     try {
-      await createSMVTemplate({ name: templateName, garment_type: garmentType, article_number: articleNumber, operations: ops, total_smv: r.totalSMV });
+      await createSMVTemplate({ name: templateName, garment_type: garmentType, article_number: articleNumber, operations: ops, total_smv: combined.totalSMV, department_breakdown: smvSummary });
       toast('Art#' + articleNumber + ' saved to library');
       setTemplateName(''); setArticleNumber('');
     } catch (err) { toast('Failed: ' + err.message, 'error'); }
@@ -153,7 +183,7 @@ export default function SMVPage() {
         autoTable(doc, {
           startY: 52,
           head: [['Sr#', 'Operation Name', 'Process', 'Machine', 'Basic Time', 'Allow %', 'SMV']],
-          body: ops.map((op, i) => [
+          body: activeOps.map((op, i) => [
             i + 1,
             op.name || 'Operation ' + (i + 1),
             PROCESS_LABEL[op.processType] || 'Sewing',
@@ -198,7 +228,7 @@ export default function SMVPage() {
   };
 
   const exportExcel = () => {
-    const rows = ops.map((op, i) => {
+    const rows = activeOps.map((op, i) => {
       const smv = ((op.basicTime || 0) * (1 + (op.allowancePct || 0) / 100)).toFixed(3);
       return `<tr class="${i % 2 === 0 ? 'even' : 'odd'}">
         <td style="text-align:center">${i + 1}</td>
@@ -298,6 +328,28 @@ ${rows}
         </div>
       </div>
 
+      <div className="card" style={{ marginBottom: 16, padding: 12 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+          <strong style={{ fontSize: 13 }}>SMV view</strong>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {DEPARTMENTS.map(d => (
+              <button key={d} className={smvView === d ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'} onClick={() => setSmvView(d)}>
+                {d === 'combined' ? 'Combined all departments' : DEPARTMENT_LABEL[d]}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8, marginTop: 12 }}>
+          {Object.entries(smvSummary).map(([dept, data]) => (
+            <div key={dept} style={{ padding: '8px 10px', borderRadius: 8, background: dept === smvView ? 'var(--teal-light)' : 'var(--bg)', border: '1px solid var(--border-light)' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{data.label}</div>
+              <div style={{ fontFamily: 'JetBrains Mono', fontWeight: 700, color: 'var(--teal)' }}>{data.smv.toFixed(3)} min</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{data.count} ops</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Process legend */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
         {[['Lapping', '#FFF3E0', '#E65100'], ['Cutting', '#FCE4EC', '#C62828'], ['Bundling', '#F3E5F5', '#6A1B9A'], ['Sewing', '#F4F7FA', '#0F2942'], ['Embellishment', '#E8F5E9', '#1B5E20'], ['Finishing', '#E3F2FD', '#0D47A1'], ['QC', '#FFF8E1', '#F57F17']].map(([l, bg, c]) => (
@@ -308,12 +360,12 @@ ${rows}
       {/* Operations */}
       <div className="card" style={{ padding: '16px', marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <h3>{ops.length} operations</h3>
+          <h3>{activeOps.length} operations {smvView !== 'combined' ? '— ' + (DEPARTMENT_LABEL[smvView] || smvView) : ''}</h3>
           <button className="btn btn-primary btn-sm" onClick={() => setOps([...ops, newOp()])}><Plus size={13} /> Add operation</button>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {ops.map((op, idx) => {
+          {activeOps.map((op, idx) => {
             const smv = ((op.basicTime || 0) * (1 + (op.allowancePct || 0) / 100)).toFixed(3);
             const machines = MACHINES_BY_PROCESS[op.processType] || ['Manual'];
             const bg = PROCESS_BG[op.processType] || 'transparent';
