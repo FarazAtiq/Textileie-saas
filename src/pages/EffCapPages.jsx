@@ -21,6 +21,26 @@ const DEPT_LABEL = Object.fromEntries(DEPARTMENTS.map(d => [d.value, d.label]));
 const DEPT_BG    = Object.fromEntries(DEPARTMENTS.map(d => [d.value, d.color]));
 const DEPT_DOT   = Object.fromEntries(DEPARTMENTS.map(d => [d.value, d.dot]));
 
+function getDepartmentSMV(template, department) {
+  const raw = template?.department_breakdown || template?.departmentBreakdown || template?.results?.departmentBreakdown;
+  const row = raw?.[department];
+  const deptSmv = parseFloat(row?.smv ?? row?.totalSMV ?? 0) || 0;
+  return deptSmv > 0 ? +deptSmv.toFixed(3) : (parseFloat(template?.total_smv) || 0);
+}
+
+function makeDeptTotals(lines, type) {
+  return DEPARTMENTS.map(d => {
+    const deptLines = lines.filter(l => (l.department || 'sewing') === d.value);
+    if (!deptLines.length) return null;
+    if (type === 'efficiency') {
+      const effs = deptLines.map(l => calcEfficiency(l).efficiency);
+      return { ...d, count: deptLines.length, value: effs.reduce((a,b)=>a+b,0) / effs.length, suffix: '% avg eff' };
+    }
+    return { ...d, count: deptLines.length, value: deptLines.reduce((sum,l)=>sum + calcCapacity(l).dailyCapacity, 0), suffix: ' pcs/day' };
+  }).filter(Boolean);
+}
+
+
 // ── Helpers ───────────────────────────────────────────────────
 function exportAllLinesPDF({ lines, type, companyName, userName, calcFn, articleSMV }) {
   import('jspdf').then(({ default: jsPDF }) => {
@@ -205,6 +225,8 @@ export function EfficiencyPage() {
           smv: active.smv,
         },
         results: {
+          allLines: lines,
+          departmentTotals: makeDeptTotals(lines, 'efficiency'),
           efficiency: r.efficiency,
           availableMinutes: r.availableMinutes,
           earnedMinutes: r.earnedMinutes,
@@ -384,7 +406,7 @@ export function EfficiencyPage() {
             </div>
           </div>
 
-          <SMVSelector onSelect={t => { setLine(active.id, 'smv', t.total_smv); setLine(active.id, 'selectedSMV', t); }} />
+          <SMVSelector onSelect={t => { const deptSmv = getDepartmentSMV(t, active.department || 'sewing'); setLine(active.id, 'smv', deptSmv); setLine(active.id, 'selectedSMV', t); if (t.article_number) setLine(active.id, 'articleNumber', t.article_number); }} />
           <div className="field"><label>Shift duration (minutes)</label><input type="number" value={active.shiftMinutes} onChange={e => setLine(active.id, 'shiftMinutes', parseFloat(e.target.value) || 0)} /></div>
           <div className="field"><label>Number of operators</label><input type="number" value={active.operators} onChange={e => setLine(active.id, 'operators', parseFloat(e.target.value) || 0)} /></div>
           <div className="field"><label>Units produced</label><input type="number" value={active.unitsProduced} onChange={e => setLine(active.id, 'unitsProduced', parseFloat(e.target.value) || 0)} /></div>
@@ -563,6 +585,8 @@ export function CapacityPage() {
           workingDaysPerMonth: active.workingDaysPerMonth,
         },
         results: {
+          allLines: lines,
+          departmentTotals: makeDeptTotals(lines, 'capacity'),
           dailyCapacity: r.dailyCapacity,
           weeklyCapacity: r.weeklyCapacity,
           monthlyCapacity: r.monthlyCapacity,
@@ -711,7 +735,7 @@ export function CapacityPage() {
             </div>
           </div>
 
-          <SMVSelector onSelect={t => { setLine(active.id, 'smv', t.total_smv); setLine(active.id, 'selectedSMV', t); }} />
+          <SMVSelector onSelect={t => { const deptSmv = getDepartmentSMV(t, active.department || 'sewing'); setLine(active.id, 'smv', deptSmv); setLine(active.id, 'selectedSMV', t); if (t.article_number) setLine(active.id, 'articleNumber', t.article_number); }} />
           <div className="field"><label>Machines / operators</label><input type="number" value={active.machines} onChange={e => setLine(active.id, 'machines', parseFloat(e.target.value) || 0)} /></div>
           <div className="field"><label>Shifts per day</label><input type="number" value={active.shiftsPerDay} onChange={e => setLine(active.id, 'shiftsPerDay', parseFloat(e.target.value) || 0)} /></div>
           <div className="field"><label>Shift duration (minutes)</label><input type="number" value={active.shiftMinutes} onChange={e => setLine(active.id, 'shiftMinutes', parseFloat(e.target.value) || 0)} /></div>
