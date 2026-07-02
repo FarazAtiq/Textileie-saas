@@ -52,7 +52,6 @@ function AppRoutes() {
       <Route path="/fabric"     element={<PrivateRoute><FabricPage /></PrivateRoute>} />
       <Route path="/thread"     element={<PrivateRoute><ThreadPage /></PrivateRoute>} />
       <Route path="/costing"    element={<PrivateRoute><CostingPage /></PrivateRoute>} />
-      <Route path="/yarn"       element={<PrivateRoute><YarnPage /></PrivateRoute>} />
       <Route path="/reports"    element={<PrivateRoute><ReportsPage /></PrivateRoute>} />
       <Route path="/settings"   element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
 
