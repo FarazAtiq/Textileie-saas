@@ -282,7 +282,7 @@ function ReportDetailModal({ report, onClose, onExportPDF, onExportExcel, onExpo
           {isBom && (
             <div style={{ padding: '12px 16px', marginBottom: 16, borderRadius: 10, background: 'var(--teal-light)', border: '1px solid var(--teal)' }}>
               <div style={{ fontSize: 13, color: 'var(--teal)', fontWeight: 600 }}>
-                \u{1F4C4} This is a full BOM sheet report. Use the BOM PDF / BOM Excel buttons above for the complete sheet layout.
+                馃搫 This is a full BOM sheet report. Use the BOM PDF / BOM Excel buttons above for the complete sheet layout.
               </div>
             </div>
           )}
@@ -458,7 +458,7 @@ function ReportDetailModal({ report, onClose, onExportPDF, onExportExcel, onExpo
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <div className="card" style={{ padding: 14 }}>
-              <h3 style={{ marginBottom: 12, fontSize: 13, color: 'var(--text-secondary)' }}>\u{1F4E5} Inputs</h3>
+              <h3 style={{ marginBottom: 12, fontSize: 13, color: 'var(--text-secondary)' }}>馃摜 Inputs</h3>
               {inputRows.map(([k, v], i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid var(--border-light)', fontSize: 12 }}>
                   <span style={{ color: 'var(--text-muted)' }}>{k}</span>
@@ -467,7 +467,7 @@ function ReportDetailModal({ report, onClose, onExportPDF, onExportExcel, onExpo
               ))}
             </div>
             <div className="card" style={{ padding: 14 }}>
-              <h3 style={{ marginBottom: 12, fontSize: 13, color: 'var(--teal)' }}>\u{1F4CA} Results</h3>
+              <h3 style={{ marginBottom: 12, fontSize: 13, color: 'var(--teal)' }}>馃搳 Results</h3>
               {resultRows.map(([k, v], i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid var(--border-light)', fontSize: 12 }}>
                   <span style={{ color: 'var(--text-muted)' }}>{k}</span>
