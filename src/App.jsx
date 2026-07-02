@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './hooks/useAuth.jsx';
 import { Layout } from './components/Layout.jsx';
 import AuthPage     from './pages/AuthPage.jsx';
 import Dashboard    from './pages/Dashboard.jsx';
+import StyleLibraryPage from './pages/StyleLibraryPage.jsx';
 import SMVPage      from './pages/SMVPage.jsx';
 import ReportsPage  from './pages/ReportsPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
@@ -46,6 +47,7 @@ function AppRoutes() {
 
       {/* Protected */}
       <Route path="/dashboard"  element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+      <Route path="/styles" element={<StyleLibraryPage />} />
       <Route path="/efficiency" element={<PrivateRoute><EfficiencyPage /></PrivateRoute>} />
       <Route path="/capacity"   element={<PrivateRoute><CapacityPage /></PrivateRoute>} />
       <Route path="/smv"        element={<PrivateRoute><SMVPage /></PrivateRoute>} />
