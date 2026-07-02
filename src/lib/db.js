@@ -257,32 +257,32 @@ export async function getStyle(id) {
 }
 
 export async function createStyle(payload) {
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-
-  if (sessionError) throw sessionError;
-  if (!sessionData.session) throw new Error('Not logged in');
-
-  const userId = sessionData.session.user.id;
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error('Not logged in');
 
   const { data, error } = await supabase
     .from('styles')
     .insert({
       user_id: userId,
-      article_number: payload.article_number || payload.articleNumber || '',
-      style_name: payload.style_name || payload.styleName || '',
+      article_number: payload.article_number || '',
+      style_name: payload.style_name || '',
       buyer: payload.buyer || '',
       season: payload.season || '',
-      garment_type: payload.garment_type || payload.garmentType || '',
-      base_size: payload.base_size || payload.baseSize || 'L',
-      costing_mode: payload.costing_mode || payload.costingMode || 'base_size',
+      garment_type: payload.garment_type || '',
+      base_size: payload.base_size || 'L',
+      costing_mode: payload.costing_mode || 'base_size',
       status: payload.status || 'development',
       notes: payload.notes || ''
     })
     .select()
     .single();
 
-  if (error) throw error;
-  return data;
+  if (error) {
+    console.error('createStyle error:', error);
+    throw error;
+  }
+
+  return getStyle(data.id);
 }
   if (colors.length) {
     const rows = colors.filter(c => String(c.color_name || '').trim()).map(c => ({
