@@ -9,6 +9,8 @@ import { exportReportPDF } from '../utils/pdfExport.js';
 import { Plus, Trash2, Save, Download, FileText } from 'lucide-react';
 
 const newAccessory = () => ({ id: Date.now() + Math.random(), name: '', qty: 1, unitPrice: 0 });
+const newFabric = () => ({ id: Date.now() + Math.random(), type: '', baseSize: 'L', unit: 'meter', consumption: 1, price: 0 });
+const newThreadCost = () => ({ id: Date.now() + Math.random(), type: 'Polyester 120T', meters: 0, pricePerMeter: 0 });
 
 export default function CostingPage() {
   const { profile, refreshProfile, user } = useAuth();
@@ -24,8 +26,8 @@ export default function CostingPage() {
   const [savingRate, setSavingRate] = useState(false);
 
   // Fabric & thread cost — manual entry (or pulled later from saved BOM/thread reports)
-  const [fabricCostPerUnit, setFabricCostPerUnit] = useState(3.5);
-  const [threadCostPerUnit, setThreadCostPerUnit] = useState(0.15);
+  const [fabricRows, setFabricRows] = useState([{ id: 1, type: 'Main fabric', baseSize: 'L', unit: 'meter', consumption: 1.6, price: 2.2 }]);
+  const [threadRows, setThreadRows] = useState([{ id: 1, type: 'Polyester 120T', meters: 100, pricePerMeter: 0.0015 }]);
 
   // Accessories — dynamic list
   const [accessories, setAccessories] = useState([
@@ -47,6 +49,8 @@ export default function CostingPage() {
   const smv = selectedSMV ? selectedSMV.total_smv : 0;
   const cmtCost = +(smv * cmtRate).toFixed(4);
 
+  const fabricCostPerUnit = fabricRows.reduce((sum, f) => sum + (parseFloat(f.consumption) || 0) * (parseFloat(f.price) || 0), 0);
+  const threadCostPerUnit = threadRows.reduce((sum, t) => sum + (parseFloat(t.meters) || 0) * (parseFloat(t.pricePerMeter) || 0), 0);
   const accessoriesTotal = accessories.reduce((sum, a) => sum + (a.qty || 0) * (a.unitPrice || 0), 0);
 
   const baseProductionCost = fabricCostPerUnit + threadCostPerUnit + cmtCost + accessoriesTotal + overhead + freightPerUnit;
@@ -58,6 +62,13 @@ export default function CostingPage() {
   const fobPrice = totalWithExtras + profitAmount;
 
   // ── accessory helpers ──
+  const setFabric = (id, key, val) => setFabricRows(fabricRows.map(f => f.id === id ? { ...f, [key]: val } : f));
+  const addFabric = () => setFabricRows([...fabricRows, newFabric()]);
+  const removeFabric = (id) => setFabricRows(fabricRows.filter(f => f.id !== id));
+  const setThread = (id, key, val) => setThreadRows(threadRows.map(t => t.id === id ? { ...t, [key]: val } : t));
+  const addThread = () => setThreadRows([...threadRows, newThreadCost()]);
+  const removeThread = (id) => setThreadRows(threadRows.filter(t => t.id !== id));
+
   const setAcc = (id, key, val) => setAccessories(accessories.map(a => a.id === id ? { ...a, [key]: val } : a));
   const addAcc = () => setAccessories([...accessories, newAccessory()]);
   const removeAcc = (id) => setAccessories(accessories.filter(a => a.id !== id));
@@ -85,6 +96,8 @@ export default function CostingPage() {
           articleNumber,
           smv,
           cmtRatePerMin: cmtRate,
+          fabricRows,
+          threadRows,
           fabricCostPerUnit,
           threadCostPerUnit,
           accessoriesCount: accessories.length,
@@ -92,6 +105,8 @@ export default function CostingPage() {
         },
         results: {
           cmtCost,
+          fabricCostSummary: fabricRows,
+          threadCostSummary: threadRows,
           accessoriesTotal: accessoriesTotal.toFixed(4),
           totalProductionCost: baseProductionCost.toFixed(2),
           agentCommission: agentComm.toFixed(2),
@@ -188,7 +203,15 @@ export default function CostingPage() {
           <div className="card">
             <h3 style={{ marginBottom: 12 }}>Article & CMT (from SMV)</h3>
             <div className="field"><label>Article #</label><input value={articleNumber} onChange={e => setArticleNumber(e.target.value)} placeholder="e.g. 4233" style={{ fontFamily: 'JetBrains Mono', fontWeight: 700 }} /></div>
-            <SMVSelector onSelect={t => { setSelectedSMV(t); if (t.article_number) setArticleNumber(t.article_number); }} />
+            <SMVSelector onSelect={t => {
+              setSelectedSMV(t);
+              const art = t.article_number || articleNumber;
+              if (t.article_number) setArticleNumber(t.article_number);
+              try {
+                const saved = JSON.parse(localStorage.getItem('textileie_thread_cost_by_article') || '{}')[art];
+                if (saved) setThreadRows([{ id: Date.now(), type: saved.threadType, meters: saved.totalMeters, pricePerMeter: saved.threadPricePerMeter }]);
+              } catch (e) {}
+            }} />
 
             {selectedSMV && (
               <div style={{ padding: '10px 12px', background: 'var(--teal-light)', borderRadius: 8, marginBottom: 12, fontSize: 12 }}>
@@ -215,12 +238,35 @@ export default function CostingPage() {
 
           {/* Fabric & thread */}
           <div className="card">
-            <h3 style={{ marginBottom: 12 }}>Fabric & thread cost</h3>
-            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 12 }}>Enter per-unit cost manually, or calculate on Fabric / Thread pages and copy here.</p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <div className="field"><label>Fabric cost / unit ($)</label><input type="number" step="0.01" value={fabricCostPerUnit} onChange={e => setFabricCostPerUnit(parseFloat(e.target.value) || 0)} /></div>
-              <div className="field"><label>Thread cost / unit ($)</label><input type="number" step="0.01" value={threadCostPerUnit} onChange={e => setThreadCostPerUnit(parseFloat(e.target.value) || 0)} /></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3>Fabric cost summary</h3>
+              <button className="btn btn-secondary btn-sm" onClick={addFabric}><Plus size={13} /> Add fabric</button>
             </div>
+            {fabricRows.map(f => (
+              <div key={f.id} style={{ display: 'grid', gridTemplateColumns: '1.3fr 70px 80px 80px 80px 28px', gap: 6, marginBottom: 8, alignItems: 'center' }}>
+                <input value={f.type} onChange={e => setFabric(f.id, 'type', e.target.value)} placeholder="Fabric type" style={{ fontSize: 12 }} />
+                <input value={f.baseSize} onChange={e => setFabric(f.id, 'baseSize', e.target.value)} placeholder="Base size" style={{ fontSize: 12 }} />
+                <select value={f.unit} onChange={e => setFabric(f.id, 'unit', e.target.value)} style={{ fontSize: 12 }}><option value="meter">meter</option><option value="yard">yard</option><option value="kg">kg</option></select>
+                <input type="number" step="0.001" value={f.consumption} onChange={e => setFabric(f.id, 'consumption', parseFloat(e.target.value) || 0)} style={{ fontSize: 12 }} />
+                <input type="number" step="0.01" value={f.price} onChange={e => setFabric(f.id, 'price', parseFloat(e.target.value) || 0)} style={{ fontSize: 12 }} />
+                <button onClick={() => removeFabric(f.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><Trash2 size={13} /></button>
+              </div>
+            ))}
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid var(--border-light)' }}><span>Fabric total / unit</span><strong>${fabricCostPerUnit.toFixed(4)}</strong></div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '16px 0 12px' }}>
+              <h3>Thread cost by type</h3>
+              <button className="btn btn-secondary btn-sm" onClick={addThread}><Plus size={13} /> Add thread</button>
+            </div>
+            {threadRows.map(t => (
+              <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 90px 90px 28px', gap: 6, marginBottom: 8, alignItems: 'center' }}>
+                <input value={t.type} onChange={e => setThread(t.id, 'type', e.target.value)} placeholder="Thread type" style={{ fontSize: 12 }} />
+                <input type="number" step="0.001" value={t.meters} onChange={e => setThread(t.id, 'meters', parseFloat(e.target.value) || 0)} style={{ fontSize: 12 }} />
+                <input type="number" step="0.0001" value={t.pricePerMeter} onChange={e => setThread(t.id, 'pricePerMeter', parseFloat(e.target.value) || 0)} style={{ fontSize: 12 }} />
+                <button onClick={() => removeThread(t.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><Trash2 size={13} /></button>
+              </div>
+            ))}
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid var(--border-light)' }}><span>Thread total / unit</span><strong>${threadCostPerUnit.toFixed(4)}</strong></div>
           </div>
 
           {/* Accessories */}
