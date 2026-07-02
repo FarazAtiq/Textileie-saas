@@ -4,6 +4,7 @@ import { getReports, deleteReport, toggleStar } from '../lib/db.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useToast } from '../hooks/useToast.jsx';
 import { exportReportPDF } from '../utils/pdfExport.js';
+import { exportBomPDF, exportBomExcel } from '../utils/bomExport.js';
 import { PageHeader } from '../components/ResultCard.jsx';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, RadialBarChart, RadialBar, Legend } from 'recharts';
 
@@ -54,7 +55,7 @@ function getKeyResult(r) {
 
 function getKeyResultStr(r) {
   const v = getKeyResult(r);
-  if (v === null) return '—';
+  if (v === null) return '\u2014';
   switch (r.type) {
     case 'efficiency': return v + '% eff';
     case 'capacity':   return v.toLocaleString() + ' pcs/day';
@@ -68,7 +69,7 @@ function getKeyResultStr(r) {
 function exportReportExcel(r) {
   const inputs  = r.inputs  || {};
   const results = r.results || {};
-  const inputRows  = Object.entries(inputs).map(([k, v])  => [k.replace(/([A-Z])/g,' $1').replace(/^./,s=>s.toUpperCase()), String(v)]);
+  const inputRows  = Object.entries(inputs).filter(([k]) => k !== '_bomData').map(([k, v])  => [k.replace(/([A-Z])/g,' $1').replace(/^./,s=>s.toUpperCase()), String(v)]);
   const resultRows = Object.entries(results).map(([k, v]) => [k.replace(/([A-Z])/g,' $1').replace(/^./,s=>s.toUpperCase()), String(v)]);
   const now = new Date().toLocaleString('en-PK');
   const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
@@ -81,7 +82,7 @@ body{font-family:Arial;font-size:11pt}.header{background:#0F2942;color:white;fon
 .even{background:#F4F7FA}.odd{background:white}.value{font-weight:bold;color:#0D7A6B}
 .meta{color:#4A6080;font-size:9pt}td,th{padding:5px 8px;border:1px solid #D8E4EE}
 </style></head><body><table>
-<tr><td colspan="2" class="header">TextileIE — Industrial Engineering Suite</td></tr>
+<tr><td colspan="2" class="header">TextileIE \u2014 Industrial Engineering Suite</td></tr>
 <tr><td colspan="2" class="subheader">Report: ${r.title}</td></tr>
 <tr><td colspan="2" class="meta">Generated: ${now} | Type: ${r.type.toUpperCase()}</td></tr>
 <tr><td colspan="2"></td></tr>
@@ -93,7 +94,7 @@ ${inputRows.map((row,i)=>`<tr class="${i%2===0?'even':'odd'}"><td>${row[0]}</td>
 <tr><th class="result-header">Metric</th><th class="result-header">Value</th></tr>
 ${resultRows.map((row,i)=>`<tr class="${i%2===0?'even':'odd'}"><td>${row[0]}</td><td class="value">${row[1]}</td></tr>`).join('')}
 <tr><td colspan="2"></td></tr>
-<tr><td colspan="2" class="meta">TextileIE © ${new Date().getFullYear()}</td></tr>
+<tr><td colspan="2" class="meta">TextileIE \u00A9 ${new Date().getFullYear()}</td></tr>
 </table></body></html>`;
   const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
   const url  = URL.createObjectURL(blob);
@@ -105,7 +106,7 @@ ${resultRows.map((row,i)=>`<tr class="${i%2===0?'even':'odd'}"><td>${row[0]}</td
 
 function exportAllReportsExcel(reports, companyName) {
   const now  = new Date().toLocaleString('en-PK');
-  const rows = reports.map((r,i) => `<tr class="${i%2===0?'even':'odd'}"><td>${i+1}</td><td>${r.title}</td><td>${TYPE_LABEL[r.type]||r.type}</td><td class="value">${getKeyResultStr(r)}</td><td>${new Date(r.created_at).toLocaleDateString('en-PK')}</td><td>${r.is_starred?'★':''}</td></tr>`).join('');
+  const rows = reports.map((r,i) => `<tr class="${i%2===0?'even':'odd'}"><td>${i+1}</td><td>${r.title}</td><td>${TYPE_LABEL[r.type]||r.type}</td><td class="value">${getKeyResultStr(r)}</td><td>${new Date(r.created_at).toLocaleDateString('en-PK')}</td><td>${r.is_starred?'\u2605':''}</td></tr>`).join('');
   const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset="UTF-8"><style>
 body{font-family:Arial;font-size:11pt}.header{background:#0F2942;color:white;font-weight:bold;font-size:14pt;padding:8px}
@@ -114,13 +115,13 @@ body{font-family:Arial;font-size:11pt}.header{background:#0F2942;color:white;fon
 .even{background:#F4F7FA}.odd{background:white}.value{font-weight:bold;color:#0D7A6B}
 .meta{color:#4A6080;font-size:9pt}td,th{padding:5px 8px;border:1px solid #D8E4EE}
 </style></head><body><table>
-<tr><td colspan="6" class="header">TextileIE — All Reports Export</td></tr>
+<tr><td colspan="6" class="header">TextileIE \u2014 All Reports Export</td></tr>
 <tr><td colspan="6" class="subheader">${companyName||'Factory'} | Generated: ${now}</td></tr>
 <tr><td colspan="6"></td></tr>
 <tr><th class="col-header">#</th><th class="col-header">Report Title</th><th class="col-header">Type</th><th class="col-header">Key Result</th><th class="col-header">Date</th><th class="col-header">Starred</th></tr>
 ${rows}
 <tr><td colspan="6"></td></tr>
-<tr><td colspan="6" class="meta">Total: ${reports.length} reports | TextileIE © ${new Date().getFullYear()}</td></tr>
+<tr><td colspan="6" class="meta">Total: ${reports.length} reports | TextileIE \u00A9 ${new Date().getFullYear()}</td></tr>
 </table></body></html>`;
   const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
   const url  = URL.createObjectURL(blob);
@@ -130,7 +131,23 @@ ${rows}
   document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
-// ── IE Analysis engine ────────────────────────────────────────
+// 鈹€鈹€ Check if report has full BOM data 鈹€鈹€
+function hasBomData(report) {
+  try {
+    const bomData = report.inputs?._bomData;
+    if (!bomData) return false;
+    const parsed = JSON.parse(bomData);
+    return parsed.components && parsed.sizes && parsed.components.length > 0;
+  } catch { return false; }
+}
+
+function getBomData(report) {
+  try {
+    return JSON.parse(report.inputs._bomData);
+  } catch { return null; }
+}
+
+// 鈹€鈹€ IE Analysis engine 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 function analyzeReport(r) {
   const inp = r.inputs  || {};
   const res = r.results || {};
@@ -146,27 +163,26 @@ function analyzeReport(r) {
     if (eff < 75) problems.push({ issue: 'Efficiency ' + eff + '% below 75% target', impact: lost.toFixed(0) + ' minutes lost per shift. ' + gap + ' pieces short of target.' });
     if (eff < 55) problems.push({ issue: 'Critically low performance', impact: 'Immediate supervisor intervention required. Check absenteeism, machine breakdowns, material supply.' });
 
-    if (eff < 60) recs.push({ action: 'Conduct immediate time study — identify top 3 bottleneck operations and resolve', improvement: '8-12%', priority: 'high', timeline: 'This week' });
-    recs.push({ action: 'Set hourly targets on whiteboard — supervisor to monitor every 2 hours', improvement: '5-8%', priority: 'high', timeline: 'Immediate' });
-    recs.push({ action: 'Balance line — redistribute work from overloaded to idle operators', improvement: '6-10%', priority: 'high', timeline: '2-3 days' });
-    recs.push({ action: 'Check rework rate — retrain operators with >5% rejection', improvement: '4-7%', priority: 'medium', timeline: 'This week' });
+    if (eff < 60) recs.push({ action: 'Conduct immediate time study \u2014 identify top 3 bottleneck operations and resolve', improvement: '8-12%', priority: 'high', timeline: 'This week' });
+    recs.push({ action: 'Set hourly targets on whiteboard \u2014 supervisor to monitor every 2 hours', improvement: '5-8%', priority: 'high', timeline: 'Immediate' });
+    recs.push({ action: 'Balance line \u2014 redistribute work from overloaded to idle operators', improvement: '6-10%', priority: 'high', timeline: '2-3 days' });
+    recs.push({ action: 'Check rework rate \u2014 retrain operators with >5% rejection', improvement: '4-7%', priority: 'medium', timeline: 'This week' });
     recs.push({ action: 'Ensure material reaches line 30 min before shift start', improvement: '3-5%', priority: 'medium', timeline: 'Immediate' });
 
     const steps = eff < 50
-      ? ['Week 1: Fix attendance and material issues → 50%', 'Week 2-3: Line balance and bottleneck removal → 60%', 'Week 4-6: Quality control and skill development → 70%', 'Month 2-3: Monitoring and incentives → 75%+']
+      ? ['Week 1: Fix attendance and material issues \u2192 50%', 'Week 2-3: Line balance and bottleneck removal \u2192 60%', 'Week 4-6: Quality control and skill development \u2192 70%', 'Month 2-3: Monitoring and incentives \u2192 75%+']
       : eff < 65
-      ? ['Week 1-2: Hourly monitoring and supervision → 65%', 'Week 3-4: Line balancing and rework reduction → 70%', 'Month 2: Skills and incentives → 75%+']
-      : ['Week 1: Identify remaining bottlenecks → 75%', 'Week 2-3: Fine-tune line balance → 78%', 'Month 2: Incentive system → 80%+'];
+      ? ['Week 1-2: Hourly monitoring and supervision \u2192 65%', 'Week 3-4: Line balancing and rework reduction \u2192 70%', 'Month 2: Skills and incentives \u2192 75%+']
+      : ['Week 1: Identify remaining bottlenecks \u2192 75%', 'Week 2-3: Fine-tune line balance \u2192 78%', 'Month 2: Incentive system \u2192 80%+'];
 
     const quickWins = [
-      'Post daily target and actual on whiteboard — visible to all',
-      'Walk the line every 30 minutes — remove idle operators',
+      'Post daily target and actual on whiteboard \u2014 visible to all',
+      'Walk the line every 30 minutes \u2014 remove idle operators',
       'No machine idle >5 min without supervisor action',
-      'Check WIP between operations — large WIP = line imbalance',
+      'Check WIP between operations \u2014 large WIP = line imbalance',
       'Brief operators on daily target at shift start'
     ];
 
-    // Chart data
     const gaugeData = [{ name: 'Efficiency', value: eff, fill: eff >= 75 ? '#059669' : eff >= 55 ? '#D97706' : '#DC2626' }];
     const compData  = [
       { name: 'Earned', value: Number(res.earnedMinutes || 0), fill: '#0D7A6B' },
@@ -177,7 +193,7 @@ function analyzeReport(r) {
       { name: 'Target (100%)', value: Number(res.targetOutput  || 0) }
     ];
 
-    return { status, summary: `Line efficiency is ${eff}% — ${eff >= 75 ? 'World class!' : eff >= 55 ? 'Acceptable, push to 75%.' : 'Below target, urgent action needed.'}`, problems, recs, steps, quickWins, gaugeData, compData, targetData, mainValue: eff + '%', mainLabel: 'Efficiency' };
+    return { status, summary: `Line efficiency is ${eff}% \u2014 ${eff >= 75 ? 'World class!' : eff >= 55 ? 'Acceptable, push to 75%.' : 'Below target, urgent action needed.'}`, problems, recs, steps, quickWins, gaugeData, compData, targetData, mainValue: eff + '%', mainLabel: 'Efficiency' };
   }
 
   if (r.type === 'capacity') {
@@ -193,14 +209,14 @@ function analyzeReport(r) {
     if (inp.shiftsPerDay === 1) problems.push({ issue: 'Single shift only', impact: 'Adding second shift doubles capacity to ' + (daily * 2).toLocaleString() + ' pcs/day with same machines.' });
 
     const recs = [
-      { action: 'Improve efficiency from ' + eff + '% to 75% — adds ' + Math.floor(maxDaily * 0.10).toLocaleString() + ' pcs/day without new machines', improvement: Math.floor(unused * 0.5).toLocaleString() + ' pcs/day', priority: 'high', timeline: '2-4 weeks' },
-      { action: 'Implement preventive maintenance — machine breakdowns cause 5-10% capacity loss', improvement: '5-8% capacity', priority: 'medium', timeline: '2 weeks' },
-      { action: 'Reduce style changeover time to <2 hours — pre-plan next style', improvement: '3-5% capacity', priority: 'medium', timeline: '2 weeks' },
+      { action: 'Improve efficiency from ' + eff + '% to 75% \u2014 adds ' + Math.floor(maxDaily * 0.10).toLocaleString() + ' pcs/day without new machines', improvement: Math.floor(unused * 0.5).toLocaleString() + ' pcs/day', priority: 'high', timeline: '2-4 weeks' },
+      { action: 'Implement preventive maintenance \u2014 machine breakdowns cause 5-10% capacity loss', improvement: '5-8% capacity', priority: 'medium', timeline: '2 weeks' },
+      { action: 'Reduce style changeover time to <2 hours \u2014 pre-plan next style', improvement: '3-5% capacity', priority: 'medium', timeline: '2 weeks' },
     ];
-    if (inp.shiftsPerDay === 1) recs.unshift({ action: 'Add second shift — immediately doubles capacity', improvement: daily.toLocaleString() + ' pcs/day extra', priority: 'high', timeline: '1 week' });
+    if (inp.shiftsPerDay === 1) recs.unshift({ action: 'Add second shift \u2014 immediately doubles capacity', improvement: daily.toLocaleString() + ' pcs/day extra', priority: 'high', timeline: '1 week' });
 
-    const steps = ['Month 1: Improve efficiency to 75% → ' + Math.floor(maxDaily * 0.75).toLocaleString() + ' pcs/day', 'Month 2: Reduce changeover and maintenance issues → +5-8% capacity', 'Month 3: Target 80% efficiency → ' + Math.floor(maxDaily * 0.80).toLocaleString() + ' pcs/day', 'Quarter 2: Review if additional lines/shifts needed'];
-    const quickWins = ['Track machine downtime daily — idle >15 min must be reported', 'Pre-position all materials 30 min before shift', 'Calculate daily utilization: (Actual ÷ Max possible) × 100', 'Review shift output at day end — plan corrections for next day'];
+    const steps = ['Month 1: Improve efficiency to 75% \u2192 ' + Math.floor(maxDaily * 0.75).toLocaleString() + ' pcs/day', 'Month 2: Reduce changeover and maintenance issues \u2192 +5-8% capacity', 'Month 3: Target 80% efficiency \u2192 ' + Math.floor(maxDaily * 0.80).toLocaleString() + ' pcs/day', 'Quarter 2: Review if additional lines/shifts needed'];
+    const quickWins = ['Track machine downtime daily \u2014 idle >15 min must be reported', 'Pre-position all materials 30 min before shift', 'Calculate daily utilization: (Actual \u00F7 Max possible) \u00D7 100', 'Review shift output at day end \u2014 plan corrections for next day'];
 
     const compData  = [{ name: 'Actual', value: daily, fill: '#0D7A6B' }, { name: 'Potential', value: maxDaily, fill: '#0F2942' }];
     const periodData = [{ name: 'Daily', value: daily }, { name: 'Weekly', value: Number(res.weeklyCapacity || daily * 6) }, { name: 'Monthly', value: monthly }];
@@ -211,22 +227,22 @@ function analyzeReport(r) {
   return null;
 }
 
-// ── Report Detail Modal ───────────────────────────────────────
+// 鈹€鈹€ Report Detail Modal 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 const STATUS_COLOR = { critical: 'var(--red)', below_target: 'var(--amber)', acceptable: 'var(--blue)', excellent: 'var(--green)' };
 const STATUS_BG    = { critical: 'var(--red-light)', below_target: 'var(--amber-light)', acceptable: 'var(--blue-light)', excellent: 'var(--green-light)' };
 const STATUS_LABEL = { critical: 'Critical', below_target: 'Below target', acceptable: 'Acceptable', excellent: 'World class' };
 const PRI_COLOR    = { high: 'var(--red)', medium: 'var(--amber)', low: 'var(--green)' };
 const COLORS       = ['#0D7A6B','#0F2942','#D97706','#059669','#7C3AED','#EA580C'];
 
-function ReportDetailModal({ report, onClose, onExportPDF, onExportExcel }) {
+function ReportDetailModal({ report, onClose, onExportPDF, onExportExcel, onExportBomPDF, onExportBomExcel }) {
   const analysis = analyzeReport(report);
   const inp      = report.inputs  || {};
   const res      = report.results || {};
+  const isBom    = report.type === 'fabric' && hasBomData(report);
 
-  const inputRows  = Object.entries(inp).map(([k, v]) => [k.replace(/([A-Z])/g,' $1').replace(/^./,s=>s.toUpperCase()), String(v)]);
+  const inputRows  = Object.entries(inp).filter(([k]) => k !== '_bomData').map(([k, v]) => [k.replace(/([A-Z])/g,' $1').replace(/^./,s=>s.toUpperCase()), String(v)]);
   const resultRows = Object.entries(res).map(([k, v]) => [k.replace(/([A-Z])/g,' $1').replace(/^./,s=>s.toUpperCase()), String(v)]);
 
-  // Build chart data for non-efficiency/capacity types
   const genericChartData = resultRows
     .filter(([, v]) => !isNaN(parseFloat(v)) && parseFloat(v) > 0)
     .slice(0, 6)
@@ -245,8 +261,17 @@ function ReportDetailModal({ report, onClose, onExportPDF, onExportExcel }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button onClick={onExportPDF} className="btn btn-sm" style={{ background: 'rgba(255,255,255,0.15)', color: 'white', border: 'none' }}><Download size={13} /> PDF</button>
-            <button onClick={onExportExcel} className="btn btn-sm" style={{ background: '#217346', color: 'white', border: 'none' }}><FileText size={13} /> Excel</button>
+            {isBom ? (
+              <>
+                <button onClick={onExportBomPDF} className="btn btn-sm" style={{ background: 'rgba(255,255,255,0.15)', color: 'white', border: 'none' }}><Download size={13} /> BOM PDF</button>
+                <button onClick={onExportBomExcel} className="btn btn-sm" style={{ background: '#217346', color: 'white', border: 'none' }}><FileText size={13} /> BOM Excel</button>
+              </>
+            ) : (
+              <>
+                <button onClick={onExportPDF} className="btn btn-sm" style={{ background: 'rgba(255,255,255,0.15)', color: 'white', border: 'none' }}><Download size={13} /> PDF</button>
+                <button onClick={onExportExcel} className="btn btn-sm" style={{ background: '#217346', color: 'white', border: 'none' }}><FileText size={13} /> Excel</button>
+              </>
+            )}
             <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 8, color: 'white', cursor: 'pointer', padding: 8 }}><X size={16} /></button>
           </div>
         </div>
@@ -254,7 +279,14 @@ function ReportDetailModal({ report, onClose, onExportPDF, onExportExcel }) {
         {/* Body */}
         <div style={{ overflowY: 'auto', flex: 1, padding: 20 }}>
 
-          {/* IE Analysis for efficiency and capacity */}
+          {isBom && (
+            <div style={{ padding: '12px 16px', marginBottom: 16, borderRadius: 10, background: 'var(--teal-light)', border: '1px solid var(--teal)' }}>
+              <div style={{ fontSize: 13, color: 'var(--teal)', fontWeight: 600 }}>
+                \u{1F4C4} This is a full BOM sheet report. Use the BOM PDF / BOM Excel buttons above for the complete sheet layout.
+              </div>
+            </div>
+          )}
+
           {analysis && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
 
@@ -275,7 +307,6 @@ function ReportDetailModal({ report, onClose, onExportPDF, onExportExcel }) {
 
               {/* Charts */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                {/* Chart 1 — Efficiency gauge or capacity actual vs potential */}
                 {analysis.compData && (
                   <div className="card" style={{ padding: 14 }}>
                     <h3 style={{ marginBottom: 12, fontSize: 13 }}>
@@ -294,7 +325,6 @@ function ReportDetailModal({ report, onClose, onExportPDF, onExportExcel }) {
                   </div>
                 )}
 
-                {/* Chart 2 — Target vs produced OR period capacity */}
                 {(analysis.targetData || analysis.periodData) && (
                   <div className="card" style={{ padding: 14 }}>
                     <h3 style={{ marginBottom: 12, fontSize: 13 }}>
@@ -312,7 +342,6 @@ function ReportDetailModal({ report, onClose, onExportPDF, onExportExcel }) {
                 )}
               </div>
 
-              {/* Efficiency radial gauge */}
               {report.type === 'efficiency' && (
                 <div className="card" style={{ padding: 14 }}>
                   <h3 style={{ marginBottom: 12, fontSize: 13 }}>Efficiency gauge</h3>
@@ -344,7 +373,6 @@ function ReportDetailModal({ report, onClose, onExportPDF, onExportExcel }) {
                 </div>
               )}
 
-              {/* Problems */}
               {analysis.problems?.length > 0 && (
                 <div className="card" style={{ padding: 14 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -360,7 +388,6 @@ function ReportDetailModal({ report, onClose, onExportPDF, onExportExcel }) {
                 </div>
               )}
 
-              {/* Recommendations */}
               {analysis.recs?.length > 0 && (
                 <div className="card" style={{ padding: 14 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -375,14 +402,13 @@ function ReportDetailModal({ report, onClose, onExportPDF, onExportExcel }) {
                       </div>
                       <div style={{ display: 'flex', gap: 12 }}>
                         <span style={{ fontSize: 11, color: 'var(--green)', fontWeight: 600 }}>+{rec.improvement}</span>
-                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>⏱ {rec.timeline}</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>\u23F1 {rec.timeline}</span>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
 
-              {/* Target plan */}
               {analysis.steps?.length > 0 && (
                 <div className="card" style={{ padding: 14, background: 'var(--navy)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
@@ -398,16 +424,15 @@ function ReportDetailModal({ report, onClose, onExportPDF, onExportExcel }) {
                 </div>
               )}
 
-              {/* Quick wins */}
               {analysis.quickWins?.length > 0 && (
                 <div className="card" style={{ padding: 14, background: 'var(--green-light)', border: '1px solid #6EE7B740' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                     <Lightbulb size={14} color="var(--green)" />
-                    <h3 style={{ color: 'var(--green)', fontSize: 13 }}>Quick wins — do today!</h3>
+                    <h3 style={{ color: 'var(--green)', fontSize: 13 }}>Quick wins \u2014 do today!</h3>
                   </div>
                   {analysis.quickWins.map((win, i) => (
                     <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6, fontSize: 12, lineHeight: 1.5 }}>
-                      <span style={{ color: 'var(--green)', fontWeight: 700, flexShrink: 0 }}>✓</span> {win}
+                      <span style={{ color: 'var(--green)', fontWeight: 700, flexShrink: 0 }}>\u2713</span> {win}
                     </div>
                   ))}
                 </div>
@@ -415,7 +440,6 @@ function ReportDetailModal({ report, onClose, onExportPDF, onExportExcel }) {
             </div>
           )}
 
-          {/* Generic chart for other types */}
           {!analysis && genericChartData.length > 0 && (
             <div className="card" style={{ padding: 14, marginBottom: 20 }}>
               <h3 style={{ marginBottom: 14, fontSize: 13 }}>Results overview</h3>
@@ -432,10 +456,9 @@ function ReportDetailModal({ report, onClose, onExportPDF, onExportExcel }) {
             </div>
           )}
 
-          {/* Raw data tables */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <div className="card" style={{ padding: 14 }}>
-              <h3 style={{ marginBottom: 12, fontSize: 13, color: 'var(--text-secondary)' }}>📥 Inputs</h3>
+              <h3 style={{ marginBottom: 12, fontSize: 13, color: 'var(--text-secondary)' }}>\u{1F4E5} Inputs</h3>
               {inputRows.map(([k, v], i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid var(--border-light)', fontSize: 12 }}>
                   <span style={{ color: 'var(--text-muted)' }}>{k}</span>
@@ -444,7 +467,7 @@ function ReportDetailModal({ report, onClose, onExportPDF, onExportExcel }) {
               ))}
             </div>
             <div className="card" style={{ padding: 14 }}>
-              <h3 style={{ marginBottom: 12, fontSize: 13, color: 'var(--teal)' }}>📊 Results</h3>
+              <h3 style={{ marginBottom: 12, fontSize: 13, color: 'var(--teal)' }}>\u{1F4CA} Results</h3>
               {resultRows.map(([k, v], i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid var(--border-light)', fontSize: 12 }}>
                   <span style={{ color: 'var(--text-muted)' }}>{k}</span>
@@ -459,9 +482,9 @@ function ReportDetailModal({ report, onClose, onExportPDF, onExportExcel }) {
   );
 }
 
-// ════════════════════════════════════════════════════════════
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
 // MAIN REPORTS PAGE
-// ════════════════════════════════════════════════════════════
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
 export default function ReportsPage() {
   const [reports, setReports]       = useState([]);
   const [loading, setLoading]       = useState(true);
@@ -505,7 +528,6 @@ export default function ReportsPage() {
     dateFilter
   );
 
-  // Grouped by date
   const grouped = filtered.reduce((acc, r) => {
     const dk = new Date(r.created_at).toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     if (!acc[dk]) acc[dk] = [];
@@ -513,11 +535,27 @@ export default function ReportsPage() {
     return acc;
   }, {});
 
-  // Dashboard stats
   const byType = reports.reduce((acc, r) => { acc[r.type] = (acc[r.type] || 0) + 1; return acc; }, {});
   const typeChartData = Object.entries(byType).map(([t, c]) => ({ name: TYPE_LABEL[t] || t, value: c, fill: TYPE_COLOR[t] || '#0D7A6B' }));
   const effReports  = reports.filter(r => r.type === 'efficiency' && r.results?.efficiency);
   const effTrend    = effReports.slice(-8).map((r, i) => ({ name: 'Rep ' + (i+1), eff: Number(r.results.efficiency) }));
+
+  // BOM export handlers for modal
+  const handleBomPDF = (report) => {
+    const bom = getBomData(report);
+    if (!bom) { toast('BOM data not available', 'error'); return; }
+    exportBomPDF({
+      ...bom,
+      companyName: profile?.company_name,
+      userName: profile?.full_name
+    });
+  };
+
+  const handleBomExcel = (report) => {
+    const bom = getBomData(report);
+    if (!bom) { toast('BOM data not available', 'error'); return; }
+    exportBomExcel(bom);
+  };
 
   return (
     <div>
@@ -528,12 +566,13 @@ export default function ReportsPage() {
           onClose={() => setSelected(null)}
           onExportPDF={() => { exportReportPDF({ type: selected.type, title: selected.title, inputs: selected.inputs, results: selected.results, companyName: profile?.company_name, userName: profile?.full_name }); }}
           onExportExcel={() => exportReportExcel(selected)}
+          onExportBomPDF={() => handleBomPDF(selected)}
+          onExportBomExcel={() => handleBomExcel(selected)}
         />
       )}
 
       <PageHeader title="Reports" subtitle="All saved calculation reports with visual analytics" />
 
-      {/* Dashboard charts */}
       {reports.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: effTrend.length > 1 ? '1fr 1fr' : '1fr', gap: 16, marginBottom: 24 }}>
           {typeChartData.length > 0 && (
@@ -567,7 +606,6 @@ export default function ReportsPage() {
         </div>
       )}
 
-      {/* Search + actions */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: 180 }}>
           <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
@@ -583,7 +621,6 @@ export default function ReportsPage() {
         )}
       </div>
 
-      {/* Date filter */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 10, overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 2 }}>
         <Calendar size={13} style={{ color: 'var(--text-muted)', flexShrink: 0, marginTop: 7 }} />
         {DATE_FILTERS.map(f => (
@@ -594,7 +631,6 @@ export default function ReportsPage() {
         ))}
       </div>
 
-      {/* Type filter */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 16, overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 4 }}>
         {FILTER_TABS.map(t => (
           <button key={t} onClick={() => setTypeFilter(t)}
@@ -609,7 +645,6 @@ export default function ReportsPage() {
         {dateFilter !== 'all' && <span style={{ marginLeft: 6, color: 'var(--teal)', fontWeight: 500 }}>({DATE_FILTERS.find(f=>f.value===dateFilter)?.label})</span>}
       </div>
 
-      {/* Reports list */}
       {loading ? (
         <div className="empty-state"><p>Loading reports...</p></div>
       ) : filtered.length === 0 ? (
@@ -627,50 +662,60 @@ export default function ReportsPage() {
                 <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{items.length} report{items.length !== 1 ? 's' : ''}</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {items.map(r => (
-                  <div key={r.id} className="card" style={{ padding: '14px 16px', cursor: 'pointer', transition: 'box-shadow 0.15s' }}
-                    onMouseEnter={e => e.currentTarget.style.boxShadow = 'var(--shadow-md)'}
-                    onMouseLeave={e => e.currentTarget.style.boxShadow = ''}>
+                {items.map(r => {
+                  const isBom = r.type === 'fabric' && hasBomData(r);
+                  return (
+                    <div key={r.id} className="card" style={{ padding: '14px 16px', cursor: 'pointer', transition: 'box-shadow 0.15s' }}
+                      onMouseEnter={e => e.currentTarget.style.boxShadow = 'var(--shadow-md)'}
+                      onMouseLeave={e => e.currentTarget.style.boxShadow = ''}>
 
-                    {/* Top row */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }} onClick={() => setSelected(r)}>
-                      <div style={{ flex: 1, paddingRight: 12 }}>
-                        <div style={{ fontWeight: 600, fontSize: 14, lineHeight: 1.4 }}>{r.title}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                          {new Date(r.created_at).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' })}
-                          <span style={{ marginLeft: 8, color: 'var(--teal)', fontSize: 11 }}>Tap to view analysis →</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }} onClick={() => setSelected(r)}>
+                        <div style={{ flex: 1, paddingRight: 12 }}>
+                          <div style={{ fontWeight: 600, fontSize: 14, lineHeight: 1.4 }}>{r.title}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                            {new Date(r.created_at).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' })}
+                            <span style={{ marginLeft: 8, color: 'var(--teal)', fontSize: 11 }}>Tap to view analysis \u2192</span>
+                          </div>
                         </div>
+                        <button onClick={e => { e.stopPropagation(); star(r.id, r.is_starred); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, flexShrink: 0 }}>
+                          <Star size={16} color={r.is_starred ? 'var(--amber)' : 'var(--border)'} fill={r.is_starred ? 'var(--amber)' : 'none'} />
+                        </button>
                       </div>
-                      <button onClick={e => { e.stopPropagation(); star(r.id, r.is_starred); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, flexShrink: 0 }}>
-                        <Star size={16} color={r.is_starred ? 'var(--amber)' : 'var(--border)'} fill={r.is_starred ? 'var(--amber)' : 'none'} />
-                      </button>
-                    </div>
 
-                    {/* Badge + result */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }} onClick={() => setSelected(r)}>
-                      <span className={`badge badge-${TYPE_BADGE[r.type] || 'teal'}`}>{TYPE_LABEL[r.type] || r.type}</span>
-                      <span style={{ fontSize: 13, fontFamily: 'JetBrains Mono', color: 'var(--teal)', fontWeight: 600 }}>{getKeyResultStr(r)}</span>
-                      {(r.type === 'efficiency' || r.type === 'capacity') && (
-                        <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <BarChart2 size={12} /> View charts & analysis
-                        </span>
-                      )}
-                    </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }} onClick={() => setSelected(r)}>
+                        <span className={`badge badge-${TYPE_BADGE[r.type] || 'teal'}`}>{TYPE_LABEL[r.type] || r.type}</span>
+                        <span style={{ fontSize: 13, fontFamily: 'JetBrains Mono', color: 'var(--teal)', fontWeight: 600 }}>{getKeyResultStr(r)}</span>
+                        {(r.type === 'efficiency' || r.type === 'capacity') && (
+                          <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <BarChart2 size={12} /> View charts & analysis
+                          </span>
+                        )}
+                        {isBom && (
+                          <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--teal)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <FileText size={12} /> BOM Sheet
+                          </span>
+                        )}
+                      </div>
 
-                    {/* Actions */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                      <button className="btn btn-secondary btn-sm" onClick={() => exportReportPDF({ type: r.type, title: r.title, inputs: r.inputs, results: r.results, companyName: profile?.company_name, userName: profile?.full_name })} style={{ justifyContent: 'center' }}>
-                        <Download size={12} /> PDF
-                      </button>
-                      <button className="btn btn-sm" onClick={() => exportReportExcel(r)} style={{ justifyContent: 'center', background: '#217346', color: 'white', border: 'none' }}>
-                        <FileText size={12} /> Excel
-                      </button>
-                      <button className="btn btn-danger btn-sm" onClick={() => del(r.id)} style={{ justifyContent: 'center' }}>
-                        <Trash2 size={12} /> Delete
-                      </button>
+                      <div style={{ display: 'grid', gridTemplateColumns: isBom ? '1fr 1fr 1fr 1fr' : '1fr 1fr 1fr', gap: 8 }}>
+                        {isBom && (
+                          <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); handleBomPDF(r); }} style={{ justifyContent: 'center', background: 'var(--teal)', color: 'white', border: 'none' }}>
+                            <Download size={12} /> BOM PDF
+                          </button>
+                        )}
+                        <button className="btn btn-secondary btn-sm" onClick={(e) => { e.stopPropagation(); exportReportPDF({ type: r.type, title: r.title, inputs: r.inputs, results: r.results, companyName: profile?.company_name, userName: profile?.full_name }); }} style={{ justifyContent: 'center' }}>
+                          <Download size={12} /> PDF
+                        </button>
+                        <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); exportReportExcel(r); }} style={{ justifyContent: 'center', background: '#217346', color: 'white', border: 'none' }}>
+                          <FileText size={12} /> Excel
+                        </button>
+                        <button className="btn btn-danger btn-sm" onClick={(e) => { e.stopPropagation(); del(r.id); }} style={{ justifyContent: 'center' }}>
+                          <Trash2 size={12} /> Delete
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))}
