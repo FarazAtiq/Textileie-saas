@@ -7,6 +7,7 @@ import { createReport } from '../lib/db.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useToast } from '../hooks/useToast.jsx';
 import { exportReportPDF } from '../utils/pdfExport.js';
+import { exportBomPDF, exportBomExcel } from '../utils/bomExport.js';
 import { Plus, Trash2, Save, Download, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 
 function useSave(type, titleFn, inputs, results) {
@@ -126,7 +127,7 @@ function QuickConsumptionTab() {
 }
 
 // ════════════════════════════════════════════════════════════
-// TAB 2 — BOM SHEET (exact layout matching your sheet image)
+// TAB 2 — BOM SHEET
 // ════════════════════════════════════════════════════════════
 const newComponent = (num) => ({
   id: Date.now() + num + Math.random(),
@@ -152,10 +153,10 @@ function BomSheetTab() {
   const [saving, setSaving] = useState(false);
 
   // Header
-  const [artNo,         setArtNo]         = useState('');
-  const [styleName,     setStyleName]     = useState('');
+  const [artNo,         setArtNo]         = useState('5400');
+  const [styleName,     setStyleName]     = useState('Simple Pant');
   const [customer,      setCustomer]      = useState('');
-  const [gkPant,        setGkPant]        = useState('');
+  const [gkPant,        setGkPant]        = useState('Simple Pant');
   const [techPackRef,   setTechPackRef]   = useState('');
   const [consumptionNo, setConsumptionNo] = useState('');
   const [issueDate,     setIssueDate]     = useState(new Date().toISOString().slice(0, 10));
@@ -214,226 +215,51 @@ function BomSheetTab() {
     return { ...sd, layLength: +layLength.toFixed(3), consumption };
   };
 
-  // ── PDF export — exact sheet layout ──
+  // ── PDF export — using shared utility ──
   const handleExportPDF = async () => {
     try {
-      const { default: jsPDF }     = await import('jspdf');
-      const { default: autoTable } = await import('jspdf-autotable');
-      const doc  = new jsPDF('landscape', 'mm', 'a4');
-      const now  = new Date().toLocaleDateString('en-PK');
-      const pw   = 297; // page width landscape A4
-
-      // ── Title bar ──
-      doc.setFillColor(15, 41, 66);
-      doc.rect(0, 0, pw, 14, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(13); doc.setFont('helvetica', 'bold');
-      doc.text('FABRIC Consumption', pw / 2, 9, { align: 'center' });
-
-      // ── Header info boxes ──
-      const hY = 17;
-      doc.setFontSize(7); doc.setFont('helvetica', 'normal');
-      doc.setTextColor(15, 41, 66);
-
-      // Left block — article info
-      const leftCols = [
-        ['Arts:', artNo || '\u2014'],
-        ['Style Name:', styleName || '\u2014'],
-        ['Customer:', customer || '\u2014'],
-        ['GK-Pant / Style:', gkPant || '\u2014'],
-      ];
-      leftCols.forEach(([k, v], i) => {
-        doc.setFont('helvetica', 'bold');   doc.text(k, 14, hY + i * 5);
-        doc.setFont('helvetica', 'normal'); doc.text(v, 40, hY + i * 5);
+      await exportBomPDF({
+        artNo, styleName, customer, gkPant, techPackRef, consumptionNo, issueDate,
+        components, sizes, baseSizeId, signOff, docType,
+        companyName: profile?.company_name, userName: profile?.full_name
       });
-
-      // Right block — doc type + issue date
-      const rtX = pw - 80;
-      doc.setFont('helvetica', 'bold'); doc.text('Tech Pack Ref#:', rtX, hY);
-      doc.setFont('helvetica', 'normal'); doc.text(techPackRef || '\u2014', rtX + 28, hY);
-      doc.setFont('helvetica', 'bold'); doc.text('Consumption#:', rtX, hY + 5);
-      doc.setFont('helvetica', 'normal'); doc.text(consumptionNo || '\u2014', rtX + 28, hY + 5);
-      doc.setFont('helvetica', 'bold'); doc.text('Issue Date:', rtX, hY + 10);
-      doc.setFont('helvetica', 'normal'); doc.text(issueDate, rtX + 28, hY + 10);
-
-      // Doc type checkboxes
-      const cbY = hY + 16;
-      [['Costing', 'costing'], ['First BOM', 'firstBom'], ['Final Review after Trial Run', 'finalReview']].forEach(([label, val], i) => {
-        const x = rtX + i * 30;
-        doc.setFillColor(docType === val ? 13 : 255, docType === val ? 122 : 255, docType === val ? 107 : 255);
-        doc.rect(x, cbY - 3, 3, 3, 'F');
-        doc.rect(x, cbY - 3, 3, 3, 'S');
-        doc.setFont('helvetica', docType === val ? 'bold' : 'normal');
-        doc.text(label, x + 4, cbY);
-      });
-
-      const tableStartY = hY + 26;
-
-      // ── Main BOM table — components as rows, sizes as columns ──
-      // Build head: fixed cols + per-size sub-cols
-      const sizeLabels = sizes.map(s => s.label);
-      // Each size has: Lay Length | No Pcs | Eff% | Consumption(BOM) | Marker Saving | Allowance%
-      const sizeSubCols = ['Lay (m)', 'Pcs', 'Eff%', 'Cons.(BOM)', 'Mkt Sav%', 'Allow%'];
-
-      const headRow1 = ['Comp\n#', 'Usage at\n(Gmt Part)', 'Fabric\nDescription', 'Fabric\nCode', 'Supplier', 'GSM', 'Cuttable\nWidth', 'Kgs/\nMtr', 'UOM'];
-      sizeLabels.forEach(sl => headRow1.push(sl, '', '', '', '', ''));
-
-      const headRow2 = ['', '', '', '', '', '', '', '', ''];
-      sizeLabels.forEach(() => sizeSubCols.forEach(sc => headRow2.push(sc)));
-
-      // Build body rows
-      const body = components.map(c => {
-        const row = [
-          c.compNo,
-          c.usageAt || '',
-          c.fabricDescription || '',
-          c.fabricCode || '',
-          c.supplier || '',
-          c.gsm || '',
-          c.cuttableWidth || '',
-          c.kgsPerMtr || '',
-          c.uom || 'KG',
-        ];
-        sizes.forEach(s => {
-          const sd = getSizeData(c, s.id);
-          const calc = calcForSize(c, s.id);
-          row.push(
-            calc.layLength || 0,
-            sd.noOfPcs || 0,
-            (sd.efficiency || 0) + '%',
-            calc.consumption.toFixed(3),
-            c.markerSavingPct ? c.markerSavingPct + '%' : '',
-            (c.allowancePct || 0) + '%',
-          );
-        });
-        return row;
-      });
-
-      const fixedCount = 9;
-      const totalCols  = fixedCount + sizes.length * sizeSubCols.length;
-
-      // Column widths
-      const fixedWidths = [8, 22, 28, 14, 16, 8, 12, 10, 8];
-      const sizeColW    = 9;
-      const colWidths   = [...fixedWidths, ...Array(sizes.length * sizeSubCols.length).fill(sizeColW)];
-
-      autoTable(doc, {
-        startY: tableStartY,
-        head: [headRow1, headRow2],
-        body,
-        theme: 'grid',
-        headStyles: { fillColor: [15, 41, 66], textColor: 255, fontSize: 5.5, fontStyle: 'bold', halign: 'center', valign: 'middle', cellPadding: 1 },
-        bodyStyles: { fontSize: 6, cellPadding: 1.5, valign: 'middle' },
-        columnStyles: Object.fromEntries(colWidths.map((w, i) => [i, { cellWidth: w, halign: i < fixedCount ? 'left' : 'center' }])),
-        didParseCell: (data) => {
-          // Span size label across 6 sub-columns in header row 0
-          if (data.section === 'head' && data.row.index === 0 && data.column.index >= fixedCount) {
-            const relIdx = (data.column.index - fixedCount) % sizeSubCols.length;
-            if (relIdx !== 0) { data.cell.text = ['']; }
-          }
-          // Consumption column highlight
-          if (data.section === 'body' && data.column.index >= fixedCount) {
-            const relIdx = (data.column.index - fixedCount) % sizeSubCols.length;
-            if (relIdx === 3) { data.cell.styles.fontStyle = 'bold'; data.cell.styles.textColor = [13, 122, 107]; }
-          }
-        },
-        margin: { left: 5, right: 5 },
-      });
-
-      // ── Sign-off boxes ──
-      const finalY = doc.lastAutoTable.finalY + 8;
-      if (finalY < 195) {
-        doc.setFillColor(240, 248, 255);
-        doc.rect(5, finalY, pw - 10, 14, 'F');
-        doc.setDrawColor(180);
-        doc.rect(5, finalY, (pw - 10) / 3, 14, 'S');
-        doc.rect(5 + (pw - 10) / 3, finalY, (pw - 10) / 3, 14, 'S');
-        doc.rect(5 + 2 * (pw - 10) / 3, finalY, (pw - 10) / 3, 14, 'S');
-
-        doc.setFontSize(6); doc.setTextColor(100, 120, 140); doc.setFont('helvetica', 'bold');
-        doc.text('PROVIDED BY \u2014 GGT', 8, finalY + 4);
-        doc.text('APPROVED BY \u2014 PD MANAGER', 8 + (pw - 10) / 3, finalY + 4);
-        doc.text('RECEIVED BY', 8 + 2 * (pw - 10) / 3, finalY + 4);
-
-        doc.setFont('helvetica', 'normal'); doc.setTextColor(15, 41, 66); doc.setFontSize(7);
-        doc.text(signOff.providedBy || '_______________________', 8, finalY + 11);
-        doc.text(signOff.approvedBy || '_______________________', 8 + (pw - 10) / 3, finalY + 11);
-        doc.text(signOff.receivedBy || '_______________________', 8 + 2 * (pw - 10) / 3, finalY + 11);
-      }
-
-      doc.setFontSize(6); doc.setTextColor(160);
-      doc.text('TextileIE \u2014 ' + (profile?.company_name || '') + '  |  Generated: ' + now, 5, 205);
-
-      doc.save('Fabric-BOM-' + (artNo || styleName || 'sheet') + '-' + Date.now() + '.pdf');
       toast('PDF downloaded');
     } catch (err) { console.error(err); toast('PDF failed: ' + err.message, 'error'); }
   };
 
-  // ── Excel export — same layout ──
+  // ── Excel export — using shared utility ──
   const handleExportExcel = () => {
-    const sizeLabels = sizes.map(s => s.label);
-    const subCols    = ['Lay Length (m)', 'No of Pcs', 'Efficiency%', 'Consumption (BOM)', 'Marker Saving%', 'Allowance%'];
-
-    // Header row 1 — merge size label across 6 cols
-    const hr1 = ['Comp#', 'Usage at', 'Fabric Description', 'Fabric Code', 'Supplier', 'GSM', 'Cuttable Width', 'Kgs/Mtr', 'UOM'];
-    sizeLabels.forEach(sl => { hr1.push(sl); for (let i = 1; i < subCols.length; i++) hr1.push(''); });
-
-    const hr2 = ['', '', '', '', '', '', '', '', ''];
-    sizeLabels.forEach(() => subCols.forEach(sc => hr2.push(sc)));
-
-    const dataRows = components.map((c, ri) => {
-      const cells = [c.compNo, c.usageAt, c.fabricDescription, c.fabricCode, c.supplier, c.gsm, c.cuttableWidth, c.kgsPerMtr, c.uom];
-      sizes.forEach(s => {
-        const sd   = getSizeData(c, s.id);
-        const calc = calcForSize(c, s.id);
-        cells.push(calc.layLength || 0, sd.noOfPcs || 0, (sd.efficiency || 0) + '%', calc.consumption.toFixed(3), c.markerSavingPct ? c.markerSavingPct + '%' : '', (c.allowancePct || 0) + '%');
-      });
-      return '<tr style="background:' + (ri % 2 === 0 ? '#F4F7FA' : '#FFFFFF') + '">' +
-        cells.map((v, ci) => {
-          const isCons = ci >= 9 && (ci - 9) % subCols.length === 3;
-          return '<td style="border:1px solid #D8E4EE;padding:4px 6px;font-size:9pt' + (isCons ? ';font-weight:bold;color:#0D7A6B' : '') + '">' + v + '</td>';
-        }).join('') + '</tr>';
-    }).join('');
-
-    const totalCols = 9 + sizes.length * subCols.length;
-    const headerStyle = 'style="background:#0F2942;color:white;font-weight:bold;padding:5px 6px;border:1px solid #0F2942;font-size:9pt"';
-
-    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-<head><meta charset="UTF-8"></head><body><table>
-<tr><td colspan="${totalCols}" style="background:#0F2942;color:white;font-weight:bold;font-size:14pt;padding:8px;border:1px solid #0F2942">FABRIC Consumption \u2014 TextileIE</td></tr>
-<tr>
-  <td colspan="2" style="background:#E4F4F1;padding:5px;border:1px solid #D8E4EE;font-weight:bold">Art#: ${artNo || '\u2014'}</td>
-  <td colspan="2" style="background:#E4F4F1;padding:5px;border:1px solid #D8E4EE;font-weight:bold">Style: ${styleName || '\u2014'}</td>
-  <td colspan="2" style="background:#E4F4F1;padding:5px;border:1px solid #D8E4EE;font-weight:bold">Customer: ${customer || '\u2014'}</td>
-  <td colspan="2" style="background:#E4F4F1;padding:5px;border:1px solid #D8E4EE;font-weight:bold">GK: ${gkPant || '\u2014'}</td>
-  <td colspan="${totalCols - 8}" style="background:#E4F4F1;padding:5px;border:1px solid #D8E4EE;font-weight:bold">Issue Date: ${issueDate} | Doc: ${docType} | Tech Pack: ${techPackRef || '\u2014'}</td>
-</tr>
-<tr>${hr1.map(h => '<th ' + headerStyle + '>' + h + '</th>').join('')}</tr>
-<tr>${hr2.map(h => '<th ' + headerStyle + ' style="background:#1E3A5F;color:white;font-weight:bold;padding:4px 6px;border:1px solid #1E3A5F;font-size:8pt">' + h + '</th>').join('')}</tr>
-${dataRows}
-<tr><td colspan="${totalCols}" style="padding:6px;border:1px solid #D8E4EE;color:#444;font-size:9pt">
-  PROVIDED BY \u2014 GGT: ${signOff.providedBy || ''} &nbsp;&nbsp;&nbsp; 
-  APPROVED BY \u2014 PD MANAGER: ${signOff.approvedBy || ''} &nbsp;&nbsp;&nbsp; 
-  RECEIVED BY: ${signOff.receivedBy || ''}
-</td></tr>
-</table></body></html>`;
-
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url; a.download = 'Fabric-BOM-' + (artNo || styleName || 'sheet') + '-' + Date.now() + '.xls';
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    exportBomExcel({
+      artNo, styleName, customer, gkPant, techPackRef, consumptionNo, issueDate,
+      components, sizes, baseSizeId, signOff, docType
+    });
+    toast('Excel downloaded');
   };
 
+  // ── Save to library — now stores FULL data ──
   const handleSave = async () => {
     setSaving(true);
     try {
+      const results = Object.fromEntries(sizes.map(s => [
+        s.label + ' total',
+        components.reduce((sum, c) => sum + calcForSize(c, s.id).consumption, 0).toFixed(3)
+      ]));
+
       await createReport({
         type: 'fabric',
         title: 'Fabric BOM \u2014 ' + (artNo ? 'Art#' + artNo + ' ' : '') + (styleName || '') + ' \u2014 ' + new Date().toLocaleDateString(),
-        inputs: { articleNumber: artNo, styleName, customer, gkPant, techPackRef, consumptionNo, issueDate, docType, components: components.length, sizes: sizes.map(s => s.label).join(', ') },
-        results: Object.fromEntries(sizes.map(s => [s.label + ' total', components.reduce((sum, c) => sum + calcForSize(c, s.id).consumption, 0).toFixed(3)])),
+        inputs: {
+          articleNumber: artNo, styleName, customer, gkPant, techPackRef,
+          consumptionNo, issueDate, docType,
+          components: components.length,
+          sizes: sizes.map(s => s.label).join(', '),
+          // Store full BOM data for reconstruction
+          _bomData: JSON.stringify({
+            artNo, styleName, customer, gkPant, techPackRef, consumptionNo, issueDate,
+            docType, sizes, baseSizeId, components, signOff
+          })
+        },
+        results,
       });
       toast('Fabric BOM saved');
     } catch (err) { toast('Failed: ' + err.message, 'error'); }
@@ -448,22 +274,16 @@ ${dataRows}
       <div className="card" style={{ marginBottom: 16, padding: '16px 18px' }}>
         <h3 style={{ marginBottom: 12 }}>Document info</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-          <div className="field"><label>Art#</label><input value={artNo} onChange={e=>setArtNo(e.target.value)} placeholder="8935" style={{fontFamily:'JetBrains Mono',fontWeight:700}} /></div>
-          <div className="field"><label>Style Name</label><input value={styleName} onChange={e=>setStyleName(e.target.value)} placeholder="GK-Pant" /></div>
+          <div className="field"><label>Art#</label><input value={artNo} onChange={e=>setArtNo(e.target.value)} placeholder="5400" style={{fontFamily:'JetBrains Mono',fontWeight:700}} /></div>
+          <div className="field"><label>Style Name</label><input value={styleName} onChange={e=>setStyleName(e.target.value)} placeholder="Simple Pant" /></div>
           <div className="field"><label>Customer</label><input value={customer} onChange={e=>setCustomer(e.target.value)} placeholder="Jako" /></div>
-          <div className="field"><label>GK-Pant / Style</label><input value={gkPant} onChange={e=>setGkPant(e.target.value)} /></div>
+          <div className="field"><label>GK-Pant / Style</label><input value={gkPant} onChange={e=>setGkPant(e.target.value)} placeholder="Simple Pant" /></div>
           <div className="field"><label>Tech Pack Ref#</label><input value={techPackRef} onChange={e=>setTechPackRef(e.target.value)} /></div>
           <div className="field"><label>Consumption #</label><input value={consumptionNo} onChange={e=>setConsumptionNo(e.target.value)} /></div>
           <div className="field"><label>Issue Date</label><input type="date" value={issueDate} onChange={e=>setIssueDate(e.target.value)} /></div>
         </div>
-        <div className="field" style={{marginBottom:0}}>
-          <label>Document type</label>
-          <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-            {[['costing','Costing'],['firstBom','First BOM'],['finalReview','Final Review after Trial Run']].map(([v,l])=>(
-              <button key={v} onClick={()=>setDocType(v)} className={'btn btn-sm '+(docType===v?'btn-primary':'btn-secondary')}>{l}</button>
-            ))}
-          </div>
-        </div>
+        {/* Document type — hidden from UI but still tracked for PDF/Excel */}
+        <input type="hidden" value={docType} />
       </div>
 
       {/* Sizes */}
@@ -502,9 +322,9 @@ ${dataRows}
       <div className="card" style={{marginTop:16,padding:'16px 18px'}}>
         <h3 style={{marginBottom:12}}>Sign-off</h3>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
-          <div className="field"><label>Provided by \u2014 GGT</label><input value={signOff.providedBy} onChange={e=>setSignOff({...signOff,providedBy:e.target.value})}/></div>
-          <div className="field"><label>Approved by \u2014 PD Manager</label><input value={signOff.approvedBy} onChange={e=>setSignOff({...signOff,approvedBy:e.target.value})}/></div>
-          <div className="field"><label>Received by</label><input value={signOff.receivedBy} onChange={e=>setSignOff({...signOff,receivedBy:e.target.value})}/></div>
+          <div className="field"><label>Provided by \u2014 GGT</label><input value={signOff.providedBy} onChange={e=>setSignOff({...signOff,providedBy:e.target.value})/></div>
+          <div className="field"><label>Approved by \u2014 PD Manager</label><input value={signOff.approvedBy} onChange={e=>setSignOff({...signOff,approvedBy:e.target.value})/></div>
+          <div className="field"><label>Received by</label><input value={signOff.receivedBy} onChange={e=>setSignOff({...signOff,receivedBy:e.target.value})/></div>
         </div>
       </div>
 
@@ -540,7 +360,7 @@ function ComponentCard({ comp, sizes, baseSizeId, getSizeData, setSizeData, calc
         <div style={{padding:'16px'}}>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
             <div className="field"><label>Usage at (body part)</label><input value={comp.usageAt} onChange={e=>setComp(comp.id,'usageAt',e.target.value)} placeholder="e.g. Main fabric, hip and knee pad"/></div>
-            <div className="field"><label>Fabric Description</label><input value={comp.fabricDescription} onChange={e=>setComp(comp.id,'fabricDescription',e.target.value)} placeholder="100% Polyester Double Speedo"/></div>
+            <div className="field"><label>Fabric Description</label><input value={comp.fabricDescription} onChange={e=>setComp(comp.id,'fabricDescription',e.target.value)} placeholder="e.g. Warp Knit Interlock"/></div>
             <div className="field"><label>Fabric Code</label><input value={comp.fabricCode} onChange={e=>setComp(comp.id,'fabricCode',e.target.value)}/></div>
             <div className="field"><label>Supplier</label><input value={comp.supplier} onChange={e=>setComp(comp.id,'supplier',e.target.value)}/></div>
             <div className="field"><label>GSM</label><input type="number" value={comp.gsm} onChange={e=>setComp(comp.id,'gsm',e.target.value)}/></div>
@@ -606,7 +426,7 @@ function ComponentCard({ comp, sizes, baseSizeId, getSizeData, setSizeData, calc
 // TAB 3 — KG <-> METER CONVERTER (corrected formulas)
 // ════════════════════════════════════════════════════════════
 function ConverterTab() {
-  const [mode,          setMode]          = useState('kg');  // 'kg' = weight input, 'm' = length input
+  const [mode,          setMode]          = useState('kg');
   const [value,         setValue]         = useState('');
   const [gsmVal,        setGsmVal]        = useState('');
   const [width,         setWidth]         = useState('');
@@ -624,14 +444,12 @@ function ConverterTab() {
     if (!v || !g || !w) { setResult({ error: 'Please fill all fields' }); return; }
 
     if (mode === 'kg') {
-      // weight -> length
       const meters = calcKgToMeter({ weightKg: v, gsm: g, widthInches: wInch });
       const yards  = metersToYards(meters);
       if (outputUnit === 'M') setResult({ value: meters, unit: 'meters', also: yards + ' yards' });
       else if (outputUnit === 'Y') setResult({ value: yards, unit: 'yards', also: meters + ' meters' });
       else setResult({ value: v, unit: 'kg (input)' });
     } else {
-      // length -> weight
       const kg = calcMeterToKg({ lengthM: v, gsm: g, widthInches: wInch });
       if (outputUnit === 'K') setResult({ value: kg, unit: 'kg', also: null });
       else if (outputUnit === 'M') setResult({ value: v, unit: 'meters (input)', also: null });
@@ -645,7 +463,6 @@ function ConverterTab() {
       <div className="card" style={{ marginBottom: 16 }}>
         <h3 style={{ marginBottom: 16 }}>Weight / Length</h3>
 
-        {/* Mode toggle */}
         <div style={{ display: 'flex', gap: 20, marginBottom: 14 }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer', fontWeight: mode === 'kg' ? 600 : 400 }}>
             <input type="radio" checked={mode === 'kg'} onChange={() => { setMode('kg'); setResult(null); }} /> Enter weight (kg)
@@ -708,7 +525,6 @@ function ConverterTab() {
         )}
       </div>
 
-      {/* How to use */}
       <div className="card">
         <div onClick={() => setShowHow(!showHow)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
           <h3>How to use</h3>
