@@ -1,0 +1,185 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Plus, Save, Trash2, Edit3, Search, Shirt, Palette, Ruler, X } from 'lucide-react';
+import { PageHeader } from '../components/ResultCard.jsx';
+import { createStyle, deleteStyle, getStyles, updateStyle } from '../lib/db.js';
+import { useToast } from '../hooks/useToast.jsx';
+
+const DEFAULT_SIZES = [
+  { size_name: 'S', ratio: 1, scale_pct: -4 },
+  { size_name: 'M', ratio: 2, scale_pct: -2 },
+  { size_name: 'L', ratio: 2, scale_pct: 0 },
+  { size_name: 'XL', ratio: 1, scale_pct: 3 },
+  { size_name: 'XXL', ratio: 1, scale_pct: 6 },
+];
+const DEFAULT_COLORS = [{ color_name: 'Black', color_code: '', order_qty: 0 }];
+
+const blankForm = () => ({
+  article_number: '', style_name: '', buyer: '', season: '', garment_type: 'T-Shirt',
+  base_size: 'L', costing_mode: 'base_size', status: 'development', notes: '',
+  colors: DEFAULT_COLORS.map(x => ({ ...x })),
+  sizes: DEFAULT_SIZES.map(x => ({ ...x })),
+});
+
+function StyleForm({ editing, onCancel, onSaved }) {
+  const [form, setForm] = useState(editing ? {
+    ...editing,
+    colors: (editing.style_colors || []).map(c => ({ color_name: c.color_name, color_code: c.color_code, order_qty: c.order_qty })),
+    sizes: (editing.style_sizes || []).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)).map(s => ({ size_name: s.size_name, ratio: s.ratio, scale_pct: s.scale_pct }))
+  } : blankForm());
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
+  const setColor = (idx, k, v) => setForm(prev => ({ ...prev, colors: prev.colors.map((c, i) => i === idx ? { ...c, [k]: v } : c) }));
+  const setSize = (idx, k, v) => setForm(prev => ({ ...prev, sizes: prev.sizes.map((s, i) => i === idx ? { ...s, [k]: v } : s) }));
+
+  const addColor = () => setForm(prev => ({ ...prev, colors: [...prev.colors, { color_name: '', color_code: '', order_qty: 0 }] }));
+  const removeColor = (idx) => setForm(prev => ({ ...prev, colors: prev.colors.filter((_, i) => i !== idx) }));
+  const addSize = () => setForm(prev => ({ ...prev, sizes: [...prev.sizes, { size_name: '', ratio: 1, scale_pct: 0 }] }));
+  const removeSize = (idx) => setForm(prev => ({ ...prev, sizes: prev.sizes.filter((_, i) => i !== idx) }));
+
+  const save = async () => {
+    if (!form.article_number.trim()) { toast('Article number is required', 'error'); return; }
+    setSaving(true);
+    try {
+      if (editing?.id) await updateStyle(editing.id, form);
+      else await createStyle(form);
+      toast(editing ? 'Style updated' : 'Style created');
+      onSaved?.();
+    } catch (err) { toast('Failed: ' + err.message, 'error'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="card" style={{ padding: 16, marginBottom: 18 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14 }}>
+        <h3>{editing ? 'Edit Style / Article' : 'Create Style / Article'}</h3>
+        {onCancel && <button className="btn btn-secondary btn-sm" onClick={onCancel}><X size={13}/> Close</button>}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+        <div className="field"><label>Article #</label><input value={form.article_number} onChange={e => set('article_number', e.target.value)} placeholder="4210" /></div>
+        <div className="field"><label>Style name</label><input value={form.style_name} onChange={e => set('style_name', e.target.value)} placeholder="Basic polo" /></div>
+        <div className="field"><label>Buyer</label><input value={form.buyer} onChange={e => set('buyer', e.target.value)} placeholder="Buyer name" /></div>
+        <div className="field"><label>Season</label><input value={form.season} onChange={e => set('season', e.target.value)} placeholder="SS27" /></div>
+        <div className="field"><label>Garment type</label><input value={form.garment_type} onChange={e => set('garment_type', e.target.value)} placeholder="T-Shirt" /></div>
+        <div className="field"><label>Status</label><select value={form.status} onChange={e => set('status', e.target.value)}><option value="development">Development</option><option value="approved">Approved</option><option value="production">Production</option><option value="closed">Closed</option></select></div>
+        <div className="field"><label>Base size</label><input value={form.base_size} onChange={e => set('base_size', e.target.value)} placeholder="L" /></div>
+        <div className="field"><label>Costing mode</label><select value={form.costing_mode} onChange={e => set('costing_mode', e.target.value)}><option value="base_size">Base size costing</option><option value="size_wise">Size-wise costing</option></select></div>
+        <div className="field"><label>Notes</label><input value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Optional" /></div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
+        <div className="card" style={{ padding: 12, background: 'var(--bg)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}><h3 style={{ fontSize: 13 }}><Palette size={14}/> Colors</h3><button className="btn btn-secondary btn-sm" onClick={addColor}><Plus size={12}/> Add</button></div>
+          {form.colors.map((c, i) => (
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 36px', gap: 8, marginBottom: 8 }}>
+              <input value={c.color_name} onChange={e => setColor(i, 'color_name', e.target.value)} placeholder="Color" />
+              <input type="number" value={c.order_qty} onChange={e => setColor(i, 'order_qty', parseFloat(e.target.value) || 0)} placeholder="Qty" />
+              <button className="btn btn-danger btn-sm" onClick={() => removeColor(i)}><Trash2 size={12}/></button>
+            </div>
+          ))}
+        </div>
+
+        <div className="card" style={{ padding: 12, background: 'var(--bg)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}><h3 style={{ fontSize: 13 }}><Ruler size={14}/> Size set</h3><button className="btn btn-secondary btn-sm" onClick={addSize}><Plus size={12}/> Add</button></div>
+          {form.sizes.map((s, i) => (
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 70px 80px 36px', gap: 8, marginBottom: 8 }}>
+              <input value={s.size_name} onChange={e => setSize(i, 'size_name', e.target.value)} placeholder="Size" />
+              <input type="number" value={s.ratio} onChange={e => setSize(i, 'ratio', parseFloat(e.target.value) || 0)} placeholder="Ratio" />
+              <input type="number" value={s.scale_pct} onChange={e => setSize(i, 'scale_pct', parseFloat(e.target.value) || 0)} placeholder="Scale %" />
+              <button className="btn btn-danger btn-sm" onClick={() => removeSize(i)}><Trash2 size={12}/></button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
+        <button className="btn btn-primary" disabled={saving} onClick={save}><Save size={14}/> {saving ? 'Saving...' : 'Save Style'}</button>
+      </div>
+    </div>
+  );
+}
+
+export default function StyleLibraryPage() {
+  const [styles, setStyles] = useState([]);
+  const [search, setSearch] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const { toast, ToastContainer } = useToast();
+
+  const load = async () => {
+    setLoading(true);
+    try { setStyles(await getStyles({ search })); }
+    catch (err) { toast('Failed to load styles: ' + err.message, 'error'); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const filtered = useMemo(() => styles.filter(s => {
+    const q = search.toLowerCase();
+    return !q || [s.article_number, s.style_name, s.buyer, s.garment_type].join(' ').toLowerCase().includes(q);
+  }), [styles, search]);
+
+  const remove = async (id) => {
+    if (!confirm('Delete this style/article? This also removes linked colors, sizes and style modules.')) return;
+    try { await deleteStyle(id); setStyles(prev => prev.filter(s => s.id !== id)); toast('Style deleted'); }
+    catch (err) { toast('Delete failed: ' + err.message, 'error'); }
+  };
+
+  const closeForm = () => { setShowForm(false); setEditing(null); };
+  const saved = () => { closeForm(); load(); };
+
+  return (
+    <div>
+      <ToastContainer />
+      <PageHeader title="Style Library" subtitle="Mini ERP center: articles, colors, size sets and base costing mode" badge={{ text: 'Mini ERP' }} />
+
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+        <div style={{ position: 'relative', flex: 1 }}>
+          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search article, buyer, style..." style={{ paddingLeft: 32, width: '100%' }} />
+        </div>
+        <button className="btn btn-secondary" onClick={load}>Search</button>
+        <button className="btn btn-primary" onClick={() => { setEditing(null); setShowForm(true); }}><Plus size={14}/> New Style</button>
+      </div>
+
+      {showForm && <StyleForm editing={editing} onCancel={closeForm} onSaved={saved} />}
+
+      {loading ? <div className="empty-state"><p>Loading styles...</p></div> : filtered.length === 0 ? (
+        <div className="empty-state"><Shirt size={32} color="var(--border)"/><p>No styles yet. Create your first article.</p></div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+          {filtered.map(s => (
+            <div key={s.id} className="card" style={{ padding: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
+                <div>
+                  <div style={{ fontWeight: 800, fontFamily: 'JetBrains Mono', color: 'var(--navy)' }}>Art# {s.article_number}</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{s.style_name || s.garment_type || 'Style'}</div>
+                </div>
+                <span className="badge badge-teal" style={{ height: 24 }}>{s.status}</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12, marginBottom: 12 }}>
+                <div><b>Buyer:</b> {s.buyer || '—'}</div>
+                <div><b>Season:</b> {s.season || '—'}</div>
+                <div><b>Base:</b> {s.base_size || 'L'}</div>
+                <div><b>Mode:</b> {s.costing_mode === 'size_wise' ? 'Size-wise' : 'Base size'}</div>
+                <div><b>Colors:</b> {(s.style_colors || []).length}</div>
+                <div><b>Sizes:</b> {(s.style_sizes || []).length}</div>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 12 }}>
+                {(s.style_colors || []).map(c => c.color_name).join(', ') || 'No colors'}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(s); setShowForm(true); }}><Edit3 size={12}/> Edit</button>
+                <button className="btn btn-danger btn-sm" onClick={() => remove(s.id)}><Trash2 size={12}/> Delete</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
