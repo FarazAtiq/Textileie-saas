@@ -56,6 +56,8 @@ export default function ThreadPage() {
   const [buyer,     setBuyer]     = useState('');
   const [articleNo, setArticleNo] = useState('');
   const [wastePct,  setWastePct]  = useState(10);
+  const [threadType, setThreadType] = useState('Polyester 120T');
+  const [threadPricePerMeter, setThreadPricePerMeter] = useState(0.0015);
   const [ops,       setOps]       = useState(DEFAULT_OPS);
   const [saving,    setSaving]    = useState(false);
 
@@ -79,6 +81,7 @@ export default function ThreadPage() {
   const totalConsumption = ops.reduce((s, op) => s + calcOp(op, wastePct).consumption, 0);
   const totalEstimated   = ops.reduce((s, op) => s + calcOp(op, wastePct).estimated,   0);
   const totalMeters      = +(totalEstimated / 100).toFixed(3);
+  const threadCost       = +(totalMeters * (parseFloat(threadPricePerMeter) || 0)).toFixed(4);
 
   // ── save ───────────────────────────────────────────────
   const handleSave = async () => {
@@ -87,15 +90,24 @@ export default function ThreadPage() {
       await createReport({
         type:    'thread',
         title:   'Thread Consumption — ' + (articleNo ? 'Art#' + articleNo + ' ' : '') + style + ' — ' + new Date().toLocaleDateString(),
-        inputs:  { style, buyer, articleNo, wastePct, totalOperations: ops.length },
+        inputs:  { style, buyer, articleNo, wastePct, threadType, threadPricePerMeter, totalOperations: ops.length },
         results: {
           totalConsumptionCm: totalConsumption.toFixed(1),
           totalEstimatedCm:   totalEstimated.toFixed(1),
           totalMeters,
           wastePct,
+          threadType,
+          threadPricePerMeter,
+          threadCost,
         },
       });
-      toast('Thread report saved');
+      if (articleNo) {
+        const key = 'textileie_thread_cost_by_article';
+        const existing = JSON.parse(localStorage.getItem(key) || '{}');
+        existing[articleNo] = { articleNo, threadType, totalMeters, threadPricePerMeter, threadCost, savedAt: new Date().toISOString() };
+        localStorage.setItem(key, JSON.stringify(existing));
+      }
+      toast('Thread report saved and linked to costing');
     } catch (err) {
       toast('Failed: ' + err.message, 'error');
     } finally {
@@ -136,6 +148,8 @@ export default function ThreadPage() {
       doc.text('Buyer: ' + (buyer || '—'),          80,  35);
       doc.text('Article#: ' + (articleNo || '—'),  140,  35);
       doc.text('Wastage: ' + wastePct + '%',        195,  35);
+      doc.text('Thread: ' + threadType, 18, 41);
+      doc.text('Cost: $' + threadCost, 80, 41);
       doc.setTextColor(13, 122, 107);
       doc.setFontSize(11);
       doc.text('Total: ' + totalMeters + ' m',      245,  35);
@@ -181,7 +195,7 @@ export default function ThreadPage() {
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
       doc.text(
-        'Total thread consumption (with ' + wastePct + '% wastage): ' + totalEstimated.toFixed(1) + ' cm   =   ' + totalMeters + ' meters',
+        'Total thread: ' + totalEstimated.toFixed(1) + ' cm = ' + totalMeters + ' m   |   Cost: $' + threadCost,
         18, finalY + 9,
       );
 
@@ -230,7 +244,7 @@ export default function ThreadPage() {
     <td colspan="2" style="background:#E4F4F1;color:#0F2942;font-weight:bold;padding:6px;border:1px solid #D8E4EE">Buyer: ${buyer || '—'}</td>
     <td style="background:#E4F4F1;color:#0F2942;font-weight:bold;padding:6px;border:1px solid #D8E4EE">Article#: ${articleNo || '—'}</td>
     <td style="background:#E4F4F1;color:#0F2942;font-weight:bold;padding:6px;border:1px solid #D8E4EE">Wastage: ${wastePct}%</td>
-    <td style="background:#E4F4F1;color:#0D7A6B;font-weight:bold;font-size:12pt;padding:6px;border:1px solid #D8E4EE">Total: ${totalMeters} m</td>
+    <td style="background:#E4F4F1;color:#0D7A6B;font-weight:bold;font-size:12pt;padding:6px;border:1px solid #D8E4EE">Total: ${totalMeters} m | Thread: ${threadType} | Cost: $${threadCost}</td>
   </tr>
   <tr>
     <th style="background:#0F2942;color:white;font-weight:bold;padding:5px 8px;border:1px solid #0F2942">Seq No.</th>
@@ -323,6 +337,16 @@ export default function ThreadPage() {
             />
           </div>
         </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <h3 style={{ marginBottom: 12 }}>Thread price link to costing</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+          <div className="field"><label>Thread type</label><input value={threadType} onChange={e => setThreadType(e.target.value)} placeholder="e.g. Polyester 120T" /></div>
+          <div className="field"><label>Price / meter ($)</label><input type="number" step="0.0001" value={threadPricePerMeter} onChange={e => setThreadPricePerMeter(parseFloat(e.target.value) || 0)} /></div>
+          <div className="field"><label>Thread cost / garment</label><div style={{ padding: '9px 10px', background: 'var(--teal-light)', borderRadius: 8, fontFamily: 'JetBrains Mono', fontWeight: 700, color: 'var(--teal)' }}>${threadCost}</div></div>
+        </div>
+        <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>When saved with Article #, this cost is stored article-wise and auto-loads in Costing page.</p>
       </div>
 
       {/* ── Total summary bar ── */}
