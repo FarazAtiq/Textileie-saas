@@ -9,6 +9,7 @@ import { useState } from 'react';
 const NAV = [
   { section: 'Overview' },
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { label: 'Style Library', path: '/styles', icon: FolderOpen },
   { to: '/reports',   icon: FileText,        label: 'Reports' },
   { section: 'IE Calculators' },
   { to: '/efficiency', icon: TrendingUp, label: 'Efficiency' },
@@ -17,7 +18,6 @@ const NAV = [
   { to: '/fabric',     icon: Layers,     label: 'Fabric' },
   { to: '/thread',     icon: Scissors,   label: 'Thread' },
   { to: '/costing',    icon: DollarSign, label: 'Costing' },
-  { to: '/yarn',       icon: Hash,       label: 'Yarn Count' },
   { section: 'Account' },
   { to: '/settings',   icon: Settings,   label: 'Settings' },
 ];
