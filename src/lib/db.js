@@ -216,16 +216,16 @@ export async function getSMVDropdown() {
 // ════════════════════════════════════════════════════════════
 // MINI ERP: Style / Article / Color / BOM / Thread / Costing
 // ════════════════════════════════════════════════════════════
-
 async function getCurrentUserId() {
-  const { data: sessionData, error } = await supabase.auth.getSession();
+  const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
-  if (!sessionData.session) throw new Error('Not logged in');
-  return sessionData.session.user.id;
+  return data?.session?.user?.id || null;
 }
 
 export async function getStyles({ search = '', status, limit = 100 } = {}) {
   const userId = await getCurrentUserId();
+  if (!userId) return [];
+
   let query = supabase
     .from('styles')
     .select('*, style_colors(*), style_sizes(*)')
@@ -234,7 +234,11 @@ export async function getStyles({ search = '', status, limit = 100 } = {}) {
     .limit(limit);
 
   if (status && status !== 'all') query = query.eq('status', status);
-  if (search) query = query.or(`article_number.ilike.%${search}%,buyer.ilike.%${search}%,style_name.ilike.%${search}%`);
+  if (search) {
+    query = query.or(
+      `article_number.ilike.%${search}%,buyer.ilike.%${search}%,style_name.ilike.%${search}%`
+    );
+  }
 
   const { data, error } = await query;
   if (error) {
@@ -246,12 +250,15 @@ export async function getStyles({ search = '', status, limit = 100 } = {}) {
 
 export async function getStyle(id) {
   const userId = await getCurrentUserId();
+  if (!userId) throw new Error('Not logged in');
+
   const { data, error } = await supabase
     .from('styles')
     .select('*, style_colors(*), style_sizes(*)')
     .eq('user_id', userId)
     .eq('id', id)
     .single();
+
   if (error) throw error;
   return data;
 }
@@ -284,88 +291,44 @@ export async function createStyle(payload) {
 
   return getStyle(data.id);
 }
-  if (colors.length) {
-    const rows = colors.filter(c => String(c.color_name || '').trim()).map(c => ({
-      user_id: userId,
-      style_id: data.id,
-      color_name: c.color_name,
-      color_code: c.color_code || '',
-      order_qty: Number(c.order_qty || 0)
-    }));
-    if (rows.length) {
-      const { error: colorError } = await supabase.from('style_colors').insert(rows);
-      if (colorError) throw colorError;
-    }
-  }
-
-  if (sizes.length) {
-    const rows = sizes.filter(s => String(s.size_name || '').trim()).map((s, idx) => ({
-      user_id: userId,
-      style_id: data.id,
-      size_name: s.size_name,
-      ratio: Number(s.ratio || 0),
-      scale_pct: Number(s.scale_pct || 0),
-      sort_order: idx
-    }));
-    if (rows.length) {
-      const { error: sizeError } = await supabase.from('style_sizes').insert(rows);
-      if (sizeError) throw sizeError;
-    }
-  }
-
-  return getStyle(data.id);
-}
 
 export async function updateStyle(id, payload) {
   const userId = await getCurrentUserId();
-  const { colors, sizes, ...style } = payload;
+  if (!userId) throw new Error('Not logged in');
 
   const { data, error } = await supabase
     .from('styles')
-    .update({ ...style, updated_at: new Date().toISOString() })
+    .update({
+      article_number: payload.article_number || '',
+      style_name: payload.style_name || '',
+      buyer: payload.buyer || '',
+      season: payload.season || '',
+      garment_type: payload.garment_type || '',
+      base_size: payload.base_size || 'L',
+      costing_mode: payload.costing_mode || 'base_size',
+      status: payload.status || 'development',
+      notes: payload.notes || '',
+      updated_at: new Date().toISOString()
+    })
     .eq('id', id)
     .eq('user_id', userId)
     .select()
     .single();
+
   if (error) throw error;
-
-  if (Array.isArray(colors)) {
-    await supabase.from('style_colors').delete().eq('style_id', id).eq('user_id', userId);
-    const rows = colors.filter(c => String(c.color_name || '').trim()).map(c => ({
-      user_id: userId,
-      style_id: id,
-      color_name: c.color_name,
-      color_code: c.color_code || '',
-      order_qty: Number(c.order_qty || 0)
-    }));
-    if (rows.length) {
-      const { error: colorError } = await supabase.from('style_colors').insert(rows);
-      if (colorError) throw colorError;
-    }
-  }
-
-  if (Array.isArray(sizes)) {
-    await supabase.from('style_sizes').delete().eq('style_id', id).eq('user_id', userId);
-    const rows = sizes.filter(s => String(s.size_name || '').trim()).map((s, idx) => ({
-      user_id: userId,
-      style_id: id,
-      size_name: s.size_name,
-      ratio: Number(s.ratio || 0),
-      scale_pct: Number(s.scale_pct || 0),
-      sort_order: idx
-    }));
-    if (rows.length) {
-      const { error: sizeError } = await supabase.from('style_sizes').insert(rows);
-      if (sizeError) throw sizeError;
-    }
-  }
-
-  return getStyle(data.id);
+  return data;
 }
 
 export async function deleteStyle(id) {
   const userId = await getCurrentUserId();
-  const { error } = await supabase.from('styles').delete().eq('id', id).eq('user_id', userId);
+  if (!userId) throw new Error('Not logged in');
+
+  const { error } = await supabase
+    .from('styles')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', userId);
+
   if (error) throw error;
 }
 
@@ -380,7 +343,7 @@ export async function getStyleDropdown() {
     console.error('getStyleDropdown error:', error);
     return [];
   }
-  return data || [];
+    return data || [];
 }
 
 export async function upsertStyleCostModule({ style_id, color_id, module_type, data, summary }) {
