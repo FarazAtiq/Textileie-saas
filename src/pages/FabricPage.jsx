@@ -322,9 +322,9 @@ function BomSheetTab() {
       <div className="card" style={{marginTop:16,padding:'16px 18px'}}>
         <h3 style={{marginBottom:12}}>Sign-off</h3>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
-          <div className="field"><label>Provided by \u2014 GGT</label><input value={signOff.providedBy} onChange={e=>setSignOff({...signOff,providedBy:e.target.value})/></div>
-          <div className="field"><label>Approved by \u2014 PD Manager</label><input value={signOff.approvedBy} onChange={e=>setSignOff({...signOff,approvedBy:e.target.value})/></div>
-          <div className="field"><label>Received by</label><input value={signOff.receivedBy} onChange={e=>setSignOff({...signOff,receivedBy:e.target.value})/></div>
+          <div className="field"><label>Provided by \u2014 GGT</label><input value={signOff.providedBy} onChange={e=>setSignOff({...signOff,providedBy:e.target.value})}/></div>
+          <div className="field"><label>Approved by \u2014 PD Manager</label><input value={signOff.approvedBy} onChange={e=>setSignOff({...signOff,approvedBy:e.target.value})}/></div>
+          <div className="field"><label>Received by</label><input value={signOff.receivedBy} onChange={e=>setSignOff({...signOff,receivedBy:e.target.value})}/></div>
         </div>
       </div>
 
@@ -553,4 +553,4 @@ function ConverterTab() {
       </div>
     </div>
   );
-}
+          }
