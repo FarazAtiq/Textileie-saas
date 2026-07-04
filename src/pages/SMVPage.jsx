@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { calcSMV, formatNum } from '../utils/calculations.js';
 import { PageHeader } from '../components/ResultCard.jsx';
-import { createReport, createSMVTemplate } from '../lib/db.js';
+import { createReport, createSMVTemplate, upsertStyleCostModule } from '../lib/db.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useToast } from '../hooks/useToast.jsx';
 import { Plus, Trash2, Save, Download, BookOpen, FileText } from 'lucide-react';
+import { ArticleSelector } from '../components/ArticleSelector.jsx';
 
 const PROCESS_TYPES = [
   { group: 'Sewing',        options: [{ value: 'sewing', label: 'Sewing' }] },
@@ -97,6 +98,8 @@ export default function SMVPage() {
 
   const [garmentType, setGarmentType]   = useState('T-Shirt');
   const [articleNumber, setArticleNumber] = useState('');
+  const [selectedStyle, setSelectedStyle] = useState(null);
+  const [selectedColor, setSelectedColor] = useState(null);
   const [templateName, setTemplateName]   = useState('');
   const [saving, setSaving]               = useState(false);
   const [savingTpl, setSavingTpl]         = useState(false);
@@ -128,16 +131,44 @@ export default function SMVPage() {
     if (articleNumber && val) setTemplateName(articleNumber + ' — ' + val);
   };
 
+  const handleStyleSelect = ({ style, color }) => {
+    setSelectedStyle(style || null);
+    setSelectedColor(color || null);
+    if (style?.article_number) setArticleNumber(style.article_number);
+    if (style?.garment_type) setGarmentType(style.garment_type);
+    if (style?.article_number) setTemplateName(style.article_number + ' — ' + (style.style_name || style.garment_type || 'Style'));
+  };
+
   const save = async () => {
     setSaving(true);
     try {
+      const styleMeta = {
+        style_id: selectedStyle?.id || null,
+        color_id: selectedColor?.id || null,
+        articleNumber,
+        styleName: selectedStyle?.style_name || templateName || '',
+        buyer: selectedStyle?.buyer || '',
+        colorName: selectedColor?.color_name || '',
+        baseSize: selectedStyle?.base_size || '',
+        season: selectedStyle?.season || '',
+        garmentType,
+      };
       await createReport({
         type: 'smv',
-        title: 'SMV — ' + (articleNumber ? 'Art#' + articleNumber + ' · ' : '') + garmentType + ' — ' + new Date().toLocaleDateString(),
-        inputs: { articleNumber, garmentType, smvView, totalOperations: activeOps.length, combinedOperations: ops.length },
+        title: 'SMV — ' + (articleNumber ? 'Art#' + articleNumber + ' · ' : '') + (selectedStyle?.style_name || garmentType) + ' — ' + new Date().toLocaleDateString(),
+        inputs: { ...styleMeta, smvView, totalOperations: activeOps.length, combinedOperations: ops.length },
         results: { totalSMV: r.totalSMV, combinedSMV: combined.totalSMV, departmentBreakdown: smvSummary, basicTime: r.totalBasicTime, allowance: r.totalAllowanceTime, dailyOutput: r.dailyOutputPerOperator, opsFor500: r.operatorsFor500pcs, operations: activeOps }
       });
-      toast('SMV report saved');
+      if (selectedStyle?.id) {
+        await upsertStyleCostModule({
+          style_id: selectedStyle.id,
+          color_id: selectedColor?.id || null,
+          module_type: 'smv',
+          data: { operations: ops, styleMeta },
+          summary: { total_smv: combined.totalSMV, department_breakdown: smvSummary, article_number: articleNumber, garment_type: garmentType }
+        });
+      }
+      toast('SMV report saved and linked to Style Master');
     } catch (err) { toast('Failed: ' + err.message, 'error'); }
     finally { setSaving(false); }
   };
@@ -148,7 +179,16 @@ export default function SMVPage() {
     setSavingTpl(true);
     try {
       await createSMVTemplate({ name: templateName, garment_type: garmentType, article_number: articleNumber, operations: ops, total_smv: combined.totalSMV, department_breakdown: smvSummary });
-      toast('Art#' + articleNumber + ' saved to library');
+      if (selectedStyle?.id) {
+        await upsertStyleCostModule({
+          style_id: selectedStyle.id,
+          color_id: selectedColor?.id || null,
+          module_type: 'smv',
+          data: { operations: ops },
+          summary: { total_smv: combined.totalSMV, department_breakdown: smvSummary, article_number: articleNumber, garment_type: garmentType }
+        });
+      }
+      toast('Art#' + articleNumber + ' saved to Style Master / SMV library');
       setTemplateName(''); setArticleNumber('');
     } catch (err) { toast('Failed: ' + err.message, 'error'); }
     finally { setSavingTpl(false); }
@@ -301,12 +341,19 @@ ${rows}
       <ToastContainer />
       <PageHeader title="SMV / SAM Calculator" subtitle="Operation breakdown — Cutting, Sewing, Embellishment, Finishing, QC" badge={{ text: 'IE Formula' }} />
 
+      <ArticleSelector
+        value={selectedStyle?.id}
+        colorId={selectedColor?.id}
+        label="Select from Style Master"
+        onSelect={handleStyleSelect}
+      />
+
       {/* Article info */}
       <div className="card" style={{ marginBottom: 16, padding: '14px 20px', background: 'var(--navy)' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
           <div>
             <label style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginBottom: 4, display: 'block', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Article Number</label>
-            <input value={articleNumber} onChange={e => handleArticleChange(e.target.value)} placeholder="e.g. 4233"
+            <input value={articleNumber} onChange={e => handleArticleChange(e.target.value)} placeholder="e.g. 5400"
               style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', borderRadius: 6, padding: '7px 10px', width: '100%', fontSize: 15, fontFamily: 'JetBrains Mono', fontWeight: 700 }} />
           </div>
           <div>
@@ -481,11 +528,11 @@ ${rows}
         <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>Save SMV so it auto-fills in Efficiency and Capacity calculators</p>
         <div className="field">
           <label>Article number *</label>
-          <input value={articleNumber} onChange={e => handleArticleChange(e.target.value)} placeholder="e.g. 4233" style={{ fontFamily: 'JetBrains Mono', fontWeight: 700 }} />
+          <input value={articleNumber} onChange={e => handleArticleChange(e.target.value)} placeholder="e.g. 5400" style={{ fontFamily: 'JetBrains Mono', fontWeight: 700 }} />
         </div>
         <div className="field" style={{ marginBottom: 14 }}>
           <label>Template name</label>
-          <input value={templateName} onChange={e => setTemplateName(e.target.value)} placeholder="e.g. 4233 — T-Shirt" />
+          <input value={templateName} onChange={e => setTemplateName(e.target.value)} placeholder="e.g. 5400 — T-Shirt" />
         </div>
         <div style={{ padding: '10px 14px', background: 'var(--teal-light)', borderRadius: 8, marginBottom: 12, fontSize: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
