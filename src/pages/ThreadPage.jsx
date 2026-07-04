@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { createReport, upsertStyleCostModule } from '../lib/db.js';
-import { upsertStyleCostModule } from '../lib/db.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useToast } from '../hooks/useToast.jsx';
 import { PageHeader } from '../components/ResultCard.jsx';
