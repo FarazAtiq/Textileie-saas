@@ -20,32 +20,14 @@ const DEPARTMENTS = [
 const DEPT_LABEL = Object.fromEntries(DEPARTMENTS.map(d => [d.value, d.label]));
 const DEPT_BG    = Object.fromEntries(DEPARTMENTS.map(d => [d.value, d.color]));
 const DEPT_DOT   = Object.fromEntries(DEPARTMENTS.map(d => [d.value, d.dot]));
-
 function getDepartmentSMV(template, department) {
-  if (!template) return 0;
-
-  const breakdown =
-    template.department_breakdown ||
-    template.departmentBreakdown ||
-    template.results?.departmentBreakdown ||
-    template.summary?.department_breakdown ||
-    {};
+  const breakdown = template?.department_breakdown || {};
 
   if (department === 'combined') {
-    return Number(
-      template.total_smv ||
-      template.totalSMV ||
-      template.summary?.total_smv ||
-      breakdown.combined?.smv ||
-      0
-    );
+    return Number(template?.total_smv || breakdown?.combined?.smv || 0);
   }
 
-  return Number(
-    breakdown?.[department]?.smv ||
-    breakdown?.[department]?.totalSMV ||
-    0
-  );
+  return Number(breakdown?.[department]?.smv || 0);
 }
 
 function makeStyleSMVTemplate(style, smvModule) {
@@ -225,7 +207,11 @@ export function EfficiencyPage() {
   const { toast, ToastContainer } = useToast();
   const { profile } = useAuth();
 
-  const setLine = (id, k, v) => setLines(lines.map(l => l.id === id ? { ...l, [k]: v } : l));
+  const setLine = (id, k, v) => {
+  setLines(prev =>
+    prev.map(l => l.id === id ? { ...l, [k]: v } : l)
+  );
+};
   const addLine = () => { const n = newEffLine(lines.length + 1); setLines([...lines, n]); setActiveIdx(lines.length); };
   const removeLine = (id) => {
     if (lines.length === 1) return;
@@ -648,7 +634,11 @@ export function CapacityPage() {
   const { toast, ToastContainer } = useToast();
   const { profile } = useAuth();
 
-  const setLine = (id, k, v) => setLines(lines.map(l => l.id === id ? { ...l, [k]: v } : l));
+  const setLine = (id, k, v) => {
+  setLines(prev =>
+    prev.map(l => l.id === id ? { ...l, [k]: v } : l)
+  );
+}; 
   const addLine = () => { const n = newCapLine(lines.length + 1); setLines([...lines, n]); setActiveIdx(lines.length); };
   const removeLine = (id) => {
     if (lines.length === 1) return;
