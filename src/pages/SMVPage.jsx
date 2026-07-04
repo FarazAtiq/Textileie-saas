@@ -501,6 +501,7 @@ ${rows}
           })}
         </div>
       </div>
+      )}
 
       {/* Output estimates + actions */}
       <div className="card" style={{ marginBottom: 16, padding: 16 }}>
