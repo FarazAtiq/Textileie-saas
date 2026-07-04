@@ -27,7 +27,7 @@ export function calcForSize(comp, sizeId, sizes, baseSizeId) {
 
 // ── PDF Export ──
 export async function exportBomPDF({
-  artNo, styleName, customer, gkPant, techPackRef, consumptionNo, issueDate,
+  artNo, styleName, customer, techPackRef, consumptionNo, issueDate,
   components, sizes, baseSizeId, signOff, docType, companyName, userName
 }) {
   const { default: jsPDF } = await import('jspdf');
@@ -52,7 +52,6 @@ export async function exportBomPDF({
     ['Arts:', artNo || '\u2014'],
     ['Style Name:', styleName || '\u2014'],
     ['Customer:', customer || '\u2014'],
-    ['GK-Pant / Style:', gkPant || '\u2014'],
   ];
   leftCols.forEach(([k, v], i) => {
     doc.setFont('helvetica', 'bold');   doc.text(k, 14, hY + i * 5);
@@ -82,7 +81,7 @@ export async function exportBomPDF({
 
   // ── Dynamic column sizing based on number of sizes ──
   const sizeLabels = sizes.map(s => s.label);
-  const sizeSubCols = ['Lay(m)', 'Pcs', 'Eff%', 'Cons.(BOM)', 'Mkt%', 'Allow%'];
+  const sizeSubCols = ['Lay(m)', 'Pcs', 'Eff%', 'Cons.(BOM)', 'Allow%'];
   const fixedCount = 9;
 
   // Calculate optimal widths
@@ -132,7 +131,6 @@ export async function exportBomPDF({
         sd.noOfPcs || 0,
         (sd.efficiency || 0) + '%',
         calc.consumption.toFixed(3),
-        c.markerSavingPct ? c.markerSavingPct + '%' : '',
         (c.allowancePct || 0) + '%',
       );
     });
@@ -190,11 +188,11 @@ export async function exportBomPDF({
 
 // ── Excel Export ──
 export function exportBomExcel({
-  artNo, styleName, customer, gkPant, techPackRef, consumptionNo, issueDate,
+  artNo, styleName, customer, techPackRef, consumptionNo, issueDate,
   components, sizes, baseSizeId, signOff, docType
 }) {
   const sizeLabels = sizes.map(s => s.label);
-  const subCols = ['Lay Length (m)', 'No of Pcs', 'Efficiency%', 'Consumption (BOM)', 'Marker Saving%', 'Allowance%'];
+  const subCols = ['Lay Length (m)', 'No of Pcs', 'Efficiency%', 'Consumption (BOM)', 'Allowance%'];
 
   const hr1 = ['Comp#', 'Usage at', 'Fabric Description', 'Fabric Code', 'Supplier', 'GSM', 'Cuttable Width', 'Kgs/Mtr', 'UOM'];
   sizeLabels.forEach(sl => { hr1.push(sl); for (let i = 1; i < subCols.length; i++) hr1.push(''); });
@@ -210,7 +208,6 @@ export function exportBomExcel({
       cells.push(
         calc.layLength || 0, sd.noOfPcs || 0, (sd.efficiency || 0) + '%',
         calc.consumption.toFixed(3),
-        c.markerSavingPct ? c.markerSavingPct + '%' : '',
         (c.allowancePct || 0) + '%'
       );
     });
@@ -231,7 +228,7 @@ export function exportBomExcel({
   <td colspan="2" style="background:#E4F4F1;padding:5px;border:1px solid #D8E4EE;font-weight:bold">Art#: ${artNo || '\u2014'}</td>
   <td colspan="2" style="background:#E4F4F1;padding:5px;border:1px solid #D8E4EE;font-weight:bold">Style: ${styleName || '\u2014'}</td>
   <td colspan="2" style="background:#E4F4F1;padding:5px;border:1px solid #D8E4EE;font-weight:bold">Customer: ${customer || '\u2014'}</td>
-  <td colspan="2" style="background:#E4F4F1;padding:5px;border:1px solid #D8E4EE;font-weight:bold">GK: ${gkPant || '\u2014'}</td>
+  
   <td colspan="${totalCols - 8}" style="background:#E4F4F1;padding:5px;border:1px solid #D8E4EE;font-weight:bold">Issue Date: ${issueDate} | Doc: ${docType} | Tech Pack: ${techPackRef || '\u2014'}</td>
 </tr>
 <tr>${hr1.map(h => '<th ' + headerStyle + '>' + h + '</th>').join('')}</tr>
