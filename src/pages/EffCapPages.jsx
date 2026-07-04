@@ -22,24 +22,44 @@ const DEPT_BG    = Object.fromEntries(DEPARTMENTS.map(d => [d.value, d.color]));
 const DEPT_DOT   = Object.fromEntries(DEPARTMENTS.map(d => [d.value, d.dot]));
 
 function getDepartmentSMV(template, department) {
-  const raw = template?.department_breakdown || template?.departmentBreakdown || template?.results?.departmentBreakdown;
-  const row = raw?.[department];
-  const deptSmv = parseFloat(row?.smv ?? row?.totalSMV ?? 0) || 0;
-  return deptSmv > 0 ? +deptSmv.toFixed(3) : (parseFloat(template?.total_smv) || 0);
+  if (!template) return 0;
+
+  const breakdown =
+    template.department_breakdown ||
+    template.departmentBreakdown ||
+    template.results?.departmentBreakdown ||
+    template.summary?.department_breakdown ||
+    {};
+
+  if (department === 'combined') {
+    return Number(
+      template.total_smv ||
+      template.totalSMV ||
+      template.summary?.total_smv ||
+      breakdown.combined?.smv ||
+      0
+    );
+  }
+
+  return Number(
+    breakdown?.[department]?.smv ||
+    breakdown?.[department]?.totalSMV ||
+    0
+  );
 }
 
 function makeStyleSMVTemplate(style, smvModule) {
-  if (!style || !smvModule?.summary?.total_smv) return null;
+  if (!style || !smvModule?.summary) return null;
+
   return {
     id: smvModule.id || style.id,
     article_number: style.article_number,
     name: style.style_name || style.garment_type || 'Style',
     garment_type: style.garment_type || '',
-    total_smv: smvModule.summary.total_smv,
+    total_smv: smvModule.summary.total_smv || 0,
     department_breakdown: smvModule.summary.department_breakdown || {}
   };
 }
-
 function makeDeptTotals(lines, type) {
   return DEPARTMENTS.map(d => {
     const deptLines = lines.filter(l => (l.department || 'sewing') === d.value);
@@ -433,18 +453,34 @@ export function EfficiencyPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14, padding: '12px 14px', background: 'var(--navy)', borderRadius: 10 }}>
             <div>
               <label style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Department</label>
-              <select value={active.department || 'sewing'} 
-                      onChange={e => { 
-                        const dept = e.target.value; 
-                        setLine(active.id, "department", dept);
-                        if (active.selectedSMV) {
-                          const deptSmv = getDepartmentSMV(active.selectedSMV, dept);
-                          setLine(active.id, "smv", deptSmv);
+              <select
+  value={active.department || 'sewing'}
+  onChange={e => {
+    const dept = e.target.value;
+
+    setLine(active.id, 'department', dept);
+
+    if (active.selectedSMV) {
+      const deptSmv = getDepartmentSMV(active.selectedSMV, dept);
+      setLine(active.id, 'smv', deptSmv);
     }
-}}
-                style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', borderRadius: 6, padding: '6px 8px', width: '100%', fontSize: 13 }}>
-                {DEPARTMENTS.map(d => <option key={d.value} value={d.value} style={{ color: 'black' }}>{d.label}</option>)}
-              </select>
+  }}
+  style={{
+    background: 'rgba(255,255,255,0.1)',
+    border: '1px solid rgba(255,255,255,0.2)',
+    color: 'white',
+    borderRadius: 6,
+    padding: '6px 8px',
+    width: '100%',
+    fontSize: 13
+  }}
+>
+  {DEPARTMENTS.map(d => (
+    <option key={d.value} value={d.value} style={{ color: 'black' }}>
+      {d.label}
+    </option>
+  ))}
+</select>
             </div>
             <div>
               <label style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Article #</label>
@@ -812,18 +848,34 @@ export function CapacityPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14, padding: '12px 14px', background: 'var(--navy)', borderRadius: 10 }}>
             <div>
               <label style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Department</label>
-              <select value={active.department || 'sewing'} 
-                      onChange={e => { 
-                        const dept = e.target.value; 
-                        setLine(active.id, "department", dept);
-                        if (active.selectedSMV) {
-                          const deptSmv = getDepartmentSMV(active.selectedSMV, dept);
-                          setLine(active.id, "smv", deptSmv);
+             <select
+  value={active.department || 'sewing'}
+  onChange={e => {
+    const dept = e.target.value;
+
+    setLine(active.id, 'department', dept);
+
+    if (active.selectedSMV) {
+      const deptSmv = getDepartmentSMV(active.selectedSMV, dept);
+      setLine(active.id, 'smv', deptSmv);
     }
-}}
-                style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', borderRadius: 6, padding: '6px 8px', width: '100%', fontSize: 13 }}>
-                {DEPARTMENTS.map(d => <option key={d.value} value={d.value} style={{ color: 'black' }}>{d.label}</option>)}
-              </select>
+  }}
+  style={{
+    background: 'rgba(255,255,255,0.1)',
+    border: '1px solid rgba(255,255,255,0.2)',
+    color: 'white',
+    borderRadius: 6,
+    padding: '6px 8px',
+    width: '100%',
+    fontSize: 13
+  }}
+>
+  {DEPARTMENTS.map(d => (
+    <option key={d.value} value={d.value} style={{ color: 'black' }}>
+      {d.label}
+    </option>
+  ))}
+</select>
             </div>
             <div>
               <label style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Article #</label>
