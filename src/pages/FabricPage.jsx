@@ -3,12 +3,13 @@ import { calcFabricYards, calcFabricGSM, formatNum } from '../utils/calculations
 import { calcBomConsumption, defaultRatioForSize } from '../utils/fabricBomCalc.js';
 import { calcKgToMeter, calcMeterToKg, metersToYards, cmToInch } from '../utils/kgMeterCalc.js';
 import { PageHeader, CalcGrid } from '../components/ResultCard.jsx';
-import { createReport } from '../lib/db.js';
+import { createReport, upsertStyleCostModule } from '../lib/db.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useToast } from '../hooks/useToast.jsx';
 import { exportReportPDF } from '../utils/pdfExport.js';
 import { exportBomPDF, exportBomExcel } from '../utils/bomExport.js';
 import { Plus, Trash2, Save, Download, FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArticleSelector } from '../components/ArticleSelector.jsx';
 
 function useSave(type, titleFn, inputs, results) {
   const [saving, setSaving] = useState(false);
@@ -141,7 +142,6 @@ const newComponent = (num) => ({
   kgsPerMtr: '',
   uom: 'KG',
   allowancePct: 4,
-  markerSavingPct: '',
   sizeData: {},
 });
 
@@ -155,8 +155,9 @@ function BomSheetTab() {
   // Header
   const [artNo,         setArtNo]         = useState('5400');
   const [styleName,     setStyleName]     = useState('Simple Pant');
-  const [customer,      setCustomer]      = useState('');
-  const [gkPant,        setGkPant]        = useState('Simple Pant');
+  const [customer,      setCustomer]      = useState('Nike');
+  const [selectedStyle, setSelectedStyle] = useState(null);
+  const [selectedColor, setSelectedColor] = useState(null);
   const [techPackRef,   setTechPackRef]   = useState('');
   const [consumptionNo, setConsumptionNo] = useState('');
   const [issueDate,     setIssueDate]     = useState(new Date().toISOString().slice(0, 10));
@@ -173,6 +174,21 @@ function BomSheetTab() {
 
   // Sign-off
   const [signOff, setSignOff] = useState({ providedBy: '', approvedBy: '', receivedBy: '' });
+
+  const handleStyleSelect = ({ style, color }) => {
+    setSelectedStyle(style || null);
+    setSelectedColor(color || null);
+    if (style?.article_number) setArtNo(style.article_number);
+    if (style?.style_name) setStyleName(style.style_name);
+    if (style?.buyer) setCustomer(style.buyer);
+    const styleSizes = style?.style_sizes || [];
+    if (styleSizes.length) {
+      const nextSizes = styleSizes.map(ss => ({ id: ss.id, label: ss.size_name || ss.label || 'Size' }));
+      setSizes(nextSizes);
+      const base = nextSizes.find(x => x.label === style.base_size) || nextSizes[0];
+      setBaseSizeId(base?.id || null);
+    }
+  };
 
   // ── size helpers ──
   const addSize = () => setSizes([...sizes, newSize('Size ' + (sizes.length + 1))]);
@@ -219,7 +235,7 @@ function BomSheetTab() {
   const handleExportPDF = async () => {
     try {
       await exportBomPDF({
-        artNo, styleName, customer, gkPant, techPackRef, consumptionNo, issueDate,
+        artNo, styleName, customer, techPackRef, consumptionNo, issueDate,
         components, sizes, baseSizeId, signOff, docType,
         companyName: profile?.company_name, userName: profile?.full_name
       });
@@ -230,7 +246,7 @@ function BomSheetTab() {
   // ── Excel export — using shared utility ──
   const handleExportExcel = () => {
     exportBomExcel({
-      artNo, styleName, customer, gkPant, techPackRef, consumptionNo, issueDate,
+      artNo, styleName, customer, techPackRef, consumptionNo, issueDate,
       components, sizes, baseSizeId, signOff, docType
     });
     toast('Excel downloaded');
@@ -245,23 +261,32 @@ function BomSheetTab() {
         components.reduce((sum, c) => sum + calcForSize(c, s.id).consumption, 0).toFixed(3)
       ]));
 
-      await createReport({
+      const savedReport = await createReport({
         type: 'fabric',
         title: 'Fabric BOM \u2014 ' + (artNo ? 'Art#' + artNo + ' ' : '') + (styleName || '') + ' \u2014 ' + new Date().toLocaleDateString(),
         inputs: {
-          articleNumber: artNo, styleName, customer, gkPant, techPackRef,
+          articleNumber: artNo, styleName, customer, style_id: selectedStyle?.id || null, color_id: selectedColor?.id || null, colorName: selectedColor?.color_name || '', baseSize: selectedStyle?.base_size || '', season: selectedStyle?.season || '', techPackRef,
           consumptionNo, issueDate, docType,
           components: components.length,
           sizes: sizes.map(s => s.label).join(', '),
           // Store full BOM data for reconstruction
           _bomData: JSON.stringify({
-            artNo, styleName, customer, gkPant, techPackRef, consumptionNo, issueDate,
+            artNo, styleName, customer, techPackRef, consumptionNo, issueDate,
             docType, sizes, baseSizeId, components, signOff
           })
         },
         results,
       });
-      toast('Fabric BOM saved');
+      if (selectedStyle?.id) {
+        await upsertStyleCostModule({
+          style_id: selectedStyle.id,
+          color_id: selectedColor?.id || null,
+          module_type: 'fabric_bom',
+          data: { artNo, styleName, customer, techPackRef, consumptionNo, issueDate, docType, sizes, baseSizeId, components, signOff },
+          summary: { results, components, sizes: sizes.map(s => s.label), article_number: artNo, style_name: styleName, buyer: customer }
+        });
+      }
+      toast('Fabric BOM saved and linked to Style Master');
     } catch (err) { toast('Failed: ' + err.message, 'error'); }
     finally { setSaving(false); }
   };
@@ -270,14 +295,20 @@ function BomSheetTab() {
     <div>
       <ToastContainer />
 
+      <ArticleSelector
+        value={selectedStyle?.id}
+        colorId={selectedColor?.id}
+        label="Select from Style Master"
+        onSelect={handleStyleSelect}
+      />
+
       {/* Header info */}
       <div className="card" style={{ marginBottom: 16, padding: '16px 18px' }}>
         <h3 style={{ marginBottom: 12 }}>Document info</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
           <div className="field"><label>Art#</label><input value={artNo} onChange={e=>setArtNo(e.target.value)} placeholder="5400" style={{fontFamily:'JetBrains Mono',fontWeight:700}} /></div>
           <div className="field"><label>Style Name</label><input value={styleName} onChange={e=>setStyleName(e.target.value)} placeholder="Simple Pant" /></div>
-          <div className="field"><label>Customer</label><input value={customer} onChange={e=>setCustomer(e.target.value)} placeholder="Jako" /></div>
-          <div className="field"><label>GK-Pant / Style</label><input value={gkPant} onChange={e=>setGkPant(e.target.value)} placeholder="Simple Pant" /></div>
+          <div className="field"><label>Customer</label><input value={customer} onChange={e=>setCustomer(e.target.value)} placeholder="Nike" /></div>
           <div className="field"><label>Tech Pack Ref#</label><input value={techPackRef} onChange={e=>setTechPackRef(e.target.value)} /></div>
           <div className="field"><label>Consumption #</label><input value={consumptionNo} onChange={e=>setConsumptionNo(e.target.value)} /></div>
           <div className="field"><label>Issue Date</label><input type="date" value={issueDate} onChange={e=>setIssueDate(e.target.value)} /></div>
@@ -372,7 +403,6 @@ function ComponentCard({ comp, sizes, baseSizeId, getSizeData, setSizeData, calc
               </select>
             </div>
             <div className="field"><label>Allowance % (shrinkage, roll etc.)</label><input type="number" step="0.1" value={comp.allowancePct} onChange={e=>setComp(comp.id,'allowancePct',e.target.value)}/></div>
-            <div className="field"><label>Marker Saving % (reference only)</label><input type="number" step="0.01" value={comp.markerSavingPct} onChange={e=>setComp(comp.id,'markerSavingPct',e.target.value)} placeholder="e.g. -4.12"/></div>
           </div>
 
           {/* Per-size data */}
