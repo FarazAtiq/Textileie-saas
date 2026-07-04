@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { calcEfficiency, calcCapacity, formatNum, efficiencyColor } from '../utils/calculations.js';
 import { ResultCard, PageHeader, CalcGrid, FormulaNote } from '../components/ResultCard.jsx';
 import { SMVSelector } from '../components/SMVSelector.jsx';
+import { ArticleSelector } from '../components/ArticleSelector.jsx';
 import { AIAnalysis } from '../components/AIAnalysis.jsx';
-import { createReport } from '../lib/db.js';
+import { createReport, getStyleCostSummary } from '../lib/db.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useToast } from '../hooks/useToast.jsx';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
@@ -26,6 +27,18 @@ function getDepartmentSMV(template, department) {
   const row = raw?.[department];
   const deptSmv = parseFloat(row?.smv ?? row?.totalSMV ?? 0) || 0;
   return deptSmv > 0 ? +deptSmv.toFixed(3) : (parseFloat(template?.total_smv) || 0);
+}
+
+function makeStyleSMVTemplate(style, smvModule) {
+  if (!style || !smvModule?.summary?.total_smv) return null;
+  return {
+    id: smvModule.id || style.id,
+    article_number: style.article_number,
+    name: style.style_name || style.garment_type || 'Style',
+    garment_type: style.garment_type || '',
+    total_smv: smvModule.summary.total_smv,
+    department_breakdown: smvModule.summary.department_breakdown || {}
+  };
 }
 
 function makeDeptTotals(lines, type) {
@@ -187,6 +200,9 @@ export function EfficiencyPage() {
   const [lines, setLines]       = useState([newEffLine(1)]);
   const [activeIdx, setActiveIdx] = useState(0);
   const [saving, setSaving]     = useState(false);
+  const [selectedStyle, setSelectedStyle] = useState(null);
+  const [selectedColor, setSelectedColor] = useState(null);
+  const [loadingStyleData, setLoadingStyleData] = useState(false);
   const { toast, ToastContainer } = useToast();
   const { profile } = useAuth();
 
@@ -197,6 +213,23 @@ export function EfficiencyPage() {
     const idx = lines.findIndex(l => l.id === id);
     setLines(lines.filter(l => l.id !== id));
     setActiveIdx(Math.max(0, idx - 1));
+  };
+
+  const handleStyleSelect = async ({ style, color }) => {
+    setSelectedStyle(style || null);
+    setSelectedColor(color || null);
+    if (!style) return;
+    setLoadingStyleData(true);
+    try {
+      const summary = await getStyleCostSummary({ style_id: style.id, color_id: color?.id || null });
+      const template = makeStyleSMVTemplate(style, summary?.smv);
+      const deptSmv = template ? getDepartmentSMV(template, lines[activeIdx]?.department || 'sewing') : (lines[activeIdx]?.smv || 0);
+      const line = lines[activeIdx] || lines[0];
+      setLine(line.id, 'articleNumber', style.article_number || '');
+      setLine(line.id, 'selectedSMV', template);
+      if (deptSmv) setLine(line.id, 'smv', deptSmv);
+    } catch (err) { toast('Failed to load Style SMV: ' + err.message, 'error'); }
+    finally { setLoadingStyleData(false); }
   };
 
   const active = lines[activeIdx] || lines[0];
@@ -386,6 +419,14 @@ export function EfficiencyPage() {
         )}
       </div>
 
+      <ArticleSelector
+        value={selectedStyle?.id}
+        colorId={selectedColor?.id}
+        label="Select Style for Efficiency"
+        onSelect={handleStyleSelect}
+      />
+      {loadingStyleData && <div className="card" style={{ padding: 12, fontSize: 12, marginBottom: 14 }}>Loading department SMV from Style Master...</div>}
+
       <CalcGrid>
         {/* Inputs */}
         <div className="card">
@@ -401,7 +442,7 @@ export function EfficiencyPage() {
             <div>
               <label style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Article #</label>
               <input value={active.articleNumber || ''} onChange={e => setLine(active.id, 'articleNumber', e.target.value)}
-                placeholder="4233"
+                placeholder="5400"
                 style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', borderRadius: 6, padding: '6px 8px', width: '100%', fontSize: 14, fontFamily: 'JetBrains Mono', fontWeight: 700 }} />
             </div>
           </div>
@@ -544,6 +585,9 @@ export function CapacityPage() {
   const [lines, setLines]       = useState([newCapLine(1)]);
   const [activeIdx, setActiveIdx] = useState(0);
   const [saving, setSaving]     = useState(false);
+  const [selectedStyle, setSelectedStyle] = useState(null);
+  const [selectedColor, setSelectedColor] = useState(null);
+  const [loadingStyleData, setLoadingStyleData] = useState(false);
   const { toast, ToastContainer } = useToast();
   const { profile } = useAuth();
 
@@ -554,6 +598,23 @@ export function CapacityPage() {
     const idx = lines.findIndex(l => l.id === id);
     setLines(lines.filter(l => l.id !== id));
     setActiveIdx(Math.max(0, idx - 1));
+  };
+
+  const handleStyleSelect = async ({ style, color }) => {
+    setSelectedStyle(style || null);
+    setSelectedColor(color || null);
+    if (!style) return;
+    setLoadingStyleData(true);
+    try {
+      const summary = await getStyleCostSummary({ style_id: style.id, color_id: color?.id || null });
+      const template = makeStyleSMVTemplate(style, summary?.smv);
+      const deptSmv = template ? getDepartmentSMV(template, lines[activeIdx]?.department || 'sewing') : (lines[activeIdx]?.smv || 0);
+      const line = lines[activeIdx] || lines[0];
+      setLine(line.id, 'articleNumber', style.article_number || '');
+      setLine(line.id, 'selectedSMV', template);
+      if (deptSmv) setLine(line.id, 'smv', deptSmv);
+    } catch (err) { toast('Failed to load Style SMV: ' + err.message, 'error'); }
+    finally { setLoadingStyleData(false); }
   };
 
   const active = lines[activeIdx] || lines[0];
@@ -716,6 +777,14 @@ export function CapacityPage() {
         )}
       </div>
 
+      <ArticleSelector
+        value={selectedStyle?.id}
+        colorId={selectedColor?.id}
+        label="Select Style for Capacity"
+        onSelect={handleStyleSelect}
+      />
+      {loadingStyleData && <div className="card" style={{ padding: 12, fontSize: 12, marginBottom: 14 }}>Loading department SMV from Style Master...</div>}
+
       <CalcGrid>
         <div className="card">
           {/* Dept + article header */}
@@ -730,7 +799,7 @@ export function CapacityPage() {
             <div>
               <label style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Article #</label>
               <input value={active.articleNumber || ''} onChange={e => setLine(active.id, 'articleNumber', e.target.value)}
-                placeholder="4233"
+                placeholder="5400"
                 style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', borderRadius: 6, padding: '6px 8px', width: '100%', fontSize: 14, fontFamily: 'JetBrains Mono', fontWeight: 700 }} />
             </div>
           </div>
