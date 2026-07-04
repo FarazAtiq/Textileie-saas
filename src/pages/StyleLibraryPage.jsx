@@ -145,7 +145,7 @@ export default function StyleLibraryPage() {
   return (
     <div>
       <ToastContainer />
-      <PageHeader title="Style Library" subtitle="Mini ERP center: articles, colors, size sets and base costing mode" badge={{ text: 'Mini ERP' }} />
+      <PageHeader title="Style Master" subtitle="Industrial Engineering Workspace — create a style once and use it across SMV, Fabric BOM, Thread, Costing, Efficiency, Capacity and Reports" badge={{ text: 'IE Workspace' }} />
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
         <div style={{ position: 'relative', flex: 1 }}>
