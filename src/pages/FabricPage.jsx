@@ -476,7 +476,7 @@ if (comp.uom === 'METER') {
   displayConsumption = calcKgToMeter({
     weightKg: calc.consumption,
     gsm,
-    widthInches: width
+    widthInches
   });
 }
 
