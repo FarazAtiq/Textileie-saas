@@ -465,11 +465,15 @@ export function EfficiencyPage() {
                   cursor: 'not-allowed',
                  }}
               />
-          <ArticleSelector onSelect={t => { const deptSmv = getDepartmentSMV(t, active.department || 'sewing'); setLine(active.id, 'smv', deptSmv); setLine(active.id, 'selectedSMV', t); if (t.article_number) setLine(active.id, 'articleNumber', t.article_number); }} />
+          </div>
+          </div>
+          
           <div className="field"><label>Shift duration (minutes)</label><input type="number" value={active.shiftMinutes} onChange={e => setLine(active.id, 'shiftMinutes', parseFloat(e.target.value) || 0)} /></div>
           <div className="field"><label>Number of operators</label><input type="number" value={active.operators} onChange={e => setLine(active.id, 'operators', parseFloat(e.target.value) || 0)} /></div>
           <div className="field"><label>Units produced</label><input type="number" value={active.unitsProduced} onChange={e => setLine(active.id, 'unitsProduced', parseFloat(e.target.value) || 0)} /></div>
           <div className="field"><label>SMV per unit (minutes)</label><input type="number" step="0.01" value={active.smv} onChange={e => setLine(active.id, 'smv', parseFloat(e.target.value) || 0)} /></div>
+        </div>
+      </div>
           <FormulaNote>Efficiency = (Earned min / Available min) x 100</FormulaNote>
 
           {/* Selected SMV info */}
@@ -841,13 +845,17 @@ export function CapacityPage() {
                   cursor: 'not-allowed',
                  }}
               />
-          <ArticleSelector onSelect={t => { const deptSmv = getDepartmentSMV(t, active.department || 'sewing'); setLine(active.id, 'smv', deptSmv); setLine(active.id, 'selectedSMV', t); if (t.article_number) setLine(active.id, 'articleNumber', t.article_number); }} />
+          </div>
+          </div>
           <div className="field"><label>Machines / operators</label><input type="number" value={active.machines} onChange={e => setLine(active.id, 'machines', parseFloat(e.target.value) || 0)} /></div>
           <div className="field"><label>Shifts per day</label><input type="number" value={active.shiftsPerDay} onChange={e => setLine(active.id, 'shiftsPerDay', parseFloat(e.target.value) || 0)} /></div>
           <div className="field"><label>Shift duration (minutes)</label><input type="number" value={active.shiftMinutes} onChange={e => setLine(active.id, 'shiftMinutes', parseFloat(e.target.value) || 0)} /></div>
           <div className="field"><label>SMV per unit (minutes)</label><input type="number" step="0.01" value={active.smv} onChange={e => setLine(active.id, 'smv', parseFloat(e.target.value) || 0)} /></div>
           <div className="field"><label>Target efficiency (%)</label><input type="number" value={active.efficiencyPct} onChange={e => setLine(active.id, 'efficiencyPct', parseFloat(e.target.value) || 0)} /></div>
           <div className="field"><label>Working days per month</label><input type="number" value={active.workingDaysPerMonth} onChange={e => setLine(active.id, 'workingDaysPerMonth', parseFloat(e.target.value) || 0)} /></div>
+        </div>
+        </dic>
+      
           <FormulaNote>Capacity = (Machines x Shifts x Min x Eff%) / SMV</FormulaNote>
 
           {active.selectedSMV && (
