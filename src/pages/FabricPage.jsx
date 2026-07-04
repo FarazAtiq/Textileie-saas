@@ -138,8 +138,8 @@ const newComponent = (num) => ({
   fabricCode: '',
   supplier: '',
   gsm: '',
-  cuttableWidth: '',
-  kgsPerMtr: '',
+  fabricWidth: '',
+  widthUnit: 'inch',
   uom: 'KG',
   allowancePct: 4,
   sizeData: {},
@@ -278,12 +278,47 @@ function BomSheetTab() {
         results,
       });
       if (selectedStyle?.id) {
+        const calculatedComponents = components.map(comp => ({
+  ...comp,
+
+  sizeData: Object.fromEntries(
+    sizes.map(s => {
+      const calc = calcForSize(comp, s.id);
+
+      return [
+        s.id,
+        {
+          ...getSizeData(comp, s.id),
+
+          kgConsumption: calc.consumption,
+
+          meterConsumption: calcKgToMeter({
+            weightKg: calc.consumption,
+            gsm: parseFloat(comp.gsm),
+            widthInches:
+              comp.widthUnit === 'cm'
+                ? cmToInch(parseFloat(comp.fabricWidth) || 0)
+                : parseFloat(comp.fabricWidth) || 0,
+          }),
+
+          yardConsumption: metersToYards(
+            calcKgToMeter({
+              weightKg: calc.consumption,
+              gsm: parseFloat(comp.gsm),
+              widthInches: parseFloat(comp.cuttableWidth),
+            })
+          ),
+        },
+      ];
+    })
+  ),
+}));
         await upsertStyleCostModule({
           style_id: selectedStyle.id,
           color_id: selectedColor?.id || null,
           module_type: 'fabric_bom',
-          data: { artNo, styleName, customer, techPackRef, consumptionNo, issueDate, docType, sizes, baseSizeId, components, signOff },
-          summary: { results, components, sizes: sizes.map(s => s.label), article_number: artNo, style_name: styleName, buyer: customer }
+          data: { artNo, styleName, customer, techPackRef, consumptionNo, issueDate, docType, sizes, baseSizeId, components: calculatedComponents, signOff },
+          summary: { results, components: calculatedComponents, sizes: sizes.map(s => s.label), article_number: artNo, style_name: styleName, buyer: customer }
         });
       }
       toast('Fabric BOM saved and linked to Style Master');
@@ -395,8 +430,26 @@ function ComponentCard({ comp, sizes, baseSizeId, getSizeData, setSizeData, calc
             <div className="field"><label>Fabric Code</label><input value={comp.fabricCode} onChange={e=>setComp(comp.id,'fabricCode',e.target.value)}/></div>
             <div className="field"><label>Supplier</label><input value={comp.supplier} onChange={e=>setComp(comp.id,'supplier',e.target.value)}/></div>
             <div className="field"><label>GSM</label><input type="number" value={comp.gsm} onChange={e=>setComp(comp.id,'gsm',e.target.value)}/></div>
-            <div className="field"><label>Cuttable Width</label><input type="number" value={comp.cuttableWidth} onChange={e=>setComp(comp.id,'cuttableWidth',e.target.value)}/></div>
-            <div className="field"><label>Kgs / Mtr</label><input type="number" step="0.001" value={comp.kgsPerMtr} onChange={e=>setComp(comp.id,'kgsPerMtr',e.target.value)}/></div>
+            <div className="field">
+  <label>Fabric Width</label>
+  <div style={{ display: 'flex', gap: 8 }}>
+    <input
+      type="number"
+      value={comp.fabricWidth}
+      onChange={e => setComp(comp.id, 'fabricWidth', e.target.value)}
+      placeholder={comp.widthUnit === 'cm' ? 'e.g. 152' : 'e.g. 60'}
+      style={{ flex: 1 }}
+    />
+    <select
+      value={comp.widthUnit || 'inch'}
+      onChange={e => setComp(comp.id, 'widthUnit', e.target.value)}
+      style={{ width: 90 }}
+    >
+      <option value="inch">inch</option>
+      <option value="cm">cm</option>
+    </select>
+  </div>
+</div>
             <div className="field"><label>UOM</label>
               <select value={comp.uom} onChange={e=>setComp(comp.id,'uom',e.target.value)}>
                 <option value="KG">KG</option><option value="YARD">YARD</option><option value="METER">METER</option>
@@ -411,6 +464,31 @@ function ComponentCard({ comp, sizes, baseSizeId, getSizeData, setSizeData, calc
             {sizes.map(s=>{
               const sd   = getSizeData(comp,s.id);
               const calc = calcForSize(comp,s.id);
+              const gsm = parseFloat(comp.gsm) || 0;
+          const widthInches =
+            comp.widthUnit === 'cm'
+              ? cmToInch(parseFloat(comp.fabricWidth) || 0)
+              : parseFloat(comp.fabricWidth) || 0;
+
+let displayConsumption = calc.consumption;
+
+if (comp.uom === 'METER') {
+  displayConsumption = calcKgToMeter({
+    weightKg: calc.consumption,
+    gsm,
+    widthInches: width
+  });
+}
+
+if (comp.uom === 'YARD') {
+  const meters = calcKgToMeter({
+    weightKg: calc.consumption,
+    gsm,
+    widthInches
+  });
+
+  displayConsumption = metersToYards(meters);
+}
               const isBase = baseSizeId===s.id;
               const isAuto = sd.mode==='auto'&&baseSizeId&&!isBase;
               return(
@@ -424,7 +502,7 @@ function ComponentCard({ comp, sizes, baseSizeId, getSizeData, setSizeData, calc
                           <button onClick={()=>setSizeData(comp.id,s.id,'mode','auto')} className={'btn btn-sm '+(sd.mode==='auto'?'btn-primary':'btn-secondary')} style={{padding:'3px 8px',fontSize:10}}>Auto-scale</button>
                         </div>
                       )}
-                      <span style={{fontWeight:700,fontFamily:'JetBrains Mono',color:'var(--teal)',fontSize:15}}>{calc.consumption.toFixed(3)} {comp.uom}</span>
+                      <span style={{fontWeight:700,fontFamily:'JetBrains Mono',color:'var(--teal)',fontSize:15}}>{displayConsumption.toFixed(3)} {comp.uom}</span>
                     </div>
                   </div>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
