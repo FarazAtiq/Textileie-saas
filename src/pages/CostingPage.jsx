@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { formatNum } from '../utils/calculations.js';
 import { PageHeader } from '../components/ResultCard.jsx';
 import { SMVSelector } from '../components/SMVSelector.jsx';
-import { createReport, updateProfile } from '../lib/db.js';
+import { ArticleSelector } from '../components/ArticleSelector.jsx';
+import { createReport, updateProfile, getStyleCostSummary, upsertStyleCostModule } from '../lib/db.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useToast } from '../hooks/useToast.jsx';
 import { exportReportPDF } from '../utils/pdfExport.js';
@@ -20,6 +21,9 @@ export default function CostingPage() {
   // Article / SMV pull
   const [articleNumber, setArticleNumber] = useState('');
   const [selectedSMV, setSelectedSMV] = useState(null);
+  const [selectedStyle, setSelectedStyle] = useState(null);
+  const [selectedColor, setSelectedColor] = useState(null);
+  const [loadingStyleData, setLoadingStyleData] = useState(false);
 
   // CMT rate ($/min) — defaults from profile if saved, else 0.05
   const [cmtRate, setCmtRate] = useState(profile?.cmt_rate_per_min ?? 0.05);
@@ -73,6 +77,44 @@ export default function CostingPage() {
   const addAcc = () => setAccessories([...accessories, newAccessory()]);
   const removeAcc = (id) => setAccessories(accessories.filter(a => a.id !== id));
 
+
+  const handleStyleSelect = async ({ style, color }) => {
+    setSelectedStyle(style || null);
+    setSelectedColor(color || null);
+    if (!style) return;
+
+    setArticleNumber(style.article_number || '');
+    setLoadingStyleData(true);
+    try {
+      const summary = await getStyleCostSummary({ style_id: style.id, color_id: color?.id || null });
+
+      if (summary?.smv?.summary?.total_smv) {
+        setSelectedSMV({
+          total_smv: summary.smv.summary.total_smv,
+          article_number: style.article_number,
+          name: style.style_name,
+          garment_type: style.garment_type,
+          department_breakdown: summary.smv.summary.department_breakdown
+        });
+      }
+
+      if (summary?.thread?.summary) {
+        const t = summary.thread.summary;
+        setThreadRows([{ id: Date.now(), type: t.threadType || 'Thread', meters: t.totalMeters || 0, pricePerMeter: t.threadPricePerMeter || 0 }]);
+      }
+
+      if (summary?.fabric_bom?.summary) {
+        const bom = summary.fabric_bom.summary;
+        // BOM currently stores consumption totals, not price. Keep a clear placeholder row for costing rate entry.
+        setFabricRows([{ id: Date.now() + 1, type: 'Fabric BOM total', baseSize: style.base_size || 'L', unit: 'kg/m/yd', consumption: 1, price: 0, source: bom }]);
+      }
+    } catch (err) {
+      toast('Failed to load style costing data: ' + err.message, 'error');
+    } finally {
+      setLoadingStyleData(false);
+    }
+  };
+
   // ── save CMT rate to profile/settings ──
   const saveCmtRate = async () => {
     setSavingRate(true);
@@ -89,10 +131,16 @@ export default function CostingPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await createReport({
+      const savedReport = await createReport({
         type: 'costing',
         title: 'Costing \u2014 ' + (articleNumber ? 'Art#' + articleNumber : 'Garment') + ' \u2014 ' + new Date().toLocaleDateString(),
         inputs: {
+          style_id: selectedStyle?.id || null,
+          color_id: selectedColor?.id || null,
+          styleName: selectedStyle?.style_name || '',
+          buyer: selectedStyle?.buyer || '',
+          colorName: selectedColor?.color_name || '',
+          baseSize: selectedStyle?.base_size || '',
           articleNumber,
           smv,
           cmtRatePerMin: cmtRate,
@@ -116,7 +164,16 @@ export default function CostingPage() {
           fobPrice: fobPrice.toFixed(2),
         }
       });
-      toast('Costing report saved');
+      if (selectedStyle?.id) {
+        await upsertStyleCostModule({
+          style_id: selectedStyle.id,
+          color_id: selectedColor?.id || null,
+          module_type: 'costing',
+          data: { fabricRows, threadRows, accessories, overhead, freightPerUnit, agentCommPct, bankChargePct, dutyPct, profitPct, cmtRate },
+          summary: { articleNumber, styleName: selectedStyle.style_name || '', buyer: selectedStyle.buyer || '', smv, cmtCost, fabricCostPerUnit, threadCostPerUnit, accessoriesTotal, fobPrice }
+        });
+      }
+      toast('Costing report saved and linked to Style Master');
     } catch (err) { toast('Failed: ' + err.message, 'error'); }
     finally { setSaving(false); }
   };
@@ -199,10 +256,18 @@ export default function CostingPage() {
         {/* LEFT — inputs */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
+          <ArticleSelector
+            value={selectedStyle?.id}
+            colorId={selectedColor?.id}
+            label="Select from Style Master"
+            onSelect={handleStyleSelect}
+          />
+          {loadingStyleData && <div className="card" style={{ padding: 12, fontSize: 12 }}>Loading SMV, Fabric BOM and Thread data from Style Master...</div>}
+
           {/* Article + SMV pull */}
           <div className="card">
             <h3 style={{ marginBottom: 12 }}>Article & CMT (from SMV)</h3>
-            <div className="field"><label>Article #</label><input value={articleNumber} onChange={e => setArticleNumber(e.target.value)} placeholder="e.g. 4233" style={{ fontFamily: 'JetBrains Mono', fontWeight: 700 }} /></div>
+            <div className="field"><label>Article #</label><input value={articleNumber} onChange={e => setArticleNumber(e.target.value)} placeholder="e.g. 5400" style={{ fontFamily: 'JetBrains Mono', fontWeight: 700 }} /></div>
             <SMVSelector onSelect={t => {
               setSelectedSMV(t);
               const art = t.article_number || articleNumber;
