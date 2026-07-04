@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { createReport } from '../lib/db.js';
+import { createReport, upsertStyleCostModule } from '../lib/db.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useToast } from '../hooks/useToast.jsx';
 import { PageHeader } from '../components/ResultCard.jsx';
 import { Plus, Trash2, Save, Download, FileText } from 'lucide-react';
+import { ArticleSelector } from '../components/ArticleSelector.jsx';
 
 const STITCH_OPTIONS = [
   { code: '301', name: 'Lock Stitch',           ratio: 2.5  },
@@ -53,8 +54,10 @@ function calcOp(op, wastePct) {
 
 export default function ThreadPage() {
   const [style,     setStyle]     = useState('T-Shirt');
-  const [buyer,     setBuyer]     = useState('');
+  const [buyer,     setBuyer]     = useState('Nike');
   const [articleNo, setArticleNo] = useState('');
+  const [selectedStyle, setSelectedStyle] = useState(null);
+  const [selectedColor, setSelectedColor] = useState(null);
   const [wastePct,  setWastePct]  = useState(10);
   const [threadType, setThreadType] = useState('Polyester 120T');
   const [threadPricePerMeter, setThreadPricePerMeter] = useState(0.0015);
@@ -63,6 +66,15 @@ export default function ThreadPage() {
 
   const { profile } = useAuth();
   const { toast, ToastContainer } = useToast();
+
+  const handleStyleSelect = ({ style: st, color }) => {
+    setSelectedStyle(st || null);
+    setSelectedColor(color || null);
+    if (st?.article_number) setArticleNo(st.article_number);
+    if (st?.style_name) setStyle(st.style_name);
+    else if (st?.garment_type) setStyle(st.garment_type);
+    if (st?.buyer) setBuyer(st.buyer);
+  };
 
   // ── helpers ────────────────────────────────────────────
   const setOp = (id, key, val) =>
@@ -90,7 +102,7 @@ export default function ThreadPage() {
       await createReport({
         type:    'thread',
         title:   'Thread Consumption — ' + (articleNo ? 'Art#' + articleNo + ' ' : '') + style + ' — ' + new Date().toLocaleDateString(),
-        inputs:  { style, buyer, articleNo, wastePct, threadType, threadPricePerMeter, totalOperations: ops.length },
+        inputs:  { style_id: selectedStyle?.id || null, color_id: selectedColor?.id || null, colorName: selectedColor?.color_name || '', style, buyer, articleNo, wastePct, threadType, threadPricePerMeter, totalOperations: ops.length },
         results: {
           totalConsumptionCm: totalConsumption.toFixed(1),
           totalEstimatedCm:   totalEstimated.toFixed(1),
@@ -101,13 +113,22 @@ export default function ThreadPage() {
           threadCost,
         },
       });
+      if (selectedStyle?.id) {
+        await upsertStyleCostModule({
+          style_id: selectedStyle.id,
+          color_id: selectedColor?.id || null,
+          module_type: 'thread',
+          data: { ops, wastePct, threadType, threadPricePerMeter },
+          summary: { articleNo, style, buyer, threadType, totalMeters, threadPricePerMeter, threadCost }
+        });
+      }
       if (articleNo) {
         const key = 'textileie_thread_cost_by_article';
         const existing = JSON.parse(localStorage.getItem(key) || '{}');
         existing[articleNo] = { articleNo, threadType, totalMeters, threadPricePerMeter, threadCost, savedAt: new Date().toISOString() };
         localStorage.setItem(key, JSON.stringify(existing));
       }
-      toast('Thread report saved and linked to costing');
+      toast('Thread report saved and linked to Style Master / Costing');
     } catch (err) {
       toast('Failed: ' + err.message, 'error');
     } finally {
@@ -323,7 +344,7 @@ export default function ThreadPage() {
             <input
               value={articleNo}
               onChange={e => setArticleNo(e.target.value)}
-              placeholder="4233"
+              placeholder="5400"
               style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', borderRadius: 6, padding: '7px 10px', width: '100%', fontSize: 15, fontFamily: 'JetBrains Mono', fontWeight: 700 }}
             />
           </div>
