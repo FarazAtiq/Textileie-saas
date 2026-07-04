@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { createReport, upsertStyleCostModule } from '../lib/db.js';
+import { upsertStyleCostModule } from '../lib/db.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useToast } from '../hooks/useToast.jsx';
 import { PageHeader } from '../components/ResultCard.jsx';
@@ -30,7 +31,18 @@ const DEFAULT_OPS = [
   { id: 7, operationName: 'Sleeve hem',        seamLength: 76,  stitchCode: '406' },
   { id: 8, operationName: 'Bottom hem',        seamLength: 102, stitchCode: '406' },
 ];
-
+<ArticleSelector
+  value={selectedStyle?.id}
+  colorId={selectedColor?.id}
+  label="Select Style for Thread"
+  onSelect={({ style, color }) => {
+    setSelectedStyle(style);
+    setSelectedColor(color);
+    setArticleNo(style?.article_number || '');
+    setStyle(style?.style_name || style?.garment_type || '');
+    setBuyer(style?.buyer || '');
+  }}
+/>
 function getRatio(code) {
   const found = STITCH_OPTIONS.find(s => s.code === code);
   return found ? found.ratio : 2.5;
@@ -95,7 +107,7 @@ export default function ThreadPage() {
   const totalMeters      = +(totalEstimated / 100).toFixed(3);
   const threadCost       = +(totalMeters * (parseFloat(threadPricePerMeter) || 0)).toFixed(4);
 
-  // ── save ───────────────────────────────────────────────
+    // ── save ───────────────────────────────────────────────
   const handleSave = async () => {
     setSaving(true);
     try {
