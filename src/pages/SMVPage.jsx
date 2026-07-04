@@ -522,3 +522,6 @@ ${rows}
         <button className="btn btn-sm btn-full" onClick={exportExcel} style={{ background: '#217346', color: 'white', border: 'none', marginTop: 8 }}><FileText size={13} /> Export Excel</button>
       </div>
 
+    </div>
+  );
+}
