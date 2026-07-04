@@ -523,9 +523,6 @@ ${rows}
       </div>
 
       {/* Save template */}
-      <div className="card" style={{ padding: 16 }}>
-        <h3 style={{ marginBottom: 4 }}><BookOpen size={13} style={{ verticalAlign: -2 }} /> Save to article library</h3>
-        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>Save SMV so it auto-fills in Efficiency and Capacity calculators</p>
         <div className="field">
           <label>Article number *</label>
           <input value={articleNumber} onChange={e => handleArticleChange(e.target.value)} placeholder="e.g. 5400" style={{ fontFamily: 'JetBrains Mono', fontWeight: 700 }} />
