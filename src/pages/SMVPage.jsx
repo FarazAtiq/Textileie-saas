@@ -498,7 +498,10 @@ ${rows}
                   </div>
                 </div>
               );
-          
+          })}
+        </div>
+      </div>
+
       {/* Output estimates + actions */}
       <div className="card" style={{ marginBottom: 16, padding: 16 }}>
         <h3 style={{ marginBottom: 14 }}>Output estimates</h3>
@@ -517,36 +520,4 @@ ${rows}
         </div>
         <button className="btn btn-sm btn-full" onClick={exportExcel} style={{ background: '#217346', color: 'white', border: 'none', marginTop: 8 }}><FileText size={13} /> Export Excel</button>
       </div>
-
-      {/* Save template */}
-        <div className="field">
-          <label>Article number *</label>
-          <input value={articleNumber} onChange={e => handleArticleChange(e.target.value)} placeholder="e.g. 5400" style={{ fontFamily: 'JetBrains Mono', fontWeight: 700 }} />
-        </div>
-        <div className="field" style={{ marginBottom: 14 }}>
-          <label>Template name</label>
-          <input value={templateName} onChange={e => setTemplateName(e.target.value)} placeholder="e.g. 5400 — T-Shirt" />
-        </div>
-        <div style={{ padding: '10px 14px', background: 'var(--teal-light)', borderRadius: 8, marginBottom: 12, fontSize: 12 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-            <span style={{ color: 'var(--text-secondary)' }}>Article</span>
-            <span style={{ fontWeight: 700, fontFamily: 'JetBrains Mono', color: 'var(--teal)' }}>{articleNumber || '—'}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-            <span style={{ color: 'var(--text-secondary)' }}>Garment</span>
-            <span style={{ fontWeight: 500, color: 'var(--teal)' }}>{garmentType}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ color: 'var(--text-secondary)' }}>SMV</span>
-            <span style={{ fontWeight: 700, fontFamily: 'JetBrains Mono', color: 'var(--teal)' }}>{r.totalSMV.toFixed(3)} min</span>
-          </div>
-        </div>
-        <button className="btn btn-primary btn-full" onClick={saveTemplate} disabled={savingTpl}>
-          <Save size={13} />{savingTpl ? 'Saving...' : 'Save to article library'}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 
