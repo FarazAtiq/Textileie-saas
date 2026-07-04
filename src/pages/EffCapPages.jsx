@@ -472,8 +472,7 @@ export function EfficiencyPage() {
           <div className="field"><label>Number of operators</label><input type="number" value={active.operators} onChange={e => setLine(active.id, 'operators', parseFloat(e.target.value) || 0)} /></div>
           <div className="field"><label>Units produced</label><input type="number" value={active.unitsProduced} onChange={e => setLine(active.id, 'unitsProduced', parseFloat(e.target.value) || 0)} /></div>
           <div className="field"><label>SMV per unit (minutes)</label><input type="number" step="0.01" value={active.smv} onChange={e => setLine(active.id, 'smv', parseFloat(e.target.value) || 0)} /></div>
-        </div>
-      </div>
+        
           <FormulaNote>Efficiency = (Earned min / Available min) x 100</FormulaNote>
 
           {/* Selected SMV info */}
@@ -853,8 +852,7 @@ export function CapacityPage() {
           <div className="field"><label>SMV per unit (minutes)</label><input type="number" step="0.01" value={active.smv} onChange={e => setLine(active.id, 'smv', parseFloat(e.target.value) || 0)} /></div>
           <div className="field"><label>Target efficiency (%)</label><input type="number" value={active.efficiencyPct} onChange={e => setLine(active.id, 'efficiencyPct', parseFloat(e.target.value) || 0)} /></div>
           <div className="field"><label>Working days per month</label><input type="number" value={active.workingDaysPerMonth} onChange={e => setLine(active.id, 'workingDaysPerMonth', parseFloat(e.target.value) || 0)} /></div>
-        </div>
-        </dic>
+        
       
           <FormulaNote>Capacity = (Machines x Shifts x Min x Eff%) / SMV</FormulaNote>
 
