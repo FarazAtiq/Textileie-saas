@@ -448,12 +448,23 @@ export function EfficiencyPage() {
             </div>
             <div>
               <label style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Article #</label>
-              <input value={active.articleNumber || ''} readOnly style={{ background:"#eef4f7", cursor:"not-allowed" }} />
-                placeholder="5400"
-                style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', borderRadius: 6, padding: '6px 8px', width: '100%', fontSize: 14, fontFamily: 'JetBrains Mono', fontWeight: 700 }} />
-            </div>
-          </div>
-
+              <input
+                value={active.articleNumber || ''}
+                readOnly
+                placeholder="Auto from Style Master"
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  color: 'white',
+                  borderRadius: 6,
+                  padding: '6px 8px',
+                  width: '100%',
+                  fontSize: 14,
+                  fontFamily: 'JetBrains Mono',
+                  fontWeight: 700,
+                  cursor: 'not-allowed',
+                 }}
+              />
           <ArticleSelector onSelect={t => { const deptSmv = getDepartmentSMV(t, active.department || 'sewing'); setLine(active.id, 'smv', deptSmv); setLine(active.id, 'selectedSMV', t); if (t.article_number) setLine(active.id, 'articleNumber', t.article_number); }} />
           <div className="field"><label>Shift duration (minutes)</label><input type="number" value={active.shiftMinutes} onChange={e => setLine(active.id, 'shiftMinutes', parseFloat(e.target.value) || 0)} /></div>
           <div className="field"><label>Number of operators</label><input type="number" value={active.operators} onChange={e => setLine(active.id, 'operators', parseFloat(e.target.value) || 0)} /></div>
@@ -813,12 +824,23 @@ export function CapacityPage() {
             </div>
             <div>
               <label style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Article #</label>
-              <input value={active.articleNumber || ''} readOnly style={{ background:"#eef4f7", cursor:"not-allowed" }} />
-                placeholder="5400"
-                style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', borderRadius: 6, padding: '6px 8px', width: '100%', fontSize: 14, fontFamily: 'JetBrains Mono', fontWeight: 700 }} />
-            </div>
-          </div>
-
+              <input
+                value={active.articleNumber || ''}
+                readOnly
+                placeholder="Auto from Style Master"
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  color: 'white',
+                  borderRadius: 6,
+                  padding: '6px 8px',
+                  width: '100%',
+                  fontSize: 14,
+                  fontFamily: 'JetBrains Mono',
+                  fontWeight: 700,
+                  cursor: 'not-allowed',
+                 }}
+              />
           <ArticleSelector onSelect={t => { const deptSmv = getDepartmentSMV(t, active.department || 'sewing'); setLine(active.id, 'smv', deptSmv); setLine(active.id, 'selectedSMV', t); if (t.article_number) setLine(active.id, 'articleNumber', t.article_number); }} />
           <div className="field"><label>Machines / operators</label><input type="number" value={active.machines} onChange={e => setLine(active.id, 'machines', parseFloat(e.target.value) || 0)} /></div>
           <div className="field"><label>Shifts per day</label><input type="number" value={active.shiftsPerDay} onChange={e => setLine(active.id, 'shiftsPerDay', parseFloat(e.target.value) || 0)} /></div>
