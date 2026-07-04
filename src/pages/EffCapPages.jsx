@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { calcEfficiency, calcCapacity, formatNum, efficiencyColor } from '../utils/calculations.js';
 import { ResultCard, PageHeader, CalcGrid, FormulaNote } from '../components/ResultCard.jsx';
 import { SMVSelector } from '../components/SMVSelector.jsx';
-import { ArticleSelector } from '../components/ArticleSelector.jsx';
 import { AIAnalysis } from '../components/AIAnalysis.jsx';
 import { createReport, getStyleCostSummary } from '../lib/db.js';
 import { useAuth } from '../hooks/useAuth.jsx';
@@ -434,14 +433,22 @@ export function EfficiencyPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14, padding: '12px 14px', background: 'var(--navy)', borderRadius: 10 }}>
             <div>
               <label style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Department</label>
-              <select value={active.department || 'sewing'} onChange={e => setLine(active.id, 'department', e.target.value)}
+              <select value={active.department || 'sewing'} 
+                      onChange={e => { 
+                        const dept = e.target.value; 
+                        setLine(active.id, "department", dept);
+                        if (active.selectedSMV) {
+                          const deptSmv = getDepartmentSMV(active.selectedSMV, dept);
+                          setLine(active.id, "smv", deptSmv);
+    }
+}}
                 style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', borderRadius: 6, padding: '6px 8px', width: '100%', fontSize: 13 }}>
                 {DEPARTMENTS.map(d => <option key={d.value} value={d.value} style={{ color: 'black' }}>{d.label}</option>)}
               </select>
             </div>
             <div>
               <label style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Article #</label>
-              <input value={active.articleNumber || ''} onChange={e => setLine(active.id, 'articleNumber', e.target.value)}
+              <input value={active.articleNumber || ''} readOnly style={{ background:"#eef4f7", cursor:"not-allowed" }} />
                 placeholder="5400"
                 style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', borderRadius: 6, padding: '6px 8px', width: '100%', fontSize: 14, fontFamily: 'JetBrains Mono', fontWeight: 700 }} />
             </div>
@@ -791,14 +798,22 @@ export function CapacityPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14, padding: '12px 14px', background: 'var(--navy)', borderRadius: 10 }}>
             <div>
               <label style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Department</label>
-              <select value={active.department || 'sewing'} onChange={e => setLine(active.id, 'department', e.target.value)}
+              <select value={active.department || 'sewing'} 
+                      onChange={e => { 
+                        const dept = e.target.value; 
+                        setLine(active.id, "department", dept);
+                        if (active.selectedSMV) {
+                          const deptSmv = getDepartmentSMV(active.selectedSMV, dept);
+                          setLine(active.id, "smv", deptSmv);
+    }
+}}
                 style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', borderRadius: 6, padding: '6px 8px', width: '100%', fontSize: 13 }}>
                 {DEPARTMENTS.map(d => <option key={d.value} value={d.value} style={{ color: 'black' }}>{d.label}</option>)}
               </select>
             </div>
             <div>
               <label style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Article #</label>
-              <input value={active.articleNumber || ''} onChange={e => setLine(active.id, 'articleNumber', e.target.value)}
+              <input value={active.articleNumber || ''} readOnly style={{ background:"#eef4f7", cursor:"not-allowed" }} />
                 placeholder="5400"
                 style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', borderRadius: 6, padding: '6px 8px', width: '100%', fontSize: 14, fontFamily: 'JetBrains Mono', fontWeight: 700 }} />
             </div>
