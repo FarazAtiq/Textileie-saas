@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { calcEfficiency, calcCapacity, formatNum, efficiencyColor } from '../utils/calculations.js';
 import { ResultCard, PageHeader, CalcGrid, FormulaNote } from '../components/ResultCard.jsx';
-import { SMVSelector } from '../components/SMVSelector.jsx';
+import { ArticleSelector } from '../components/ArticleSelector.jsx';
 import { AIAnalysis } from '../components/AIAnalysis.jsx';
 import { createReport, getStyleCostSummary } from '../lib/db.js';
 import { useAuth } from '../hooks/useAuth.jsx';
@@ -454,7 +454,7 @@ export function EfficiencyPage() {
             </div>
           </div>
 
-          <SMVSelector onSelect={t => { const deptSmv = getDepartmentSMV(t, active.department || 'sewing'); setLine(active.id, 'smv', deptSmv); setLine(active.id, 'selectedSMV', t); if (t.article_number) setLine(active.id, 'articleNumber', t.article_number); }} />
+          <ArticleSelector onSelect={t => { const deptSmv = getDepartmentSMV(t, active.department || 'sewing'); setLine(active.id, 'smv', deptSmv); setLine(active.id, 'selectedSMV', t); if (t.article_number) setLine(active.id, 'articleNumber', t.article_number); }} />
           <div className="field"><label>Shift duration (minutes)</label><input type="number" value={active.shiftMinutes} onChange={e => setLine(active.id, 'shiftMinutes', parseFloat(e.target.value) || 0)} /></div>
           <div className="field"><label>Number of operators</label><input type="number" value={active.operators} onChange={e => setLine(active.id, 'operators', parseFloat(e.target.value) || 0)} /></div>
           <div className="field"><label>Units produced</label><input type="number" value={active.unitsProduced} onChange={e => setLine(active.id, 'unitsProduced', parseFloat(e.target.value) || 0)} /></div>
@@ -819,7 +819,7 @@ export function CapacityPage() {
             </div>
           </div>
 
-          <SMVSelector onSelect={t => { const deptSmv = getDepartmentSMV(t, active.department || 'sewing'); setLine(active.id, 'smv', deptSmv); setLine(active.id, 'selectedSMV', t); if (t.article_number) setLine(active.id, 'articleNumber', t.article_number); }} />
+          <ArticleSelector onSelect={t => { const deptSmv = getDepartmentSMV(t, active.department || 'sewing'); setLine(active.id, 'smv', deptSmv); setLine(active.id, 'selectedSMV', t); if (t.article_number) setLine(active.id, 'articleNumber', t.article_number); }} />
           <div className="field"><label>Machines / operators</label><input type="number" value={active.machines} onChange={e => setLine(active.id, 'machines', parseFloat(e.target.value) || 0)} /></div>
           <div className="field"><label>Shifts per day</label><input type="number" value={active.shiftsPerDay} onChange={e => setLine(active.id, 'shiftsPerDay', parseFloat(e.target.value) || 0)} /></div>
           <div className="field"><label>Shift duration (minutes)</label><input type="number" value={active.shiftMinutes} onChange={e => setLine(active.id, 'shiftMinutes', parseFloat(e.target.value) || 0)} /></div>
