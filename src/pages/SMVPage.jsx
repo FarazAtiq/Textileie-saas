@@ -498,11 +498,7 @@ ${rows}
                   </div>
                 </div>
               );
-            })}
-          </div>
-        </div>
-      )}
-
+          
       {/* Output estimates + actions */}
       <div className="card" style={{ marginBottom: 16, padding: 16 }}>
         <h3 style={{ marginBottom: 14 }}>Output estimates</h3>
