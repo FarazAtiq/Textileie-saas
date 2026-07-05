@@ -9,7 +9,8 @@ import { useState } from 'react';
 const NAV = [
   { section: 'Overview' },
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/styles', icon: FolderOpen, label: 'Style Library' },
+  { to: '/styles', icon: FolderOpen, label: 'Style Master' },
+  { to: '/fabric-master', icon: Layers, label: 'Fabric Master' },
   { to: '/reports',   icon: FileText,        label: 'Reports' },
   { section: 'IE Calculators' },
   { to: '/efficiency', icon: TrendingUp, label: 'Efficiency' },
