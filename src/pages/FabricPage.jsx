@@ -238,7 +238,7 @@ const gsm = parseFloat(comp.gsm) || 0;
 
 const kgConsumption =
   meterConsumption && gsm && widthInches
-    ? 0.00000254 * meterConsumption * gsm * widthInches
+    ? 0.0000254 * meterConsumption * gsm * widthInches
     : 0;
   const yardConsumption = metersToYards(meterConsumption);
   const uom = String(comp.uom || 'METER').toUpperCase();
