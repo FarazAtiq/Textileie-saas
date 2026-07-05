@@ -177,35 +177,105 @@ export default function StyleLibraryPage() {
         <div className="empty-state"><Shirt size={32} color="var(--border)"/><p>No styles yet. Create your first article.</p></div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
-          {filtered.map(s => (
-            <div key={s.id} className="card" style={{ padding: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
-                <div>
-                  <div style={{ fontWeight: 800, fontFamily: 'JetBrains Mono', color: 'var(--navy)' }}>Art# {s.article_number}</div>
-                  <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{s.style_name || s.garment_type || 'Style'}</div>
-                </div>
-                <span className="badge badge-teal" style={{ height: 24 }}>{s.status}</span>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12, marginBottom: 12 }}>
-                <div><b>Buyer:</b> {s.buyer || '—'}</div>
-                <div><b>Brand:</b> {s.brand || '—'}</div>
-                <div><b>Category:</b> {s.product_category || '—'}</div>
-                <div><b>Method:</b> {s.costing_method || 'FOB'}</div>
-                <div><b>Season:</b> {s.season || '—'}</div>
-                <div><b>Base:</b> {s.base_size || 'L'}</div>
-                <div><b>Mode:</b> {s.costing_mode === 'size_wise' ? 'Size-wise' : 'Base size'}</div>
-                <div><b>Colors:</b> {(s.style_colors || []).length}</div>
-                <div><b>Sizes:</b> {(s.style_sizes || []).length}</div>
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 12 }}>
-                {(s.style_colors || []).map(c => c.color_name).join(', ') || 'No colors'}
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(s); setShowForm(true); }}><Edit3 size={12}/> Edit</button>
-                <button className="btn btn-danger btn-sm" onClick={() => remove(s.id)}><Trash2 size={12}/> Delete</button>
-              </div>
-            </div>
-          ))}
+          {filtered.map(s => {
+  const colors = s.style_colors || [];
+  const sizes = s.style_sizes || [];
+
+  const statusColor = {
+    development: '#f59e0b',
+    approved: '#2563eb',
+    production: '#16a34a',
+    closed: '#111827'
+  }[s.status] || '#64748b';
+
+  return (
+    <div key={s.id} className="card" style={{ padding: 18 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
+        <div>
+          <div style={{ fontWeight: 900, fontFamily: 'JetBrains Mono', color: 'var(--navy)', fontSize: 18 }}>
+            {s.article_number}
+          </div>
+          <div style={{ fontSize: 14, color: 'var(--text-secondary)', fontWeight: 600 }}>
+            {s.style_name || s.garment_type || 'Style'}
+          </div>
+        </div>
+
+        <span style={{
+          background: statusColor,
+          color: 'white',
+          padding: '4px 10px',
+          borderRadius: 20,
+          fontSize: 11,
+          fontWeight: 700,
+          height: 24,
+          textTransform: 'capitalize'
+        }}>
+          {s.status || 'development'}
+        </span>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12, marginBottom: 14 }}>
+        <div><b>Buyer:</b> {s.buyer || '—'}</div>
+        <div><b>Brand:</b> {s.brand || '—'}</div>
+        <div><b>Category:</b> {s.product_category || '—'}</div>
+        <div><b>Garment:</b> {s.garment_type || '—'}</div>
+        <div><b>Season:</b> {s.season || '—'}</div>
+        <div><b>Base Size:</b> {s.base_size || '—'}</div>
+        <div><b>Costing:</b> {s.costing_method || 'FOB'}</div>
+        <div><b>Strategy:</b> {s.costing_mode === 'size_wise' ? 'Size-wise' : 'Base size'}</div>
+      </div>
+
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6 }}>
+          COLORS
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {colors.length ? colors.map(c => (
+            <span key={c.id || c.color_name} style={{
+              background: 'var(--teal-light)',
+              color: 'var(--teal)',
+              padding: '4px 9px',
+              borderRadius: 20,
+              fontSize: 11,
+              fontWeight: 700
+            }}>
+              ● {c.color_name}
+            </span>
+          )) : <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>No colors</span>}
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6 }}>
+          SIZES
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {sizes.length ? sizes.map(sz => (
+            <span key={sz.id || sz.size_name} style={{
+              background: 'var(--bg)',
+              border: '1px solid var(--border-light)',
+              padding: '4px 9px',
+              borderRadius: 8,
+              fontSize: 11,
+              fontWeight: 700
+            }}>
+              {sz.size_name}
+            </span>
+          )) : <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>No sizes</span>}
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(s); setShowForm(true); }}>
+          <Edit3 size={12}/> Edit
+        </button>
+        <button className="btn btn-danger btn-sm" onClick={() => remove(s.id)}>
+          <Trash2 size={12}/> Delete
+        </button>
+      </div>
+    </div>
+  );
+})}
         </div>
       )}
     </div>
