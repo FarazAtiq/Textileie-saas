@@ -74,22 +74,80 @@ function FabricForm({ editing, onCancel, onSaved }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
         <div className="field"><label>Fabric Code *</label><input value={form.fabric_code} onChange={e => set('fabric_code', e.target.value)} placeholder="F001" /></div>
         <div className="field"><label>Fabric Name</label><input value={form.fabric_name} onChange={e => set('fabric_name', e.target.value)} placeholder="Cotton Interlock" /></div>
+        <div className="field">
+          <label>Fabric Type</label>
+          <select value={form.fabric_type || ''} onChange={e => set('fabric_type', e.target.value)}>
+            <option value="">Select type</option>
+            <option value="Single Jersey">Single Jersey</option>
+            <option value="Interlock">Interlock</option>
+            <option value="Rib">Rib</option>
+            <option value="Fleece">Fleece</option>
+            <option value="Pique">Pique</option>
+            <option value="French Terry">French Terry</option>
+            <option value="Denim">Denim</option>
+            <option value="Poplin">Poplin</option>
+            <option value="Twill">Twill</option>
+          </select>
+        </div>
         <div className="field"><label>Supplier</label><input value={form.supplier} onChange={e => set('supplier', e.target.value)} placeholder="Lucky Textile" /></div>
-
+        <div className="field">
+          <label>Supplier Fabric Code</label>
+          <input value={form.supplier_fabric_code || ''} onChange={e => set('supplier_fabric_code', e.target.value)} placeholder="Supplier code" />
+        </div>
         <div className="field"><label>Description</label><input value={form.description} onChange={e => set('description', e.target.value)} placeholder="Interlock 180 GSM" /></div>
         <div className="field"><label>Composition</label><input value={form.composition} onChange={e => set('composition', e.target.value)} placeholder="100% Cotton" /></div>
+        <div className="field">
+          <label>Fabric Category</label>
+          <select value={form.fabric_category || ''} onChange={e => set('fabric_category', e.target.value)}>
+            <option value="">Select category</option>
+            <option value="Main Fabric">Main Fabric</option>
+            <option value="Contrast Fabric">Contrast Fabric</option>
+            <option value="Lining">Lining</option>
+            <option value="Pocketing">Pocketing</option>
+            <option value="Rib">Rib</option>
+            <option value="Collar">Collar</option>
+            <option value="Cuff">Cuff</option>
+            <option value="Binding">Binding</option>
+          </select>
+        </div>
         <div className="field"><label>GSM</label><input type="number" value={form.gsm} onChange={e => set('gsm', e.target.value)} placeholder="180" /></div>
 
         <div className="field"><label>Finished Width</label><input type="number" value={form.finished_width} onChange={e => set('finished_width', e.target.value)} placeholder="72" /></div>
         <div className="field"><label>Cuttable Width</label><input type="number" value={form.cuttable_width} onChange={e => set('cuttable_width', e.target.value)} placeholder="60" /></div>
         <div className="field"><label>Width Unit</label><select value={form.width_unit} onChange={e => set('width_unit', e.target.value)}><option value="inch">inch</option><option value="cm">cm</option></select></div>
-
+        <div className="field">
+          <label>Fabric Form</label>
+          <select value={form.fabric_form || 'Open Width'} onChange={e => set('fabric_form', e.target.value)}>
+            <option value="Open Width">Open Width</option>
+            <option value="Tubular">Tubular</option>
+          </select>
+        </div>
+        
+        <div className="field">
+          <label>Color Type</label>
+          <select value={form.color_type || 'Solid'} onChange={e => set('color_type', e.target.value)}>
+            <option value="Solid">Solid</option>
+            <option value="Greige">Greige</option>
+            <option value="Dyed">Dyed</option>
+            <option value="Printed">Printed</option>
+            <option value="Yarn Dyed">Yarn Dyed</option>
+          </select>
+        </div>
         <div className="field"><label>Price</label><input type="number" step="0.01" value={form.price} onChange={e => set('price', e.target.value)} placeholder="3.25" /></div>
         <div className="field"><label>Price Unit</label><select value={form.price_unit} onChange={e => set('price_unit', e.target.value)}><option value="KG">KG</option><option value="METER">METER</option><option value="YARD">YARD</option></select></div>
         <div className="field"><label>Currency</label><select value={form.currency} onChange={e => set('currency', e.target.value)}><option value="USD">USD</option><option value="PKR">PKR</option><option value="EUR">EUR</option></select></div>
 
         <div className="field"><label>MOQ</label><input type="number" value={form.moq} onChange={e => set('moq', e.target.value)} placeholder="500" /></div>
         <div className="field"><label>Lead Time Days</label><input type="number" value={form.lead_time_days} onChange={e => set('lead_time_days', e.target.value)} placeholder="15" /></div>
+        <div className="field">
+          <label>Shrinkage Length %</label>
+          <input type="number" step="0.1" value={form.shrinkage_length_pct || ''} onChange={e => set('shrinkage_length_pct', e.target.value)} />
+        </div>
+        
+        <div className="field">
+          <label>Shrinkage Width %</label>
+          <input type="number" step="0.1" value={form.shrinkage_width_pct || ''} onChange={e => set('shrinkage_width_pct', e.target.value)} />
+        </div>
         <div className="field"><label>Storage Location</label><input value={form.storage_location} onChange={e => set('storage_location', e.target.value)} placeholder="Fabric Store A" /></div>
 
         <div className="field"><label>Status</label><select value={form.status} onChange={e => set('status', e.target.value)}><option value="Active">Active</option><option value="Inactive">Inactive</option></select></div>
