@@ -267,64 +267,168 @@ export async function createStyle(payload) {
   const userId = await getCurrentUserId();
   if (!userId) throw new Error('Not logged in');
 
-  const { data, error } = await supabase
+  const { data: style, error: styleError } = await supabase
     .from('styles')
     .insert({
       user_id: userId,
       article_number: payload.article_number || '',
       style_name: payload.style_name || '',
       buyer: payload.buyer || '',
+      brand: payload.brand || '',
       season: payload.season || '',
       garment_type: payload.garment_type || '',
+      product_category: payload.product_category || '',
       base_size: payload.base_size || 'L',
       costing_mode: payload.costing_mode || 'base_size',
-      status: payload.status || 'development',
-      brand: payload.brand || '',
-      product_category: payload.product_category || '',
-      costing_method: payload.costing_method || '',
+      costing_method: payload.costing_method || 'FOB',
       description: payload.description || '',
+      status: payload.status || 'development',
       notes: payload.notes || ''
     })
     .select()
     .single();
 
-  if (error) {
-    console.error('createStyle error:', error);
-    throw error;
+  if (styleError) {
+    console.error('createStyle style error:', styleError);
+    throw styleError;
   }
 
-  return getStyle(data.id);
+  const colors = (payload.colors || [])
+    .filter(c => c.color_name && c.color_name.trim())
+    .map(c => ({
+      style_id: style.id,
+      color_name: c.color_name || '',
+      color_code: c.color_code || '',
+      order_qty: Number(c.order_qty || 0),
+      buyer_color_code: c.buyer_color_code || '',
+      pantone: c.pantone || '',
+      status: c.status || 'Active'
+    }));
+
+  if (colors.length) {
+    const { error } = await supabase.from('style_colors').insert(colors);
+    if (error) {
+      console.error('createStyle colors error:', error);
+      throw error;
+    }
+  }
+
+  const sizes = (payload.sizes || [])
+    .filter(s => s.size_name && s.size_name.trim())
+    .map((s, index) => ({
+      style_id: style.id,
+      size_name: s.size_name || '',
+      ratio: Number(s.ratio || 1),
+      scale_pct: Number(s.scale_pct || 0),
+      grading: Number(s.grading ?? s.scale_pct ?? 0),
+      status: s.status || 'Active',
+      sort_order: index + 1
+    }));
+
+  if (sizes.length) {
+    const { error } = await supabase.from('style_sizes').insert(sizes);
+    if (error) {
+      console.error('createStyle sizes error:', error);
+      throw error;
+    }
+  }
+
+  return getStyle(style.id);
 }
 
 export async function updateStyle(id, payload) {
   const userId = await getCurrentUserId();
   if (!userId) throw new Error('Not logged in');
 
-  const { data, error } = await supabase
+  const { data: style, error: styleError } = await supabase
     .from('styles')
     .update({
-        article_number: payload.article_number || '',
-        style_name: payload.style_name || '',
-        buyer: payload.buyer || '',
-        brand: payload.brand || '',
-        season: payload.season || '',
-        garment_type: payload.garment_type || '',
-        product_category: payload.product_category || '',
-        base_size: payload.base_size || 'L',
-        costing_mode: payload.costing_mode || 'base_size',
-        costing_method: payload.costing_method || '',
-        description: payload.description || '',
-        status: payload.status || 'development',
-        notes: payload.notes || '',
-        updated_at: new Date().toISOString()
-})
+      article_number: payload.article_number || '',
+      style_name: payload.style_name || '',
+      buyer: payload.buyer || '',
+      brand: payload.brand || '',
+      season: payload.season || '',
+      garment_type: payload.garment_type || '',
+      product_category: payload.product_category || '',
+      base_size: payload.base_size || 'L',
+      costing_mode: payload.costing_mode || 'base_size',
+      costing_method: payload.costing_method || 'FOB',
+      description: payload.description || '',
+      status: payload.status || 'development',
+      notes: payload.notes || '',
+      updated_at: new Date().toISOString()
+    })
     .eq('id', id)
     .eq('user_id', userId)
     .select()
     .single();
 
-  if (error) throw error;
-  return data;
+  if (styleError) {
+    console.error('updateStyle style error:', styleError);
+    throw styleError;
+  }
+
+  const { error: deleteColorsError } = await supabase
+    .from('style_colors')
+    .delete()
+    .eq('style_id', id);
+
+  if (deleteColorsError) {
+    console.error('updateStyle delete colors error:', deleteColorsError);
+    throw deleteColorsError;
+  }
+
+  const { error: deleteSizesError } = await supabase
+    .from('style_sizes')
+    .delete()
+    .eq('style_id', id);
+
+  if (deleteSizesError) {
+    console.error('updateStyle delete sizes error:', deleteSizesError);
+    throw deleteSizesError;
+  }
+
+  const colors = (payload.colors || [])
+    .filter(c => c.color_name && c.color_name.trim())
+    .map(c => ({
+      style_id: id,
+      color_name: c.color_name || '',
+      color_code: c.color_code || '',
+      order_qty: Number(c.order_qty || 0),
+      buyer_color_code: c.buyer_color_code || '',
+      pantone: c.pantone || '',
+      status: c.status || 'Active'
+    }));
+
+  if (colors.length) {
+    const { error } = await supabase.from('style_colors').insert(colors);
+    if (error) {
+      console.error('updateStyle colors error:', error);
+      throw error;
+    }
+  }
+
+  const sizes = (payload.sizes || [])
+    .filter(s => s.size_name && s.size_name.trim())
+    .map((s, index) => ({
+      style_id: id,
+      size_name: s.size_name || '',
+      ratio: Number(s.ratio || 1),
+      scale_pct: Number(s.scale_pct || 0),
+      grading: Number(s.grading ?? s.scale_pct ?? 0),
+      status: s.status || 'Active',
+      sort_order: index + 1
+    }));
+
+  if (sizes.length) {
+    const { error } = await supabase.from('style_sizes').insert(sizes);
+    if (error) {
+      console.error('updateStyle sizes error:', error);
+      throw error;
+    }
+  }
+
+  return getStyle(style.id);
 }
 
 export async function deleteStyle(id) {
