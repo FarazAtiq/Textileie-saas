@@ -15,7 +15,7 @@ import {
 import FabricPage from './pages/FabricPage.jsx';
 import CostingPage from './pages/CostingPage.jsx';
 import ThreadPage from './pages/ThreadPage.jsx';
-import FabricMasterPage from './pages/FabricMasterPage';
+import FabricMasterPage from './pages/FabricMasterPage.jsx';
 import './styles/global.css';
 
 function PrivateRoute({ children }) {
@@ -53,7 +53,7 @@ function AppRoutes() {
       <Route path="/capacity"   element={<PrivateRoute><CapacityPage /></PrivateRoute>} />
       <Route path="/smv"        element={<PrivateRoute><SMVPage /></PrivateRoute>} />
       <Route path="/fabric"     element={<PrivateRoute><FabricPage /></PrivateRoute>} />
-      <Route path="/fabric-master" element={<FabricMasterPage />} /></PrivateRoute>} />
+      <Route path="/fabric-master" element={<PrivateRoute><FabricMasterPage /></PrivateRoute>} />
       <Route path="/thread"     element={<PrivateRoute><ThreadPage /></PrivateRoute>} />
       <Route path="/costing"    element={<PrivateRoute><CostingPage /></PrivateRoute>} />
       <Route path="/reports"    element={<PrivateRoute><ReportsPage /></PrivateRoute>} />
