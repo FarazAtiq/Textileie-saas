@@ -20,14 +20,31 @@ const STITCH_OPTIONS = [
 ];
 
 const DEFAULT_OPS = [
-  { id: 1, operationName: 'Shoulder join', seamLength: 28, stitchCode: '504' },
-  { id: 2, operationName: 'Neck rib overlock', seamLength: 60, stitchCode: '504' },
-  { id: 3, operationName: 'Neck T/S', seamLength: 60, stitchCode: '401' },
-  { id: 4, operationName: 'Sleeve attach', seamLength: 48, stitchCode: '504' },
-  { id: 5, operationName: 'Side seam', seamLength: 128, stitchCode: '504' },
-  { id: 6, operationName: 'Bottom hem', seamLength: 102, stitchCode: '406' },
+  {
+    id: 1,
+    operationName: 'Shoulder join',
+    seamLength: 28,
+    stitchCode: '504',
+    needleThreadType: 'Polyester 120T',
+    needleRatio: 4,
+    needleRatePerMeter: 0.0015,
+    looperThreadType: 'Polyester 150D',
+    looperRatio: 10,
+    looperRatePerMeter: 0.0012,
+  },
+  {
+    id: 2,
+    operationName: 'Side seam',
+    seamLength: 128,
+    stitchCode: '504',
+    needleThreadType: 'Polyester 120T',
+    needleRatio: 4,
+    needleRatePerMeter: 0.0015,
+    looperThreadType: 'Polyester 150D',
+    looperRatio: 10,
+    looperRatePerMeter: 0.0012,
+  },
 ];
-
 function getRatio(code) {
   return STITCH_OPTIONS.find(s => s.code === code)?.ratio || 2.5;
 }
@@ -38,17 +55,27 @@ function getStitchName(code) {
 }
 
 function calcOp(op, wastePct) {
-  const ratio = getRatio(op.stitchCode);
-  const consumption = (parseFloat(op.seamLength) || 0) * ratio;
-  const estimated = consumption * (1 + (parseFloat(wastePct) || 0) / 100);
+  const seamLength = parseFloat(op.seamLength) || 0;
+  const wasteFactor = 1 + ((parseFloat(wastePct) || 0) / 100);
+
+  const needleRatio = parseFloat(op.needleRatio) || 0;
+  const looperRatio = parseFloat(op.looperRatio) || 0;
+
+  const needleMeters = (seamLength * needleRatio * wasteFactor) / 100;
+  const looperMeters = (seamLength * looperRatio * wasteFactor) / 100;
+
+  const needleCost = needleMeters * (parseFloat(op.needleRatePerMeter) || 0);
+  const looperCost = looperMeters * (parseFloat(op.looperRatePerMeter) || 0);
 
   return {
-    ratio,
-    consumption: +consumption.toFixed(1),
-    estimated: +estimated.toFixed(1),
+    needleMeters: +needleMeters.toFixed(4),
+    looperMeters: +looperMeters.toFixed(4),
+    totalMeters: +(needleMeters + looperMeters).toFixed(4),
+    needleCost: +needleCost.toFixed(4),
+    looperCost: +looperCost.toFixed(4),
+    totalCost: +(needleCost + looperCost).toFixed(4),
   };
 }
-
 export default function ThreadPage() {
   const { profile } = useAuth();
   const { toast, ToastContainer } = useToast();
@@ -73,13 +100,18 @@ export default function ThreadPage() {
 
   const addOp = () => {
     setOps(prev => [
-      ...prev,
-      {
-        id: Date.now(),
-        operationName: '',
-        seamLength: 30,
-        stitchCode: '504',
-      },
+      ...prev,{
+  id: Date.now(),
+  operationName: '',
+  seamLength: 30,
+  stitchCode: '504',
+  needleThreadType: 'Polyester 120T',
+  needleRatio: 4,
+  needleRatePerMeter: 0.0015,
+  looperThreadType: 'Polyester 150D',
+  looperRatio: 10,
+  looperRatePerMeter: 0.0012,
+}
     ]);
   };
 
@@ -87,11 +119,11 @@ export default function ThreadPage() {
     setOps(prev => prev.filter(o => o.id !== id));
   };
 
-  const totalConsumption = ops.reduce((s, op) => s + calcOp(op, wastePct).consumption, 0);
-  const totalEstimated = ops.reduce((s, op) => s + calcOp(op, wastePct).estimated, 0);
-  const totalMeters = +(totalEstimated / 100).toFixed(3);
-  const threadCost = +(totalMeters * (parseFloat(threadPricePerMeter) || 0)).toFixed(4);
-
+const totalNeedleMeters = ops.reduce((s, op) => s + calcOp(op, wastePct).needleMeters, 0);
+const totalLooperMeters = ops.reduce((s, op) => s + calcOp(op, wastePct).looperMeters, 0);
+const totalMeters = +(totalNeedleMeters + totalLooperMeters).toFixed(4);
+const threadCost = +ops.reduce((s, op) => s + calcOp(op, wastePct).totalCost, 0).toFixed(4);
+  
   const handleStyleSelect = ({ style, color }) => {
     setSelectedStyle(style);
     setSelectedColor(color || null);
