@@ -562,7 +562,22 @@ export async function createFabric(payload) {
       moq: Number(payload.moq || 0),
       storage_location: payload.storage_location || '',
       status: payload.status || 'Active',
-      notes: payload.notes || ''
+      notes: payload.notes || '',
+      fabric_type: payload.fabric_type || '',
+      fabric_category: payload.fabric_category || '',
+      supplier_fabric_code: payload.supplier_fabric_code || '',
+      fabric_form: payload.fabric_form || 'Open Width',
+      color_type: payload.color_type || 'Solid',
+      shrinkage_length_pct: Number(payload.shrinkage_length_pct || 0),
+      shrinkage_width_pct: Number(payload.shrinkage_width_pct || 0),
+      image_url: payload.image_url || '',fabric_type: payload.fabric_type || '',
+      fabric_category: payload.fabric_category || '',
+      supplier_fabric_code: payload.supplier_fabric_code || '',
+      fabric_form: payload.fabric_form || 'Open Width',
+      color_type: payload.color_type || 'Solid',
+      shrinkage_length_pct: Number(payload.shrinkage_length_pct || 0),
+      shrinkage_width_pct: Number(payload.shrinkage_width_pct || 0),
+      image_url: payload.image_url || ''
     })
     .select()
     .single();
@@ -599,6 +614,14 @@ export async function updateFabric(id, payload) {
       storage_location: payload.storage_location || '',
       status: payload.status || 'Active',
       notes: payload.notes || '',
+      fabric_type: payload.fabric_type || '',
+      fabric_category: payload.fabric_category || '',
+      supplier_fabric_code: payload.supplier_fabric_code || '',
+      fabric_form: payload.fabric_form || 'Open Width',
+      color_type: payload.color_type || 'Solid',
+      shrinkage_length_pct: Number(payload.shrinkage_length_pct || 0),
+      shrinkage_width_pct: Number(payload.shrinkage_width_pct || 0),
+      image_url: payload.image_url || '',
       updated_at: new Date().toISOString()
     })
     .eq('id', id)
