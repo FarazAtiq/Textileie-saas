@@ -558,7 +558,7 @@ if (comp.uom === 'YARD') {
         ⚠ Please enter GSM and Fabric Width
       </span>
   )}
-
+                    </div>
 
                     </div>
                   </div>
