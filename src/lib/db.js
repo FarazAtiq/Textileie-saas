@@ -228,7 +228,7 @@ export async function getStyles({ search = '', status, limit = 100 } = {}) {
 
   let query = supabase
     .from('styles')
-    .select('*, style_colors(*), style_sizes(*)')
+    .select('*, style_colors(*), style_sizes(*), style_cost_modules(*)')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -320,6 +320,7 @@ export async function createStyle(payload) {
   user_id: userId,
   style_id: style.id,
   size_name: s.size_name || '',
+  const completion = getCompletion(s);
   ratio: Number(s.ratio || 1),
   scale_pct: Number(s.scale_pct || 0),
   grading: Number(s.grading ?? s.scale_pct ?? 0),
