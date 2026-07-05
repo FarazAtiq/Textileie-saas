@@ -235,7 +235,6 @@ export default function StyleLibraryPage() {
           <div style={{ fontSize: 14, color: 'var(--text-secondary)', fontWeight: 700 }}>
             {s.style_name || s.garment_type || 'Style'}
           </div>
-          </div>
         </div>
 
         <span style={{
