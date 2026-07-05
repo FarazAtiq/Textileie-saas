@@ -320,7 +320,6 @@ export async function createStyle(payload) {
   user_id: userId,
   style_id: style.id,
   size_name: s.size_name || '',
-  const completion = getCompletion(s);
   ratio: Number(s.ratio || 1),
   scale_pct: Number(s.scale_pct || 0),
   grading: Number(s.grading ?? s.scale_pct ?? 0),
