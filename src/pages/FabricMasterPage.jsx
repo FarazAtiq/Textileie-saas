@@ -44,7 +44,25 @@ function FabricForm({ editing, onCancel, onSaved }) {
       toast('Fabric code is required', 'error');
       return;
     }
+  if (!form.fabric_name.trim()) {
+  toast('Fabric name is required', 'error');
+  return;
+}
 
+if ((Number(form.gsm) || 0) <= 0) {
+  toast('GSM must be greater than 0', 'error');
+  return;
+}
+
+if ((Number(form.cuttable_width) || 0) <= 0) {
+  toast('Cuttable width must be greater than 0', 'error');
+  return;
+}
+
+if ((Number(form.price) || 0) < 0) {
+  toast('Price cannot be negative', 'error');
+  return;
+}
     setSaving(true);
     try {
       if (editing?.id) {
@@ -310,6 +328,12 @@ export default function FabricMasterPage() {
                   <div><b>MOQ:</b> {f.moq || 0}</div>
                   <div><b>Lead Time:</b> {f.lead_time_days || 0} days</div>
                   <div><b>Store:</b> {f.storage_location || '—'}</div>
+                  <div><b>Type:</b> {f.fabric_type || '—'}</div>
+                  <div><b>Category:</b> {f.fabric_category || '—'}</div>
+                  <div><b>Supplier Code:</b> {f.supplier_fabric_code || '—'}</div>
+                  <div><b>Form:</b> {f.fabric_form || 'Open Width'}</div>
+                  <div><b>Color Type:</b> {f.color_type || 'Solid'}</div>
+                  <div><b>Shrinkage:</b> L {f.shrinkage_length_pct || 0}% / W {f.shrinkage_width_pct || 0}%</div>
                 </div>
 
                 <div style={{
@@ -328,6 +352,16 @@ export default function FabricMasterPage() {
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div style={{
+                    padding: '9px 11px',
+                    borderRadius: 10,
+                    background: '#f8fafc',
+                    border: '1px solid var(--border-light)',
+                    marginBottom: 12,
+                    fontSize: 12
+                  }}>
+                    <b>Used In:</b> 0 Styles
+                  </div>
                   <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(f); setShowForm(true); }}>
                     <Edit3 size={12} /> Edit
                   </button>
