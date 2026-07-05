@@ -279,6 +279,10 @@ export async function createStyle(payload) {
       base_size: payload.base_size || 'L',
       costing_mode: payload.costing_mode || 'base_size',
       status: payload.status || 'development',
+      brand: payload.brand || '',
+      product_category: payload.product_category || '',
+      costing_method: payload.costing_method || '',
+      description: payload.description || '',
       notes: payload.notes || ''
     })
     .select()
