@@ -532,7 +532,34 @@ if (comp.uom === 'YARD') {
                           <button onClick={()=>setSizeData(comp.id,s.id,'mode','auto')} className={'btn btn-sm '+(sd.mode==='auto'?'btn-primary':'btn-secondary')} style={{padding:'3px 8px',fontSize:10}}>Auto-scale</button>
                         </div>
                       )}
-                      <span style={{fontWeight:700,fontFamily:'JetBrains Mono',color:'var(--teal)',fontSize:15}}>{Number(calc.consumption || 0).toFixed(4)} {String(comp.uom || 'METER').toUpperCase()}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+
+  <span
+    style={{
+      fontWeight: 700,
+      fontFamily: 'JetBrains Mono',
+      color: 'var(--teal)',
+      fontSize: 15
+    }}
+  >
+    {Number(calc.consumption || 0).toFixed(4)} {comp.uom}
+  </span>
+
+  {String(comp.uom).toUpperCase() === 'KG' &&
+    (!comp.gsm || !comp.fabricWidth) && (
+      <span
+        style={{
+          color: '#ef4444',
+          fontSize: 11,
+          marginTop: 4,
+          fontWeight: 500
+        }}
+      >
+        ⚠ Please enter GSM and Fabric Width
+      </span>
+  )}
+
+
                     </div>
                   </div>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
