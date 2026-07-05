@@ -289,6 +289,65 @@ export default function StyleLibraryPage() {
           )) : <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>No sizes</span>}
         </div>
       </div>
+      <div style={{ marginBottom: 14 }}>
+  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>
+      STYLE COMPLETION
+    </div>
+
+    <div style={{
+      fontSize: 11,
+      fontWeight: 800,
+      color: completion.percent === 100 ? 'var(--teal)' : 'var(--text-secondary)'
+    }}>
+      {completion.percent}%
+    </div>
+  </div>
+
+  <div style={{
+    height: 8,
+    background: 'var(--border-light)',
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginBottom: 8
+  }}>
+    <div style={{
+      width: completion.percent + '%',
+      height: '100%',
+      background: completion.percent === 100 ? 'var(--teal)' : '#f59e0b',
+      borderRadius: 20
+    }} />
+  </div>
+
+  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+    {completion.items.map(item => (
+      <span
+        key={item.label}
+        style={{
+          fontSize: 10,
+          padding: '3px 7px',
+          borderRadius: 20,
+          fontWeight: 700,
+          background: item.done ? 'var(--teal-light)' : 'var(--bg)',
+          color: item.done ? 'var(--teal)' : 'var(--text-muted)',
+          border: '1px solid var(--border-light)'
+        }}
+      >
+        {item.done ? '✓' : '×'} {item.label}
+      </span>
+    ))}
+  </div>
+</div>
+
+<div
+  style={{
+    fontSize: 10,
+    color: 'var(--text-muted)',
+    marginBottom: 12
+  }}
+>
+  Updated: {formatDate(s.updated_at || s.created_at)}
+</div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(s); setShowForm(true); }}>
