@@ -205,7 +205,7 @@ export default function StyleLibraryPage() {
           {filtered.map(s => {
   const colors = s.style_colors || [];
   const sizes = s.style_sizes || [];
-
+  const completion = getCompletion(s);
   const statusColor = {
     development: '#f59e0b',
     approved: '#2563eb',
