@@ -215,22 +215,49 @@ function BomSheetTab() {
 
   // ── calculation per component per size ──
   const calcForSize = (comp, sizeId) => {
-    const sd = getSizeData(comp, sizeId);
-    let layLength = parseFloat(sd.layLength) || 0;
-    if (sd.mode === 'auto' && baseSizeId && sizeId !== baseSizeId) {
-      const baseSd = getSizeData(comp, baseSizeId);
-      const ratio = parseFloat(sd.ratio) || defaultRatioForSize(sizes.find(s => s.id === sizeId)?.label);
-      layLength = (parseFloat(baseSd.layLength) || 0) * ratio;
-    }
-    const consumption = calcBomConsumption({
-      layLength,
-      noOfPcs: parseFloat(sd.noOfPcs) || 1,
-      kgsPerMtr: parseFloat(comp.kgsPerMtr) || 1,
-      allowancePct: parseFloat(comp.allowancePct) || 0,
-    });
-    return { ...sd, layLength: +layLength.toFixed(3), consumption };
-  };
+  const sd = getSizeData(comp, sizeId);
 
+  let layLength = parseFloat(sd.layLength) || 0;
+
+  if (sd.mode === 'auto' && baseSizeId && sizeId !== baseSizeId) {
+    const baseSd = getSizeData(comp, baseSizeId);
+    const ratio = parseFloat(sd.ratio) || defaultRatioForSize(sizes.find(s => s.id === sizeId)?.label);
+    layLength = (parseFloat(baseSd.layLength) || 0) * ratio;
+  }
+
+  const noOfPcs = parseFloat(sd.noOfPcs) || 1;
+  const allowancePct = parseFloat(comp.allowancePct) || 0;
+
+  const meterConsumption = (layLength / noOfPcs) * (1 + allowancePct / 100);
+
+  const widthInches =
+    comp.widthUnit === 'cm'
+      ? cmToInch(parseFloat(comp.fabricWidth) || 0)
+      : parseFloat(comp.fabricWidth) || 0;
+
+  const kgConsumption = calcMeterToKg({
+    lengthM: meterConsumption,
+    gsm: parseFloat(comp.gsm) || 0,
+    widthInches,
+  });
+
+  const yardConsumption = metersToYards(meterConsumption);
+
+  let consumption = meterConsumption;
+
+  if (comp.uom === 'KG') consumption = kgConsumption;
+  if (comp.uom === 'YARD') consumption = yardConsumption;
+  if (comp.uom === 'METER') consumption = meterConsumption;
+
+  return {
+    ...sd,
+    layLength: +layLength.toFixed(3),
+    meterConsumption: +meterConsumption.toFixed(4),
+    kgConsumption: +kgConsumption.toFixed(4),
+    yardConsumption: +yardConsumption.toFixed(4),
+    consumption: +consumption.toFixed(4),
+  };
+};
   // ── PDF export — using shared utility ──
   const handleExportPDF = async () => {
     try {
