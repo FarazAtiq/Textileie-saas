@@ -11,7 +11,7 @@ const DEFAULT_SIZES = [
   { size_name: 'XL', ratio: 1, scale_pct: 3 },
   { size_name: 'XXL', ratio: 1, scale_pct: 6 },
 ];
-const DEFAULT_COLORS = [{ color_name: 'Black', color_code: '', order_qty: 0 }];
+const DEFAULT_COLORS = [{ color_name: 'Black', color_code: '', buyer_color_code: '', pantone: '', status: 'Active' }];
 
 const blankForm = () => ({
   article_number: '', style_name: '', buyer: '', season: '', garment_type: 'T-Shirt',
@@ -36,7 +36,10 @@ function StyleForm({ editing, onCancel, onSaved }) {
   const setColor = (idx, k, v) => setForm(prev => ({ ...prev, colors: prev.colors.map((c, i) => i === idx ? { ...c, [k]: v } : c) }));
   const setSize = (idx, k, v) => setForm(prev => ({ ...prev, sizes: prev.sizes.map((s, i) => i === idx ? { ...s, [k]: v } : s) }));
 
-  const addColor = () => setForm(prev => ({ ...prev, colors: [...prev.colors, { color_name: '', color_code: '', order_qty: 0 }] }));
+  const addColor = () => setForm(prev => ({
+  ...prev,
+  colors: [...prev.colors, { color_name: '', color_code: '', buyer_color_code: '', pantone: '', status: 'Active' }]
+}));
   const removeColor = (idx) => setForm(prev => ({ ...prev, colors: prev.colors.filter((_, i) => i !== idx) }));
   const addSize = () => setForm(prev => ({ ...prev, sizes: [...prev.sizes, { size_name: '', ratio: 1, scale_pct: 0 }] }));
   const removeSize = (idx) => setForm(prev => ({ ...prev, sizes: prev.sizes.filter((_, i) => i !== idx) }));
@@ -74,6 +77,10 @@ const save = async () => {
         <div className="field"><label>Article #</label><input value={form.article_number} onChange={e => set('article_number', e.target.value)} placeholder="4210" /></div>
         <div className="field"><label>Style name</label><input value={form.style_name} onChange={e => set('style_name', e.target.value)} placeholder="Basic polo" /></div>
         <div className="field"><label>Buyer</label><input value={form.buyer} onChange={e => set('buyer', e.target.value)} placeholder="Buyer name" /></div>
+        <div className="field"><label>Brand</label><input value={form.brand || ''} onChange={e => set('brand', e.target.value)} placeholder="Nike" /></div>
+        <div className="field"><label>Product Category</label><input value={form.product_category || ''} onChange={e => set('product_category', e.target.value)} placeholder="Knit / Woven / Denim" /></div>
+        <div className="field"><label>Costing Method</label><select value={form.costing_method || 'FOB'} onChange={e => set('costing_method', e.target.value)}><option value="FOB">FOB</option><option value="CMT">CMT</option></select></div>
+        <div className="field"><label>Description</label><input value={form.description || ''} onChange={e => set('description', e.target.value)} placeholder="Short style description" /></div>
         <div className="field"><label>Season</label><input value={form.season} onChange={e => set('season', e.target.value)} placeholder="SS27" /></div>
         <div className="field"><label>Garment type</label><input value={form.garment_type} onChange={e => set('garment_type', e.target.value)} placeholder="T-Shirt" /></div>
         <div className="field"><label>Status</label><select value={form.status} onChange={e => set('status', e.target.value)}><option value="development">Development</option><option value="approved">Approved</option><option value="production">Production</option><option value="closed">Closed</option></select></div>
@@ -86,11 +93,16 @@ const save = async () => {
         <div className="card" style={{ padding: 12, background: 'var(--bg)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}><h3 style={{ fontSize: 13 }}><Palette size={14}/> Colors</h3><button className="btn btn-secondary btn-sm" onClick={addColor}><Plus size={12}/> Add</button></div>
           {form.colors.map((c, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 36px', gap: 8, marginBottom: 8 }}>
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 80px 36px', gap: 8, marginBottom: 8 }}>
               <input value={c.color_name} onChange={e => setColor(i, 'color_name', e.target.value)} placeholder="Color" />
-              <input type="number" value={c.order_qty} onChange={e => setColor(i, 'order_qty', parseFloat(e.target.value) || 0)} placeholder="Qty" />
+              <input value={c.buyer_color_code || ''} onChange={e => setColor(i, 'buyer_color_code', e.target.value)} placeholder="Buyer code" />
+              <input value={c.pantone || ''} onChange={e => setColor(i, 'pantone', e.target.value)} placeholder="Pantone" />
+              <select value={c.status || 'Active'} onChange={e => setColor(i, 'status', e.target.value)}>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
               <button className="btn btn-danger btn-sm" onClick={() => removeColor(i)}><Trash2 size={12}/></button>
-            </div>
+</div>
           ))}
         </div>
 
@@ -176,6 +188,9 @@ export default function StyleLibraryPage() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12, marginBottom: 12 }}>
                 <div><b>Buyer:</b> {s.buyer || '—'}</div>
+                <div><b>Brand:</b> {s.brand || '—'}</div>
+                <div><b>Category:</b> {s.product_category || '—'}</div>
+                <div><b>Method:</b> {s.costing_method || 'FOB'}</div>
                 <div><b>Season:</b> {s.season || '—'}</div>
                 <div><b>Base:</b> {s.base_size || 'L'}</div>
                 <div><b>Mode:</b> {s.costing_mode === 'size_wise' ? 'Size-wise' : 'Base size'}</div>
