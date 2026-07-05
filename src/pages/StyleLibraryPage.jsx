@@ -15,7 +15,10 @@ const DEFAULT_COLORS = [{ color_name: 'Black', color_code: '', order_qty: 0 }];
 
 const blankForm = () => ({
   article_number: '', style_name: '', buyer: '', season: '', garment_type: 'T-Shirt',
-  base_size: 'L', costing_mode: 'base_size', status: 'development', notes: '',
+  base_size: 'L', costing_mode: 'base_size',brand: '',
+product_category: '',
+costing_method: 'FOB',
+description: '', status: 'development', notes: '',
   colors: DEFAULT_COLORS.map(x => ({ ...x })),
   sizes: DEFAULT_SIZES.map(x => ({ ...x })),
 });
