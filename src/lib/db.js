@@ -303,17 +303,21 @@ export async function updateStyle(id, payload) {
   const { data, error } = await supabase
     .from('styles')
     .update({
-      article_number: payload.article_number || '',
-      style_name: payload.style_name || '',
-      buyer: payload.buyer || '',
-      season: payload.season || '',
-      garment_type: payload.garment_type || '',
-      base_size: payload.base_size || 'L',
-      costing_mode: payload.costing_mode || 'base_size',
-      status: payload.status || 'development',
-      notes: payload.notes || '',
-      updated_at: new Date().toISOString()
-    })
+        article_number: payload.article_number || '',
+        style_name: payload.style_name || '',
+        buyer: payload.buyer || '',
+        brand: payload.brand || '',
+        season: payload.season || '',
+        garment_type: payload.garment_type || '',
+        product_category: payload.product_category || '',
+        base_size: payload.base_size || 'L',
+        costing_mode: payload.costing_mode || 'base_size',
+        costing_method: payload.costing_method || '',
+        description: payload.description || '',
+        status: payload.status || 'development',
+        notes: payload.notes || '',
+        updated_at: new Date().toISOString()
+})
     .eq('id', id)
     .eq('user_id', userId)
     .select()
