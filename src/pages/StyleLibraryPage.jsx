@@ -151,6 +151,12 @@ function formatDate(date) {
   if (!date) return '—';
   return new Date(date).toLocaleDateString('en-PK');
 }
+function progressColor(percent) {
+  if (percent >= 100) return '#16a34a';
+  if (percent >= 80) return '#2563eb';
+  if (percent >= 40) return '#f59e0b';
+  return '#dc2626';
+}
 export default function StyleLibraryPage() {
   const [styles, setStyles] = useState([]);
   const [search, setSearch] = useState('');
@@ -220,8 +226,15 @@ export default function StyleLibraryPage() {
           <div style={{ fontWeight: 900, fontFamily: 'JetBrains Mono', color: 'var(--navy)', fontSize: 18 }}>
             {s.article_number}
           </div>
-          <div style={{ fontSize: 14, color: 'var(--text-secondary)', fontWeight: 600 }}>
+         <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+            ARTICLE
+          </div>
+          <div style={{ fontWeight: 900, fontFamily: 'JetBrains Mono', color: 'var(--navy)', fontSize: 18 }}>
+            #{s.article_number}
+          </div>
+          <div style={{ fontSize: 14, color: 'var(--text-secondary)', fontWeight: 700 }}>
             {s.style_name || s.garment_type || 'Style'}
+          </div>
           </div>
         </div>
 
@@ -328,12 +341,12 @@ export default function StyleLibraryPage() {
           padding: '3px 7px',
           borderRadius: 20,
           fontWeight: 700,
-          background: item.done ? 'var(--teal-light)' : 'var(--bg)',
+          background: item.done ? 'var(--teal-light)' : '#f8fafc',
           color: item.done ? 'var(--teal)' : 'var(--text-muted)',
           border: '1px solid var(--border-light)'
         }}
       >
-        {item.done ? '✓' : '×'} {item.label}
+        {item.done ? '✔' : '○'} {item.label}
       </span>
     ))}
   </div>
@@ -346,7 +359,7 @@ export default function StyleLibraryPage() {
     marginBottom: 12
   }}
 >
-  Updated: {formatDate(s.updated_at || s.created_at)}
+  Updated · {formatDate(s.updated_at || s.created_at)}
 </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
