@@ -241,17 +241,17 @@ const kgConsumption =
     ? 0.00000254 * meterConsumption * gsm * widthInches
     : 0;
   const yardConsumption = metersToYards(meterConsumption);
-
+  const uom = String(comp.uom || 'METER').toUpperCase();
+  
   let consumption = meterConsumption;
-
-  {comp.uom === 'KG' && (!comp.gsm || !comp.fabricWidth) && (
-  <div style={{ fontSize: 11, color: 'var(--red)', marginTop: 4 }}>
-    GSM and fabric width are required for KG calculation.
-  </div>
-)}
-  if (comp.uom === 'YARD') consumption = yardConsumption;
-  if (comp.uom === 'METER') consumption = meterConsumption;
-
+  
+  if (uom === 'KG') {
+    consumption = kgConsumption;
+  } else if (uom === 'YARD') {
+    consumption = yardConsumption;
+  } else {
+    consumption = meterConsumption;
+  }
   return {
     ...sd,
     layLength: +layLength.toFixed(3),
@@ -532,7 +532,7 @@ if (comp.uom === 'YARD') {
                           <button onClick={()=>setSizeData(comp.id,s.id,'mode','auto')} className={'btn btn-sm '+(sd.mode==='auto'?'btn-primary':'btn-secondary')} style={{padding:'3px 8px',fontSize:10}}>Auto-scale</button>
                         </div>
                       )}
-                      <span style={{fontWeight:700,fontFamily:'JetBrains Mono',color:'var(--teal)',fontSize:15}}>{displayConsumption.toFixed(3)} {comp.uom}</span>
+                      <span style={{fontWeight:700,fontFamily:'JetBrains Mono',color:'var(--teal)',fontSize:15}}>{Number(calc.consumption || 0).toFixed(4)} {String(comp.uom || 'METER').toUpperCase()}</span>
                     </div>
                   </div>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
