@@ -270,21 +270,33 @@ export async function createStyle(payload) {
   const { data: style, error: styleError } = await supabase
     .from('styles')
     .insert({
-      user_id: userId,
-      article_number: payload.article_number || '',
-      style_name: payload.style_name || '',
-      buyer: payload.buyer || '',
-      brand: payload.brand || '',
-      season: payload.season || '',
-      garment_type: payload.garment_type || '',
-      product_category: payload.product_category || '',
-      base_size: payload.base_size || 'L',
-      costing_mode: payload.costing_mode || 'base_size',
-      costing_method: payload.costing_method || 'FOB',
-      description: payload.description || '',
-      status: payload.status || 'development',
-      notes: payload.notes || ''
-    })
+  user_id: userId,
+  fabric_code: payload.fabric_code || '',
+  fabric_name: payload.fabric_name || '',
+  description: payload.description || '',
+  composition: payload.composition || '',
+  fabric_type: payload.fabric_type || '',
+  fabric_category: payload.fabric_category || '',
+  supplier_fabric_code: payload.supplier_fabric_code || '',
+  fabric_form: payload.fabric_form || 'Open Width',
+  color_type: payload.color_type || 'Solid',
+  gsm: Number(payload.gsm || 0),
+  finished_width: Number(payload.finished_width || 0),
+  cuttable_width: Number(payload.cuttable_width || 0),
+  width_unit: payload.width_unit || 'inch',
+  supplier: payload.supplier || '',
+  price_unit: payload.price_unit || 'KG',
+  price: Number(payload.price || 0),
+  currency: payload.currency || 'USD',
+  lead_time_days: Number(payload.lead_time_days || 0),
+  moq: Number(payload.moq || 0),
+  shrinkage_length_pct: Number(payload.shrinkage_length_pct || 0),
+  shrinkage_width_pct: Number(payload.shrinkage_width_pct || 0),
+  storage_location: payload.storage_location || '',
+  image_url: payload.image_url || '',
+  status: payload.status || 'Active',
+  notes: payload.notes || ''
+})
     .select()
     .single();
 
