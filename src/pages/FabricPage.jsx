@@ -244,7 +244,11 @@ const kgConsumption =
 
   let consumption = meterConsumption;
 
-  if (comp.uom === 'KG') consumption = kgConsumption;
+  {comp.uom === 'KG' && (!comp.gsm || !comp.fabricWidth) && (
+  <div style={{ fontSize: 11, color: 'var(--red)', marginTop: 4 }}>
+    GSM and fabric width are required for KG calculation.
+  </div>
+)}
   if (comp.uom === 'YARD') consumption = yardConsumption;
   if (comp.uom === 'METER') consumption = meterConsumption;
 
