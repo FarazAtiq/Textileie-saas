@@ -505,3 +505,127 @@ export async function getStyleCostSummary({ style_id, color_id }) {
   modules.forEach(m => { byType[m.module_type] = m; });
   return byType;
 }
+// ════════════════════════════════════════════════════════════
+// FABRIC MASTER
+// ════════════════════════════════════════════════════════════
+
+export async function getFabrics({ search = '', status = 'all', limit = 100 } = {}) {
+  const userId = await getCurrentUserId();
+  if (!userId) return [];
+
+  let query = supabase
+    .from('fabric_master')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (status && status !== 'all') query = query.eq('status', status);
+
+  if (search) {
+    query = query.or(
+      `fabric_code.ilike.%${search}%,fabric_name.ilike.%${search}%,description.ilike.%${search}%,supplier.ilike.%${search}%`
+    );
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('getFabrics error:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+export async function createFabric(payload) {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error('Not logged in');
+
+  const { data, error } = await supabase
+    .from('fabric_master')
+    .insert({
+      user_id: userId,
+      fabric_code: payload.fabric_code || '',
+      fabric_name: payload.fabric_name || '',
+      description: payload.description || '',
+      composition: payload.composition || '',
+      gsm: Number(payload.gsm || 0),
+      finished_width: Number(payload.finished_width || 0),
+      cuttable_width: Number(payload.cuttable_width || 0),
+      width_unit: payload.width_unit || 'inch',
+      supplier: payload.supplier || '',
+      price_unit: payload.price_unit || 'KG',
+      price: Number(payload.price || 0),
+      currency: payload.currency || 'USD',
+      lead_time_days: Number(payload.lead_time_days || 0),
+      moq: Number(payload.moq || 0),
+      storage_location: payload.storage_location || '',
+      status: payload.status || 'Active',
+      notes: payload.notes || ''
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('createFabric error:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function updateFabric(id, payload) {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error('Not logged in');
+
+  const { data, error } = await supabase
+    .from('fabric_master')
+    .update({
+      fabric_code: payload.fabric_code || '',
+      fabric_name: payload.fabric_name || '',
+      description: payload.description || '',
+      composition: payload.composition || '',
+      gsm: Number(payload.gsm || 0),
+      finished_width: Number(payload.finished_width || 0),
+      cuttable_width: Number(payload.cuttable_width || 0),
+      width_unit: payload.width_unit || 'inch',
+      supplier: payload.supplier || '',
+      price_unit: payload.price_unit || 'KG',
+      price: Number(payload.price || 0),
+      currency: payload.currency || 'USD',
+      lead_time_days: Number(payload.lead_time_days || 0),
+      moq: Number(payload.moq || 0),
+      storage_location: payload.storage_location || '',
+      status: payload.status || 'Active',
+      notes: payload.notes || '',
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', id)
+    .eq('user_id', userId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('updateFabric error:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function deleteFabric(id) {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error('Not logged in');
+
+  const { error } = await supabase
+    .from('fabric_master')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('deleteFabric error:', error);
+    throw error;
+  }
+}
