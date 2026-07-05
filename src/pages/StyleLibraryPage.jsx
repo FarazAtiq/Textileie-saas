@@ -125,7 +125,32 @@ const save = async () => {
     </div>
   );
 }
+function getCompletion(style) {
+  const modules = style.style_cost_modules || [];
 
+  const hasSMV = modules.some(m => m.module_type === 'smv');
+  const hasFabric = modules.some(m => m.module_type === 'fabric_bom');
+  const hasThread = modules.some(m => m.module_type === 'thread');
+  const hasAccessories = modules.some(m => m.module_type === 'accessories');
+  const hasCosting = modules.some(m => m.module_type === 'costing');
+
+  const items = [
+    { label: 'SMV', done: hasSMV },
+    { label: 'Fabric', done: hasFabric },
+    { label: 'Thread', done: hasThread },
+    { label: 'Accessories', done: hasAccessories },
+    { label: 'Costing', done: hasCosting },
+  ];
+
+  const percent = Math.round((items.filter(x => x.done).length / items.length) * 100);
+
+  return { items, percent };
+}
+
+function formatDate(date) {
+  if (!date) return '—';
+  return new Date(date).toLocaleDateString('en-PK');
+}
 export default function StyleLibraryPage() {
   const [styles, setStyles] = useState([]);
   const [search, setSearch] = useState('');
