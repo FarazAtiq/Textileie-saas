@@ -296,14 +296,15 @@ export async function createStyle(payload) {
   const colors = (payload.colors || [])
     .filter(c => c.color_name && c.color_name.trim())
     .map(c => ({
-      style_id: style.id,
-      color_name: c.color_name || '',
-      color_code: c.color_code || '',
-      order_qty: Number(c.order_qty || 0),
-      buyer_color_code: c.buyer_color_code || '',
-      pantone: c.pantone || '',
-      status: c.status || 'Active'
-    }));
+  user_id: userId,
+  style_id: style.id,
+  color_name: c.color_name || '',
+  color_code: c.color_code || '',
+  order_qty: Number(c.order_qty || 0),
+  buyer_color_code: c.buyer_color_code || '',
+  pantone: c.pantone || '',
+  status: c.status || 'Active'
+}));
 
   if (colors.length) {
     const { error } = await supabase.from('style_colors').insert(colors);
@@ -315,15 +316,16 @@ export async function createStyle(payload) {
 
   const sizes = (payload.sizes || [])
     .filter(s => s.size_name && s.size_name.trim())
-    .map((s, index) => ({
-      style_id: style.id,
-      size_name: s.size_name || '',
-      ratio: Number(s.ratio || 1),
-      scale_pct: Number(s.scale_pct || 0),
-      grading: Number(s.grading ?? s.scale_pct ?? 0),
-      status: s.status || 'Active',
-      sort_order: index + 1
-    }));
+   .map((s, index) => ({
+  user_id: userId,
+  style_id: style.id,
+  size_name: s.size_name || '',
+  ratio: Number(s.ratio || 1),
+  scale_pct: Number(s.scale_pct || 0),
+  grading: Number(s.grading ?? s.scale_pct ?? 0),
+  status: s.status || 'Active',
+  sort_order: index + 1
+}));
 
   if (sizes.length) {
     const { error } = await supabase.from('style_sizes').insert(sizes);
