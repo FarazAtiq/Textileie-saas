@@ -234,13 +234,12 @@ function BomSheetTab() {
     comp.widthUnit === 'cm'
       ? cmToInch(parseFloat(comp.fabricWidth) || 0)
       : parseFloat(comp.fabricWidth) || 0;
+const gsm = parseFloat(comp.gsm) || 0;
 
-  const kgConsumption = calcMeterToKg({
-    lengthM: meterConsumption,
-    gsm: parseFloat(comp.gsm) || 0,
-    widthInches,
-  });
-
+const kgConsumption =
+  meterConsumption && gsm && widthInches
+    ? 0.00000254 * meterConsumption * gsm * widthInches
+    : 0;
   const yardConsumption = metersToYards(meterConsumption);
 
   let consumption = meterConsumption;
