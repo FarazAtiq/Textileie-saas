@@ -265,14 +265,6 @@ export default function FabricMasterPage() {
         { label: 'INACTIVE', value: stats.inactive, color: '#dc2626' },
       ]}
     />
-        <div className="card" style={{ padding: 14 }}>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700 }}>ACTIVE</div>
-          <div style={{ fontSize: 26, fontWeight: 900, color: 'var(--teal)' }}>{stats.active}</div>
-        </div>
-        <div className="card" style={{ padding: 14 }}>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700 }}>INACTIVE</div>
-          <div style={{ fontSize: 26, fontWeight: 900, color: '#dc2626' }}>{stats.inactive}</div>
-        </div>
       
 <MasterSearchBar
   search={search}
