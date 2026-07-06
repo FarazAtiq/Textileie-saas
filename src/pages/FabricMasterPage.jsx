@@ -1,8 +1,12 @@
+import MasterStats from '../components/master/MasterStats.jsx';
+import MasterSearchBar from '../components/master/MasterSearchBar.jsx';
+import StatusBadge from '../components/master/StatusBadge.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, Save, Trash2, Edit3, Search, X, Layers } from 'lucide-react';
 import { PageHeader } from '../components/ResultCard.jsx';
 import { getFabrics, createFabric, updateFabric, deleteFabric } from '../lib/db.js';
 import { useToast } from '../hooks/useToast.jsx';
+
 
 const blankFabric = () => ({
   fabric_code: '',
@@ -254,11 +258,13 @@ export default function FabricMasterPage() {
         badge={{ text: 'Master Data' }}
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
-        <div className="card" style={{ padding: 14 }}>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700 }}>TOTAL FABRICS</div>
-          <div style={{ fontSize: 26, fontWeight: 900, color: 'var(--navy)' }}>{stats.total}</div>
-        </div>
+      <MasterStats
+        stats={[
+        { label: 'TOTAL FABRICS', value: stats.total },
+        { label: 'ACTIVE', value: stats.active, color: 'var(--teal)' },
+        { label: 'INACTIVE', value: stats.inactive, color: '#dc2626' },
+      ]}
+    />
         <div className="card" style={{ padding: 14 }}>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700 }}>ACTIVE</div>
           <div style={{ fontSize: 26, fontWeight: 900, color: 'var(--teal)' }}>{stats.active}</div>
@@ -268,12 +274,18 @@ export default function FabricMasterPage() {
           <div style={{ fontSize: 26, fontWeight: 900, color: '#dc2626' }}>{stats.inactive}</div>
         </div>
       </div>
-
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-        <div style={{ position: 'relative', flex: 1 }}>
-          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search fabric code, name, supplier..." style={{ paddingLeft: 32, width: '100%' }} />
-        </div>
+<MasterSearchBar
+  search={search}
+  setSearch={setSearch}
+  onSearch={load}
+  onNew={() => {
+    setEditing(null);
+    setShowForm(true);
+  }}
+  newLabel="New Fabric"
+/>
+          
+    </div>
         <button className="btn btn-secondary" onClick={load}>Search</button>
         <button className="btn btn-primary" onClick={() => { setEditing(null); setShowForm(true); }}>
           <Plus size={14} /> New Fabric
@@ -315,7 +327,7 @@ export default function FabricMasterPage() {
                     fontWeight: 700,
                     height: 24
                   }}>
-                    {f.status || 'Active'}
+                    <StatusBadge status={f.status || 'Active'} />
                   </span>
                 </div>
 
