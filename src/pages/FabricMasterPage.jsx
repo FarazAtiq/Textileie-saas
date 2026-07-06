@@ -273,7 +273,7 @@ export default function FabricMasterPage() {
           <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700 }}>INACTIVE</div>
           <div style={{ fontSize: 26, fontWeight: 900, color: '#dc2626' }}>{stats.inactive}</div>
         </div>
-      </div>
+      
 <MasterSearchBar
   search={search}
   setSearch={setSearch}
