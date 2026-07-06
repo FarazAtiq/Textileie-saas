@@ -664,3 +664,119 @@ export async function deleteFabric(id) {
     throw error;
   }
 }
+// ════════════════════════════════════════════════════════════
+// SUPPLIER MASTER
+// ════════════════════════════════════════════════════════════
+
+export async function getSuppliers({ search = '', status = 'all', type = 'all', limit = 100 } = {}) {
+  const userId = await getCurrentUserId();
+  if (!userId) return [];
+
+  let query = supabase
+    .from('supplier_master')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (status !== 'all') query = query.eq('status', status);
+  if (type !== 'all') query = query.eq('supplier_type', type);
+
+  if (search) {
+    query = query.or(
+      `supplier_code.ilike.%${search}%,supplier_name.ilike.%${search}%,city.ilike.%${search}%,country.ilike.%${search}%`
+    );
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error('getSuppliers error:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+export async function createSupplier(payload) {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error('Not logged in');
+
+  const { data, error } = await supabase
+    .from('supplier_master')
+    .insert({
+      user_id: userId,
+      supplier_code: payload.supplier_code || '',
+      supplier_name: payload.supplier_name || '',
+      supplier_type: payload.supplier_type || 'Fabric',
+      contact_person: payload.contact_person || '',
+      phone: payload.phone || '',
+      email: payload.email || '',
+      address: payload.address || '',
+      city: payload.city || '',
+      country: payload.country || '',
+      payment_terms: payload.payment_terms || '',
+      lead_time_days: Number(payload.lead_time_days || 0),
+      status: payload.status || 'Active',
+      notes: payload.notes || ''
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('createSupplier error:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function updateSupplier(id, payload) {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error('Not logged in');
+
+  const { data, error } = await supabase
+    .from('supplier_master')
+    .update({
+      supplier_code: payload.supplier_code || '',
+      supplier_name: payload.supplier_name || '',
+      supplier_type: payload.supplier_type || 'Fabric',
+      contact_person: payload.contact_person || '',
+      phone: payload.phone || '',
+      email: payload.email || '',
+      address: payload.address || '',
+      city: payload.city || '',
+      country: payload.country || '',
+      payment_terms: payload.payment_terms || '',
+      lead_time_days: Number(payload.lead_time_days || 0),
+      status: payload.status || 'Active',
+      notes: payload.notes || '',
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', id)
+    .eq('user_id', userId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('updateSupplier error:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function deleteSupplier(id) {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error('Not logged in');
+
+  const { error } = await supabase
+    .from('supplier_master')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('deleteSupplier error:', error);
+    throw error;
+  }
+}
