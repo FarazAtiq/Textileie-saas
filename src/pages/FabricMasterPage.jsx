@@ -285,12 +285,6 @@ export default function FabricMasterPage() {
   newLabel="New Fabric"
 />
           
-    </div>
-        <button className="btn btn-secondary" onClick={load}>Search</button>
-        <button className="btn btn-primary" onClick={() => { setEditing(null); setShowForm(true); }}>
-          <Plus size={14} /> New Fabric
-        </button>
-      </div>
 
       {showForm && <FabricForm editing={editing} onCancel={closeForm} onSaved={saved} />}
 
