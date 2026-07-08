@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Save, X } from 'lucide-react';
 import { createFabric, updateFabric } from '../../lib/db.js';
-import { useToast } from '../../hooks/useToast.jsx';
+
 
 const blankFabric = () => ({
   fabric_code: '',
@@ -35,17 +35,17 @@ function Section({ title, children }) {
   return (
     <div style={{ marginBottom: 18 }}>
       <h3 style={{ fontSize: 13, marginBottom: 10, color: 'var(--navy)' }}>{title}</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+      <div style={{ display: 'grid',gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
         {children}
       </div>
     </div>
   );
 }
 
-export default function FabricForm({ editing, onCancel, onSaved }) {
+export default function FabricForm({ editing, onCancel, onSaved, toast }) {
   const [form, setForm] = useState(editing ? { ...blankFabric(), ...editing } : blankFabric());
   const [saving, setSaving] = useState(false);
-  const { toast } = useToast();
+ 
 
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
