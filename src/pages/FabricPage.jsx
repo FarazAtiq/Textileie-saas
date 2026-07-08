@@ -629,24 +629,6 @@ function ComponentCard({ comp, sizes, baseSizeId, fabricMasters, getSizeData, se
                 },
               });
               const calc = calcForSize(comp,s.id);
-              const costPerPiece = fabricCostPerPiece({
-                  consumption: calc.consumption,
-                  uom: comp.uom,
-                  rates: {
-                    kg: comp.costPerKg || 0,
-                    meter: comp.costPerMeter || 0,
-                    yard: comp.costPerYard || 0,
-                  },
-                });
-              const costPerPiece = fabricCostPerPiece({
-                consumption: calc.consumption,
-                uom: comp.uom,
-                rates: {
-                  kg: comp.costPerKg || 0,
-                  meter: comp.costPerMeter || 0,
-                  yard: comp.costPerYard || 0,
-                },
-              });
               const gsm = parseFloat(comp.gsm) || 0;
           const widthInches =
             comp.widthUnit === 'cm'
