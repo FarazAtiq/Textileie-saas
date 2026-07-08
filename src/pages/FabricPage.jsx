@@ -492,6 +492,13 @@ function ComponentCard({ comp, sizes, baseSizeId, fabricMasters, getSizeData, se
   const fabricId = e.target.value;
   const selected = fabricMasters.find(f => String(f.id) === String(fabricId));
   const rates = getFabricRates({
+    price: selected.price,
+    priceUnit: selected.price_unit,
+    gsm: selected.gsm,
+    width: selected.cuttable_width,
+    widthUnit: selected.width_unit,
+  });
+  const rates = getFabricRates({
   price: selected.price,
   priceUnit: selected.price_unit,
   gsm: selected.gsm,
@@ -502,7 +509,7 @@ function ComponentCard({ comp, sizes, baseSizeId, fabricMasters, getSizeData, se
   if (!selected) {
     updateComp(comp.id, { fabric_id: '',costPerKg: rates.kg,
 costPerMeter: rates.meter,
-costPerYard: rates.yard, });
+costPerYard: rates.yard,currency: selected.currency || 'USD' });
     return;
   }
 
