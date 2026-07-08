@@ -17,7 +17,7 @@ function useSave(type, titleFn, inputs, results) {
   const { toast, ToastContainer } = useToast();
   const { profile } = useAuth();
   const save = async () => {
-    setSaving(true);
+    setSaving(true);  
     try {
       await createReport({ type, title: titleFn(), inputs, results });
       toast('Report saved');
@@ -509,7 +509,7 @@ function ComponentCard({ comp, sizes, baseSizeId, fabricMasters, getSizeData, se
   if (!selected) {
     updateComp(comp.id, { fabric_id: '',costPerKg: rates.kg,
 costPerMeter: rates.meter,
-costPerYard: rates.yard,currency: selected.currency || 'USD' });
+costPerYard: rates.yard,currency: selected.currency || 'USD', });
     return;
   }
 
