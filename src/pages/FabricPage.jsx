@@ -216,6 +216,10 @@ useEffect(() => {
   const addComponent = () => setComponents([...components, newComponent(components.length + 1)]);
   const removeComponent = (id) => setComponents(components.filter(c => c.id !== id).map((c, i) => ({ ...c, compNo: i + 1 })));
   const setComp = (id, key, val) => setComponents(components.map(c => c.id === id ? { ...c, [key]: val } : c));
+  const updateComp = (id, updates) => {
+  setComponents(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c)
+  );
+};
 
   const getSizeData = (comp, sizeId) => comp.sizeData[sizeId] || { mode: 'manual', layLength: 0, noOfPcs: 4, efficiency: 70, ratio: 1.0 };
 
@@ -426,7 +430,7 @@ const kgConsumption =
         <ComponentCard key={comp.id} comp={comp} sizes={sizes} baseSizeId={baseSizeId}
   fabricMasters={fabricMasters}
           getSizeData={getSizeData} setSizeData={setSizeData} calcForSize={calcForSize}
-          setComp={setComp} removeComponent={removeComponent} canRemove={components.length > 1} />
+          setComp={setComp} updateComp={updateComp} removeComponent={removeComponent} canRemove={components.length > 1} />
       ))}
 
       {/* Sign-off */}
@@ -452,7 +456,7 @@ const kgConsumption =
 }
 
 // ── Single component card ──
-function ComponentCard({ comp, sizes, baseSizeId, fabricMasters, getSizeData, setSizeData, calcForSize, setComp, removeComponent, canRemove }) {
+function ComponentCard({ comp, sizes, baseSizeId, fabricMasters, getSizeData, setSizeData, calcForSize, setComp, updateComp, removeComponent, canRemove }) {
   const [expanded, setExpanded] = useState(true);
   return (
     <div className="card" style={{marginBottom:14,padding:0,overflow:'hidden'}}>
@@ -474,29 +478,33 @@ function ComponentCard({ comp, sizes, baseSizeId, fabricMasters, getSizeData, se
   <label>Select Fabric from Fabric Master</label>
   <select
     value={comp.fabric_id || ''}
-    onChange={e => {
-      const fabricId = e.target.value;
-      const selected = fabricMasters.find(f => f.id === fabricId);
+ onChange={e => {
+  const fabricId = e.target.value;
+  const selected = fabricMasters.find(f => String(f.id) === String(fabricId));
 
-      setComp(comp.id, 'fabric_id', fabricId);
+  if (!selected) {
+    updateComp(comp.id, { fabric_id: '' });
+    return;
+  }
 
-      if (selected) {
-        setComp(comp.id, 'fabricCode', selected.fabric_code || '');
-        setComp(comp.id, 'fabricDescription', selected.fabric_name || selected.description || '');
-        setComp(comp.id, 'supplier', selected.supplier || '');
-        setComp(comp.id, 'gsm', selected.gsm || '');
-        setComp(comp.id, 'fabricWidth', selected.cuttable_width || '');
-        setComp(comp.id, 'widthUnit', selected.width_unit || 'inch');
-        setComp(comp.id, 'price', selected.price || 0);
-        setComp(comp.id, 'priceUnit', selected.price_unit || 'KG');
-        setComp(comp.id, 'currency', selected.currency || 'USD');
-        setComp(comp.id, 'composition', selected.composition || '');
-        setComp(comp.id, 'fabricType', selected.fabric_type || '');
-        setComp(comp.id, 'fabricCategory', selected.fabric_category || '');
-        setComp(comp.id, 'shrinkageLengthPct', selected.shrinkage_length_pct || 0);
-        setComp(comp.id, 'shrinkageWidthPct', selected.shrinkage_width_pct || 0);
-      }
-    }}
+  updateComp(comp.id, {
+    fabric_id: selected.id,
+    fabricCode: selected.fabric_code || '',
+    fabricDescription: selected.fabric_name || selected.description || '',
+    supplier: selected.supplier || '',
+    gsm: selected.gsm || '',
+    fabricWidth: selected.cuttable_width || '',
+    widthUnit: selected.width_unit || 'inch',
+    price: selected.price || 0,
+    priceUnit: selected.price_unit || 'KG',
+    currency: selected.currency || 'USD',
+    composition: selected.composition || '',
+    fabricType: selected.fabric_type || '',
+    fabricCategory: selected.fabric_category || '',
+    shrinkageLengthPct: selected.shrinkage_length_pct || 0,
+    shrinkageWidthPct: selected.shrinkage_width_pct || 0,
+  });
+}}
   >
     <option value="">Select fabric</option>
     {fabricMasters.map(f => (
