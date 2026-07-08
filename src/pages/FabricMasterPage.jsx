@@ -1,5 +1,5 @@
 import FabricForm from '../components/fabric/FabricForm.jsx';
-import FabricForm from '../components/fabric/FabricCard.jsx';
+import FabricCard from '../components/fabric/FabricCard.jsx';
 import MasterStats from '../components/master/MasterStats.jsx';
 import MasterSearchBar from '../components/master/MasterSearchBar.jsx';
 import StatusBadge from '../components/master/StatusBadge.jsx';
@@ -112,18 +112,20 @@ export default function FabricMasterPage() {
           <p>No fabrics yet. Create your first fabric master.</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))', gap: 14 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))', gap: 14 }}>
           {filtered.map(f => (
-  <FabricCard
-    key={f.id}
-    fabric={f}
-    onEdit={(fabric) => {
-      setEditing(fabric);
-      setShowForm(true);
-    }}
-    onDelete={remove}
-  />
-))}
+            <FabricCard
+              key={f.id}
+              fabric={f}
+              onEdit={(fabric) => {
+                setEditing(fabric);
+                setShowForm(true);
+              }}
+              onDelete={remove}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
-}
+          }
