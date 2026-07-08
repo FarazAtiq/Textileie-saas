@@ -1,4 +1,5 @@
 import FabricForm from '../components/fabric/FabricForm.jsx';
+import FabricForm from '../components/fabric/FabricCard.jsx';
 import MasterStats from '../components/master/MasterStats.jsx';
 import MasterSearchBar from '../components/master/MasterSearchBar.jsx';
 import StatusBadge from '../components/master/StatusBadge.jsx';
