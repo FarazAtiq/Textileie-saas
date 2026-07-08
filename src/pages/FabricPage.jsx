@@ -162,6 +162,39 @@ function BomSheetTab() {
   const { toast, ToastContainer } = useToast();
   const [saving, setSaving] = useState(false);
   const [fabricMasters, setFabricMasters] = useState([]);
+  const getFabricCostSummary = () => {
+  const lines = components.map(comp => {
+    const totalCost = sizes.reduce((sum, s) => {
+      const calc = calcForSize(comp, s.id);
+
+      const costPerPiece = fabricCostPerPiece({
+        consumption: calc.consumption,
+        uom: comp.uom,
+        rates: {
+          kg: comp.costPerKg || 0,
+          meter: comp.costPerMeter || 0,
+          yard: comp.costPerYard || 0,
+        },
+      });
+
+      return sum + costPerPiece;
+    }, 0);
+
+    return {
+      component: comp.usageAt || comp.fabricDescription || `Component ${comp.compNo}`,
+      currency: comp.currency || 'USD',
+      costPerGarment: Number(totalCost.toFixed(4)),
+    };
+  });
+
+  const totalFabricCost = lines.reduce((sum, l) => sum + l.costPerGarment, 0);
+
+  return {
+    lines,
+    totalFabricCost: Number(totalFabricCost.toFixed(4)),
+    currency: lines[0]?.currency || 'USD',
+  };
+};
 
 useEffect(() => {
   getFabrics({ limit: 500 }).then(setFabricMasters);
@@ -305,6 +338,7 @@ const kgConsumption =
   const handleSave = async () => {
     setSaving(true);
     try {
+      const fabricCostSummary = getFabricCostSummary();
       const results = Object.fromEntries(sizes.map(s => [
         s.label + ' total',
         components.reduce((sum, c) => sum + calcForSize(c, s.id).consumption, 0).toFixed(3)
@@ -366,8 +400,8 @@ const kgConsumption =
           style_id: selectedStyle.id,
           color_id: selectedColor?.id || null,
           module_type: 'fabric_bom',
-          data: { artNo, styleName, customer, techPackRef, consumptionNo, issueDate, docType, sizes, baseSizeId, components: calculatedComponents, signOff },
-          summary: { results, components: calculatedComponents, sizes: sizes.map(s => s.label), article_number: artNo, style_name: styleName, buyer: customer }
+          data: { artNo, styleName, customer, techPackRef, consumptionNo, issueDate, docType, sizes, baseSizeId, components: calculatedComponents,fabricCostSummary, signOff },
+          summary: { results, fabricCostSummary, components: calculatedComponents, sizes: sizes.map(s => s.label), article_number: artNo, style_name: styleName, buyer: customer }
         });
       }
       toast('Fabric BOM saved and linked to Style Master');
@@ -443,6 +477,49 @@ const kgConsumption =
           <div className="field"><label>Received by</label><input value={signOff.receivedBy} onChange={e=>setSignOff({...signOff,receivedBy:e.target.value})}/></div>
         </div>
       </div>
+      {(() => {
+  const fabricSummary = getFabricCostSummary();
+
+  return (
+    <div className="card" style={{ marginTop: 16, padding: '16px 18px' }}>
+      <h3 style={{ marginBottom: 12 }}>Fabric Cost Summary</h3>
+
+      {fabricSummary.lines.map((line, index) => (
+        <div
+          key={index}
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            padding: '7px 0',
+            borderBottom: '1px solid var(--border-light)',
+            fontSize: 13,
+          }}
+        >
+          <span>{line.component}</span>
+          <strong style={{ fontFamily: 'JetBrains Mono', color: 'var(--teal)' }}>
+            {line.currency} {line.costPerGarment.toFixed(4)}
+          </strong>
+        </div>
+      ))}
+
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          marginTop: 10,
+          paddingTop: 10,
+          borderTop: '2px solid var(--teal)',
+          fontWeight: 800,
+        }}
+      >
+        <span>Total Fabric Cost / Garment</span>
+        <span style={{ fontFamily: 'JetBrains Mono', color: 'var(--teal)' }}>
+          {fabricSummary.currency} {fabricSummary.totalFabricCost.toFixed(4)}
+        </span>
+      </div>
+    </div>
+  );
+})()}
 
       {/* Actions */}
       <div style={{display:'flex',flexDirection:'column',gap:10,marginTop:20}}>
