@@ -490,7 +490,6 @@ function ComponentCard({ comp, sizes, baseSizeId, fabricMasters, getSizeData, se
     value={comp.fabric_id || ''}
  onChange={e => {
   const fabricId = e.target.value;
-  const selected = fabricMasters.find(f => String(f.id) === String(fabricId));
   const rates = getFabricRates({
     price: selected.price,
     priceUnit: selected.price_unit,
@@ -505,7 +504,7 @@ function ComponentCard({ comp, sizes, baseSizeId, fabricMasters, getSizeData, se
   width: selected.cuttable_width,
   widthUnit: selected.width_unit,
 });
-
+const selected = fabricMasters.find(f => String(f.id) === String(fabricId));
   if (!selected) {
     updateComp(comp.id, { fabric_id: '',costPerKg: rates.kg,
 costPerMeter: rates.meter,
