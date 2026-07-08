@@ -487,57 +487,59 @@ function ComponentCard({ comp, sizes, baseSizeId, fabricMasters, getSizeData, se
           <div className="field" style={{ gridColumn: 'span 2' }}>
   <label>Select Fabric from Fabric Master</label>
   <select
-    value={comp.fabric_id || ''}
- onChange={e => {
-  const fabricId = e.target.value;
-  const rates = getFabricRates({
-    price: selected.price,
-    priceUnit: selected.price_unit,
-    gsm: selected.gsm,
-    width: selected.cuttable_width,
-    widthUnit: selected.width_unit,
-  });
-  const rates = getFabricRates({
-  price: selected.price,
-  priceUnit: selected.price_unit,
-  gsm: selected.gsm,
-  width: selected.cuttable_width,
-  widthUnit: selected.width_unit,
-});
-const selected = fabricMasters.find(f => String(f.id) === String(fabricId));
-  if (!selected) {
-    updateComp(comp.id, { fabric_id: '',costPerKg: rates.kg,
-costPerMeter: rates.meter,
-costPerYard: rates.yard,currency: selected.currency || 'USD', });
-    return;
-  }
+  value={comp.fabric_id || ''}
+  onChange={e => {
+    const fabricId = e.target.value;
+    const selected = fabricMasters.find(f => String(f.id) === String(fabricId));
 
-  updateComp(comp.id, {
-    fabric_id: selected.id,
-    fabricCode: selected.fabric_code || '',
-    fabricDescription: selected.fabric_name || selected.description || '',
-    supplier: selected.supplier || '',
-    gsm: selected.gsm || '',
-    fabricWidth: selected.cuttable_width || '',
-    widthUnit: selected.width_unit || 'inch',
-    price: selected.price || 0,
-    priceUnit: selected.price_unit || 'KG',
-    currency: selected.currency || 'USD',
-    composition: selected.composition || '',
-    fabricType: selected.fabric_type || '',
-    fabricCategory: selected.fabric_category || '',
-    shrinkageLengthPct: selected.shrinkage_length_pct || 0,
-    shrinkageWidthPct: selected.shrinkage_width_pct || 0,
-  });
-}}
-  >
-    <option value="">Select fabric</option>
-    {fabricMasters.map(f => (
-      <option key={f.id} value={f.id}>
-        {f.fabric_code} — {f.fabric_name || f.description} — {f.gsm} GSM
-      </option>
-    ))}
-  </select>
+    if (!selected) {
+      updateComp(comp.id, {
+        fabric_id: '',
+        costPerKg: 0,
+        costPerMeter: 0,
+        costPerYard: 0,
+        currency: 'USD',
+      });
+      return;
+    }
+
+    const rates = getFabricRates({
+      price: selected.price,
+      priceUnit: selected.price_unit,
+      gsm: selected.gsm,
+      width: selected.cuttable_width,
+      widthUnit: selected.width_unit,
+    });
+
+    updateComp(comp.id, {
+      fabric_id: selected.id,
+      fabricCode: selected.fabric_code || '',
+      fabricDescription: selected.fabric_name || selected.description || '',
+      supplier: selected.supplier || '',
+      gsm: selected.gsm || '',
+      fabricWidth: selected.cuttable_width || '',
+      widthUnit: selected.width_unit || 'inch',
+      price: selected.price || 0,
+      priceUnit: selected.price_unit || 'KG',
+      currency: selected.currency || 'USD',
+      costPerKg: rates.kg,
+      costPerMeter: rates.meter,
+      costPerYard: rates.yard,
+      composition: selected.composition || '',
+      fabricType: selected.fabric_type || '',
+      fabricCategory: selected.fabric_category || '',
+      shrinkageLengthPct: selected.shrinkage_length_pct || 0,
+      shrinkageWidthPct: selected.shrinkage_width_pct || 0,
+    });
+  }}
+>
+  <option value="">Select fabric</option>
+  {fabricMasters.map(f => (
+    <option key={f.id} value={f.id}>
+      {f.fabric_code} — {f.fabric_name || f.description} — {f.gsm} GSM
+    </option>
+  ))}
+</select>
 </div>
             {comp.fabric_id && (
   <div
