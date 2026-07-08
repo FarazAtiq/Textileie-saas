@@ -12,7 +12,7 @@ export function kgToMeterRate({ pricePerKg, gsm, width, widthUnit }) {
 
   if (!price || !g || !widthInches) return 0;
 
-  const kgPerMeter = 0.00000254 * g * widthInches;
+  const kgPerMeter = 0.0000254 * g * widthInches;
   return price * kgPerMeter;
 }
 
