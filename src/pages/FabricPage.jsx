@@ -333,16 +333,7 @@ const kgConsumption =
   sizeData: Object.fromEntries(
     sizes.map(s => {
       const calc = calcForSize(comp, s.id);
-      const costPerPiece = fabricCostPerPiece({
-        consumption: calc.consumption,
-        uom: comp.uom,
-        rates: {
-          kg: comp.costPerKg || 0,
-          meter: comp.costPerMeter || 0,
-          yard: comp.costPerYard || 0,
-        },
-      });
-
+      
       return [
         s.id,
         {
@@ -628,6 +619,15 @@ function ComponentCard({ comp, sizes, baseSizeId, fabricMasters, getSizeData, se
           <div style={{display:'flex',flexDirection:'column',gap:8}}>
             {sizes.map(s=>{
               const sd   = getSizeData(comp,s.id);
+              const costPerPiece = fabricCostPerPiece({
+                consumption: calc.consumption,
+                uom: comp.uom,
+                rates: {
+                  kg: comp.costPerKg || 0,
+                  meter: comp.costPerMeter || 0,
+                  yard: comp.costPerYard || 0,
+                },
+              });
               const calc = calcForSize(comp,s.id);
               const costPerPiece = fabricCostPerPiece({
                   consumption: calc.consumption,
