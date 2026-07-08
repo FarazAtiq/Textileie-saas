@@ -531,7 +531,26 @@ function ComponentCard({ comp, sizes, baseSizeId, fabricMasters, getSizeData, se
     />
     <select
       value={comp.widthUnit || 'inch'}
-      onChange={e => setComp(comp.id, 'widthUnit', e.target.value)}
+      onChange={e => {
+        const newUnit = e.target.value;
+        const oldUnit = comp.widthUnit || 'inch';
+        const currentWidth = parseFloat(comp.fabricWidth) || 0;
+      
+        let convertedWidth = currentWidth;
+      
+        if (oldUnit === 'inch' && newUnit === 'cm') {
+          convertedWidth = currentWidth * 2.54;
+        }
+      
+        if (oldUnit === 'cm' && newUnit === 'inch') {
+          convertedWidth = currentWidth / 2.54;
+        }
+      
+        updateComp(comp.id, {
+          widthUnit: newUnit,
+          fabricWidth: Number(convertedWidth.toFixed(2)),
+        });
+      }}
       style={{ width: 90 }}
     >
       <option value="inch">inch</option>
