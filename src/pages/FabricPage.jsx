@@ -630,6 +630,15 @@ function ComponentCard({ comp, sizes, baseSizeId, fabricMasters, getSizeData, se
               const sd   = getSizeData(comp,s.id);
               const calc = calcForSize(comp,s.id);
               const costPerPiece = fabricCostPerPiece({
+                  consumption: calc.consumption,
+                  uom: comp.uom,
+                  rates: {
+                    kg: comp.costPerKg || 0,
+                    meter: comp.costPerMeter || 0,
+                    yard: comp.costPerYard || 0,
+                  },
+                });
+              const costPerPiece = fabricCostPerPiece({
                 consumption: calc.consumption,
                 uom: comp.uom,
                 rates: {
@@ -677,17 +686,19 @@ if (comp.uom === 'YARD') {
                         </div>
                       )}
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+<span 
+  style={{
+    fontWeight: 700,
+    fontFamily: 'JetBrains Mono',
+    color: 'var(--teal)',
+    fontSize: 15
+}}>
+  {Number(calc.consumption || 0).toFixed(4)} {comp.uom}
+</span>
 
-  <span
-    style={{
-      fontWeight: 700,
-      fontFamily: 'JetBrains Mono',
-      color: 'var(--teal)',
-      fontSize: 15
-    }}
-  >
-    {Number(calc.consumption || 0).toFixed(4)} {comp.uom}
-  </span>
+<span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+  Cost/Pc: {comp.currency || 'USD'} {Number(costPerPiece || 0).toFixed(4)}
+</span>
 
   {String(comp.uom).toUpperCase() === 'KG' &&
     (!comp.gsm || !comp.fabricWidth) && (
