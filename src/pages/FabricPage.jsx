@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { calcFabricYards, calcFabricGSM, formatNum } from '../utils/calculations.js';
 import { calcBomConsumption, defaultRatioForSize } from '../utils/fabricBomCalc.js';
 import { calcKgToMeter, calcMeterToKg, metersToYards, cmToInch } from '../utils/kgMeterCalc.js';
 import { PageHeader, CalcGrid } from '../components/ResultCard.jsx';
-import { createReport, upsertStyleCostModule } from '../lib/db.js';
+import { createReport, upsertStyleCostModule, getFabrics } from '../lib/db.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useToast } from '../hooks/useToast.jsx';
 import { exportReportPDF } from '../utils/pdfExport.js';
@@ -139,6 +139,15 @@ const newComponent = (num) => ({
   supplier: '',
   gsm: '',
   fabricWidth: '',
+  fabric_id: '',
+  price: 0,
+  priceUnit: 'KG',
+  currency: 'USD',
+  composition: '',
+  fabricType: '',
+  fabricCategory: '',
+  shrinkageLengthPct: 0,
+  shrinkageWidthPct: 0,
   widthUnit: 'inch',
   uom: 'KG',
   allowancePct: 4,
@@ -151,6 +160,11 @@ function BomSheetTab() {
   const { profile } = useAuth();
   const { toast, ToastContainer } = useToast();
   const [saving, setSaving] = useState(false);
+  const [fabricMasters, setFabricMasters] = useState([]);
+
+useEffect(() => {
+  getFabrics({ limit: 500 }).then(setFabricMasters);
+}, []);
 
   // Header
   const [artNo,         setArtNo]         = useState('5400');
@@ -410,6 +424,7 @@ const kgConsumption =
 
       {components.map(comp => (
         <ComponentCard key={comp.id} comp={comp} sizes={sizes} baseSizeId={baseSizeId}
+  fabricMasters={fabricMasters}
           getSizeData={getSizeData} setSizeData={setSizeData} calcForSize={calcForSize}
           setComp={setComp} removeComponent={removeComponent} canRemove={components.length > 1} />
       ))}
@@ -437,7 +452,7 @@ const kgConsumption =
 }
 
 // ── Single component card ──
-function ComponentCard({ comp, sizes, baseSizeId, getSizeData, setSizeData, calcForSize, setComp, removeComponent, canRemove }) {
+function ComponentCard({ comp, sizes, baseSizeId, fabricMasters, getSizeData, setSizeData, calcForSize, setComp, removeComponent, canRemove }) {
   const [expanded, setExpanded] = useState(true);
   return (
     <div className="card" style={{marginBottom:14,padding:0,overflow:'hidden'}}>
@@ -455,6 +470,42 @@ function ComponentCard({ comp, sizes, baseSizeId, getSizeData, setSizeData, calc
       {expanded&&(
         <div style={{padding:'16px'}}>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
+          <div className="field" style={{ gridColumn: 'span 2' }}>
+  <label>Select Fabric from Fabric Master</label>
+  <select
+    value={comp.fabric_id || ''}
+    onChange={e => {
+      const fabricId = e.target.value;
+      const selected = fabricMasters.find(f => f.id === fabricId);
+
+      setComp(comp.id, 'fabric_id', fabricId);
+
+      if (selected) {
+        setComp(comp.id, 'fabricCode', selected.fabric_code || '');
+        setComp(comp.id, 'fabricDescription', selected.fabric_name || selected.description || '');
+        setComp(comp.id, 'supplier', selected.supplier || '');
+        setComp(comp.id, 'gsm', selected.gsm || '');
+        setComp(comp.id, 'fabricWidth', selected.cuttable_width || '');
+        setComp(comp.id, 'widthUnit', selected.width_unit || 'inch');
+        setComp(comp.id, 'price', selected.price || 0);
+        setComp(comp.id, 'priceUnit', selected.price_unit || 'KG');
+        setComp(comp.id, 'currency', selected.currency || 'USD');
+        setComp(comp.id, 'composition', selected.composition || '');
+        setComp(comp.id, 'fabricType', selected.fabric_type || '');
+        setComp(comp.id, 'fabricCategory', selected.fabric_category || '');
+        setComp(comp.id, 'shrinkageLengthPct', selected.shrinkage_length_pct || 0);
+        setComp(comp.id, 'shrinkageWidthPct', selected.shrinkage_width_pct || 0);
+      }
+    }}
+  >
+    <option value="">Select fabric</option>
+    {fabricMasters.map(f => (
+      <option key={f.id} value={f.id}>
+        {f.fabric_code} — {f.fabric_name || f.description} — {f.gsm} GSM
+      </option>
+    ))}
+  </select>
+</div>
             <div className="field"><label>Usage at (body part)</label><input value={comp.usageAt} onChange={e=>setComp(comp.id,'usageAt',e.target.value)} placeholder="e.g. Main fabric, hip and knee pad"/></div>
             <div className="field"><label>Fabric Description</label><input value={comp.fabricDescription} onChange={e=>setComp(comp.id,'fabricDescription',e.target.value)} placeholder="e.g. Warp Knit Interlock"/></div>
             <div className="field"><label>Fabric Code</label><input value={comp.fabricCode} onChange={e=>setComp(comp.id,'fabricCode',e.target.value)}/></div>
