@@ -102,7 +102,12 @@ export default function FabricMasterPage() {
 />
           
 
-      {showForm && <FabricForm editing={editing} onCancel={closeForm} onSaved={saved} />}
+      {showForm && <FabricForm
+  editing={editing}
+  onCancel={closeForm}
+  onSaved={saved}
+  toast={toast}
+/>}
 
       {loading ? (
         <div className="empty-state"><p>Loading fabrics...</p></div>
