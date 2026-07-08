@@ -7,6 +7,7 @@ import { createReport, upsertStyleCostModule, getFabrics } from '../lib/db.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useToast } from '../hooks/useToast.jsx';
 import { exportReportPDF } from '../utils/pdfExport.js';
+import { getFabricRates, fabricCostPerPiece } from '../utils/fabricCosting.js';
 import { exportBomPDF, exportBomExcel } from '../utils/bomExport.js';
 import { Plus, Trash2, Save, Download, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import { ArticleSelector } from '../components/ArticleSelector.jsx';
@@ -332,6 +333,15 @@ const kgConsumption =
   sizeData: Object.fromEntries(
     sizes.map(s => {
       const calc = calcForSize(comp, s.id);
+      const costPerPiece = fabricCostPerPiece({
+        consumption: calc.consumption,
+        uom: comp.uom,
+        rates: {
+          kg: comp.costPerKg || 0,
+          meter: comp.costPerMeter || 0,
+          yard: comp.costPerYard || 0,
+        },
+      });
 
       return [
         s.id,
@@ -481,9 +491,18 @@ function ComponentCard({ comp, sizes, baseSizeId, fabricMasters, getSizeData, se
  onChange={e => {
   const fabricId = e.target.value;
   const selected = fabricMasters.find(f => String(f.id) === String(fabricId));
+  const rates = getFabricRates({
+  price: selected.price,
+  priceUnit: selected.price_unit,
+  gsm: selected.gsm,
+  width: selected.cuttable_width,
+  widthUnit: selected.width_unit,
+});
 
   if (!selected) {
-    updateComp(comp.id, { fabric_id: '' });
+    updateComp(comp.id, { fabric_id: '',costPerKg: rates.kg,
+costPerMeter: rates.meter,
+costPerYard: rates.yard, });
     return;
   }
 
@@ -514,6 +533,36 @@ function ComponentCard({ comp, sizes, baseSizeId, fabricMasters, getSizeData, se
     ))}
   </select>
 </div>
+            {comp.fabric_id && (
+  <div
+    style={{
+      gridColumn: 'span 2',
+      padding: '10px 12px',
+      background: 'var(--teal-light)',
+      borderRadius: 8,
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3,1fr)',
+      gap: 10,
+      fontSize: 12,
+      marginBottom: 10,
+    }}
+  >
+    <div>
+      <strong>Cost / KG</strong><br />
+      {comp.currency || 'USD'} {Number(comp.costPerKg || 0).toFixed(4)}
+    </div>
+
+    <div>
+      <strong>Cost / Meter</strong><br />
+      {comp.currency || 'USD'} {Number(comp.costPerMeter || 0).toFixed(4)}
+    </div>
+
+    <div>
+      <strong>Cost / Yard</strong><br />
+      {comp.currency || 'USD'} {Number(comp.costPerYard || 0).toFixed(4)}
+    </div>
+  </div>
+)}
             <div className="field"><label>Usage at (body part)</label><input value={comp.usageAt} onChange={e=>setComp(comp.id,'usageAt',e.target.value)} placeholder="e.g. Main fabric, hip and knee pad"/></div>
             <div className="field"><label>Fabric Description</label><input value={comp.fabricDescription} onChange={e=>setComp(comp.id,'fabricDescription',e.target.value)} placeholder="e.g. Warp Knit Interlock"/></div>
             <div className="field"><label>Fabric Code</label><input value={comp.fabricCode} onChange={e=>setComp(comp.id,'fabricCode',e.target.value)}/></div>
@@ -572,6 +621,15 @@ function ComponentCard({ comp, sizes, baseSizeId, fabricMasters, getSizeData, se
             {sizes.map(s=>{
               const sd   = getSizeData(comp,s.id);
               const calc = calcForSize(comp,s.id);
+              const costPerPiece = fabricCostPerPiece({
+                consumption: calc.consumption,
+                uom: comp.uom,
+                rates: {
+                  kg: comp.costPerKg || 0,
+                  meter: comp.costPerMeter || 0,
+                  yard: comp.costPerYard || 0,
+                },
+              });
               const gsm = parseFloat(comp.gsm) || 0;
           const widthInches =
             comp.widthUnit === 'cm'
