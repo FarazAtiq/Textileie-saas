@@ -619,6 +619,7 @@ function ComponentCard({ comp, sizes, baseSizeId, fabricMasters, getSizeData, se
           <div style={{display:'flex',flexDirection:'column',gap:8}}>
             {sizes.map(s=>{
               const sd   = getSizeData(comp,s.id);
+              const calc = calcForSize(comp,s.id);
               const costPerPiece = fabricCostPerPiece({
                 consumption: calc.consumption,
                 uom: comp.uom,
@@ -628,7 +629,6 @@ function ComponentCard({ comp, sizes, baseSizeId, fabricMasters, getSizeData, se
                   yard: comp.costPerYard || 0,
                 },
               });
-              const calc = calcForSize(comp,s.id);
               const gsm = parseFloat(comp.gsm) || 0;
           const widthInches =
             comp.widthUnit === 'cm'
