@@ -1,0 +1,132 @@
+import MasterStats from '../components/master/MasterStats.jsx';
+import MasterSearchBar from '../components/master/MasterSearchBar.jsx';
+import { useEffect, useMemo, useState } from 'react';
+import { Layers } from 'lucide-react';
+import { PageHeader } from '../components/ResultCard.jsx';
+import { getThreads, deleteThread } from '../lib/db.js';
+import { useToast } from '../hooks/useToast.jsx';
+
+export default function ThreadMasterPage() {
+  const [threads, setThreads] = useState([]);
+  const [search, setSearch] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const { toast, ToastContainer } = useToast();
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      setThreads(await getThreads({ search }));
+    } catch (err) {
+      toast('Failed to load threads: ' + err.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return threads.filter(t =>
+      !q ||
+      [
+        t.thread_code,
+        t.thread_name,
+        t.material,
+        t.thread_use,
+        t.ticket_no,
+        t.supplier,
+        t.color,
+        t.status,
+      ].join(' ').toLowerCase().includes(q)
+    );
+  }, [threads, search]);
+
+  const stats = useMemo(() => ({
+    total: threads.length,
+    active: threads.filter(t => t.status === 'Active').length,
+    inactive: threads.filter(t => t.status !== 'Active').length,
+  }), [threads]);
+
+  const remove = async (id) => {
+    if (!confirm('Delete this thread?')) return;
+    try {
+      await deleteThread(id);
+      setThreads(prev => prev.filter(t => t.id !== id));
+      toast('Thread deleted');
+    } catch (err) {
+      toast('Delete failed: ' + err.message, 'error');
+    }
+  };
+
+  const closeForm = () => {
+    setShowForm(false);
+    setEditing(null);
+  };
+
+  const saved = async () => {
+    closeForm();
+    await load();
+  };
+
+  return (
+    <div>
+      <ToastContainer />
+
+      <PageHeader
+        title="Thread Master"
+        subtitle="Reusable thread library for thread BOM, costing, purchase planning and inventory"
+        badge={{ text: 'Master Data' }}
+      />
+
+      <MasterStats
+        stats={[
+          { label: 'TOTAL THREADS', value: stats.total },
+          { label: 'ACTIVE', value: stats.active, color: 'var(--teal)' },
+          { label: 'INACTIVE', value: stats.inactive, color: '#dc2626' },
+        ]}
+      />
+
+      <MasterSearchBar
+        search={search}
+        setSearch={setSearch}
+        onSearch={load}
+        onNew={() => {
+          setEditing(null);
+          setShowForm(true);
+        }}
+        newLabel="New Thread"
+      />
+
+      {showForm && (
+        <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+          <h3>Thread form will be added next</h3>
+          <button className="btn btn-secondary" onClick={closeForm}>Close</button>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="empty-state"><p>Loading threads...</p></div>
+      ) : filtered.length === 0 ? (
+        <div className="empty-state">
+          <Layers size={32} color="var(--border)" />
+          <p>No threads yet. Create your first thread master.</p>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))', gap: 14 }}>
+          {filtered.map(t => (
+            <div key={t.id} className="card" style={{ padding: 18 }}>
+              <strong>{t.thread_code}</strong>
+              <div>{t.thread_name}</div>
+              <div>{t.material} · {t.thread_use}</div>
+              <div>{t.currency} {t.price} / {t.price_unit}</div>
+              <button className="btn btn-danger btn-sm" onClick={() => remove(t.id)}>Delete</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
