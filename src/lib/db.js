@@ -768,3 +768,107 @@ export async function deleteSupplier(id) {
     throw error;
   }
 }
+// ════════════════════════════════════════════════════════════
+// THREAD MASTER
+// ════════════════════════════════════════════════════════════
+
+export async function getThreads({ search = '', status = 'all', limit = 100 } = {}) {
+  let query = supabase
+    .from('thread_master')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (status !== 'all') query = query.eq('status', status);
+
+  if (search) {
+    query = query.or(
+      `thread_code.ilike.%${search}%,thread_name.ilike.%${search}%,material.ilike.%${search}%,supplier.ilike.%${search}%`
+    );
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error('getThreads error:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+export async function createThread(payload) {
+  const { data, error } = await supabase
+    .from('thread_master')
+    .insert({
+      thread_code: payload.thread_code || '',
+      thread_name: payload.thread_name || '',
+      material: payload.material || '',
+      thread_use: payload.thread_use || '',
+      ticket_no: payload.ticket_no || '',
+      tex: payload.tex || '',
+      denier: payload.denier || '',
+      supplier: payload.supplier || '',
+      price: Number(payload.price || 0),
+      price_unit: payload.price_unit || 'Meter',
+      currency: payload.currency || 'USD',
+      cone_length: Number(payload.cone_length || 0),
+      cone_weight: Number(payload.cone_weight || 0),
+      color: payload.color || '',
+      status: payload.status || 'Active',
+      notes: payload.notes || '',
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('createThread error:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function updateThread(id, payload) {
+  const { data, error } = await supabase
+    .from('thread_master')
+    .update({
+      thread_code: payload.thread_code || '',
+      thread_name: payload.thread_name || '',
+      material: payload.material || '',
+      thread_use: payload.thread_use || '',
+      ticket_no: payload.ticket_no || '',
+      tex: payload.tex || '',
+      denier: payload.denier || '',
+      supplier: payload.supplier || '',
+      price: Number(payload.price || 0),
+      price_unit: payload.price_unit || 'Meter',
+      currency: payload.currency || 'USD',
+      cone_length: Number(payload.cone_length || 0),
+      cone_weight: Number(payload.cone_weight || 0),
+      color: payload.color || '',
+      status: payload.status || 'Active',
+      notes: payload.notes || '',
+    })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('updateThread error:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function deleteThread(id) {
+  const { error } = await supabase
+    .from('thread_master')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('deleteThread error:', error);
+    throw error;
+  }
+}
