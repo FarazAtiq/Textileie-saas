@@ -11,6 +11,7 @@ const NAV = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/styles', icon: FolderOpen, label: 'Style Master' },
   { to: '/fabric-master', icon: Layers, label: 'Fabric Master' },
+  { to: '/thread-master', icon: Scissors, label: 'Thread Master' },
   { to: '/reports',   icon: FileText,        label: 'Reports' },
   { section: 'IE Calculators' },
   { to: '/efficiency', icon: TrendingUp, label: 'Efficiency' },
