@@ -123,6 +123,8 @@ const totalNeedleMeters = ops.reduce((s, op) => s + calcOp(op, wastePct).needleM
 const totalLooperMeters = ops.reduce((s, op) => s + calcOp(op, wastePct).looperMeters, 0);
 const totalMeters = +(totalNeedleMeters + totalLooperMeters).toFixed(4);
 const threadCost = +ops.reduce((s, op) => s + calcOp(op, wastePct).totalCost, 0).toFixed(4);
+const totalNeedleCost = +ops.reduce((s, op) => s + calcOp(op, wastePct).needleCost, 0).toFixed(4);
+const totalLooperCost = +ops.reduce((s, op) => s + calcOp(op, wastePct).looperCost, 0).toFixed(4);
   
   const handleStyleSelect = ({ style, color }) => {
     setSelectedStyle(style);
