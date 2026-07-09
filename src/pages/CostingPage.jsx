@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { formatNum } from '../utils/calculations.js';
 import { PageHeader } from '../components/ResultCard.jsx';
-import { SMVSelector } from '../components/SMVSelector.jsx';
 import { ArticleSelector } from '../components/ArticleSelector.jsx';
 import { createReport, updateProfile, getStyleCostSummary, upsertStyleCostModule } from '../lib/db.js';
 import { useAuth } from '../hooks/useAuth.jsx';
@@ -12,7 +11,31 @@ import { Plus, Trash2, Save, Download, FileText } from 'lucide-react';
 const newAccessory = () => ({ id: Date.now() + Math.random(), name: '', qty: 1, unitPrice: 0 });
 const newFabric = () => ({ id: Date.now() + Math.random(), type: '', baseSize: 'L', unit: 'meter', consumption: 1, price: 0 });
 const newThreadCost = () => ({ id: Date.now() + Math.random(), type: 'Polyester 120T', meters: 0, pricePerMeter: 0 });
+const DEPARTMENTS = [
+  { value: 'combined', label: 'Combined' },
+  { value: 'cutting', label: 'Cutting' },
+  { value: 'sewing', label: 'Sewing' },
+  { value: 'finishing', label: 'Finishing' },
+  { value: 'packing', label: 'Packing' },
+  { value: 'embroidery', label: 'Embroidery' },
+  { value: 'printing', label: 'Printing' },
+  { value: 'washing', label: 'Washing' },
+];
 
+function getDeptSMV(selectedSMV, department) {
+  if (!selectedSMV) return 0;
+
+  if (department === 'combined') {
+    return Number(selectedSMV.total_smv || 0);
+  }
+
+  const breakdown = selectedSMV.department_breakdown || {};
+  return Number(
+    breakdown[department]?.smv ||
+    breakdown[department] ||
+    0
+  );
+}
 export default function CostingPage() {
   const { profile, refreshProfile, user } = useAuth();
   const { toast, ToastContainer } = useToast();
@@ -21,6 +44,7 @@ export default function CostingPage() {
   // Article / SMV pull
   const [articleNumber, setArticleNumber] = useState('');
   const [selectedSMV, setSelectedSMV] = useState(null);
+  const [selectedDepartment, setSelectedDepartment] = useState('combined');
   const [selectedStyle, setSelectedStyle] = useState(null);
   const [selectedColor, setSelectedColor] = useState(null);
   const [loadingStyleData, setLoadingStyleData] = useState(false);
@@ -50,7 +74,7 @@ export default function CostingPage() {
   const [profitPct, setProfit]          = useState(20);
 
   // ── derived values ──
-  const smv = selectedSMV ? selectedSMV.total_smv : 0;
+  const smv = getDeptSMV(selectedSMV, selectedDepartment);
   const cmtCost = +(smv * cmtRate).toFixed(4);
 
   const fabricCostPerUnit = fabricRows.reduce((sum, f) => sum + (parseFloat(f.consumption) || 0) * (parseFloat(f.price) || 0), 0);
@@ -277,21 +301,25 @@ if (summary?.fabric_bom?.summary?.fabricCostSummary) {
           {/* Article + SMV pull */}
           <div className="card">
             <h3 style={{ marginBottom: 12 }}>Article & CMT (from SMV)</h3>
-            <div className="field"><label>Article #</label><input value={articleNumber} onChange={e => setArticleNumber(e.target.value)} placeholder="e.g. 5400" style={{ fontFamily: 'JetBrains Mono', fontWeight: 700 }} /></div>
-            <SMVSelector onSelect={t => {
-              setSelectedSMV(t);
-              const art = t.article_number || articleNumber;
-              if (t.article_number) setArticleNumber(t.article_number);
-              try {
-                const saved = JSON.parse(localStorage.getItem('textileie_thread_cost_by_article') || '{}')[art];
-                if (saved) setThreadRows([{ id: Date.now(), type: saved.threadType, meters: saved.totalMeters, pricePerMeter: saved.threadPricePerMeter }]);
-              } catch (e) {}
-            }} />
-
+            <div className="field">
+              <label>Department for CMT</label>
+              <select
+                value={selectedDepartment}
+                onChange={e => setSelectedDepartment(e.target.value)}
+              >
+                {DEPARTMENTS.map(d => (
+                  <option key={d.value} value={d.value}>
+                    {d.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             {selectedSMV && (
               <div style={{ padding: '10px 12px', background: 'var(--teal-light)', borderRadius: 8, marginBottom: 12, fontSize: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>SMV loaded</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    SMV loaded ({DEPARTMENTS.find(d => d.value === selectedDepartment)?.label})
+                  </span>
                   <span style={{ fontWeight: 700, fontFamily: 'JetBrains Mono', color: 'var(--teal)' }}>{smv} min</span>
                 </div>
               </div>
