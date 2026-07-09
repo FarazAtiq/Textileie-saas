@@ -436,36 +436,6 @@ c.totalMeters,
       )}
 
       
-          <div className="field">
-            <label>Price / meter ($)</label>
-            <input
-              type="number"
-              step="0.0001"
-              value={threadPricePerMeter}
-              onChange={e => setThreadPricePerMeter(parseFloat(e.target.value) || 0)}
-            />
-          </div>
-
-          <div className="field">
-            <label>Thread cost / garment</label>
-            <div style={{
-              padding: '10px 12px',
-              borderRadius: 8,
-              background: 'var(--teal-light)',
-              color: 'var(--teal)',
-              fontWeight: 700,
-              fontFamily: 'JetBrains Mono',
-            }}>
-              ${threadCost}
-            </div>
-          </div>
-        </div>
-
-        <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-          When saved, this thread cost will auto-load into Costing for the selected style.
-        </p>
-      </div>
-
       <div style={{
         background: 'var(--teal)',
         color: 'white',
