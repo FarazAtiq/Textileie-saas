@@ -139,4 +139,7 @@ export default function ThreadMasterPage() {
   ))}
 </div>
 )}
+    </div>
+    );
+}
    
