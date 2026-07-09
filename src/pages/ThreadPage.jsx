@@ -435,18 +435,7 @@ c.totalMeters,
         </div>
       )}
 
-      <div className="card" style={{ marginBottom: 16 }}>
-        <h3 style={{ marginBottom: 14 }}>Thread price link to Costing</h3>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-          <div className="field">
-            <label>Thread type</label>
-            <input
-              value={threadType}
-              onChange={e => setThreadType(e.target.value)}
-            />
-          </div>
-
+      
           <div className="field">
             <label>Price / meter ($)</label>
             <input
@@ -571,9 +560,7 @@ c.totalMeters,
     onChange={e => setOp(op.id, 'needleThread', e.target.value)}
   >
     <option value="">Select needle thread</option>
-    {threadMasters
-      .filter(t => t.thread_use === 'Needle' || t.thread_use === 'General')
-      .map(t => (
+   {threadMasters.map(t => (
         <option key={t.id} value={t.id}>
           {t.thread_code} — {t.thread_name} — {t.currency} {t.price}/{t.price_unit}
         </option>
@@ -588,9 +575,7 @@ c.totalMeters,
     onChange={e => setOp(op.id, 'looperThread', e.target.value)}
   >
     <option value="">Select looper thread</option>
-    {threadMasters
-      .filter(t => t.thread_use === 'Looper' || t.thread_use === 'General')
-      .map(t => (
+    {threadMasters.map(t => (
         <option key={t.id} value={t.id}>
           {t.thread_code} — {t.thread_name} — {t.currency} {t.price}/{t.price_unit}
         </option>
