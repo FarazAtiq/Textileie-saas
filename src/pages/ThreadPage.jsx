@@ -454,7 +454,7 @@ const totalEstimated = totalMeters * 100;
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <div style={{ color: 'var(--teal)', fontWeight: 700, fontFamily: 'JetBrains Mono' }}>
-                    {c.estimated} cm
+                    {c.estimated} m
                   </div>
 
                   {ops.length > 1 && (
@@ -501,14 +501,15 @@ const totalEstimated = totalMeters * 100;
                 </div>
 
                 <div className="field">
-                  <label>Ratio</label>
-                  <input value={c.ratio} readOnly />
+                  <label>Thread Ratio</label>
+<input value={`N ${op.needleRatio} / L ${op.looperRatio}`} readOnly />
+              
                 </div>
 
                 <div className="field">
-                  <label>Net thread (cm)</label>
-                  <input value={c.consumption} readOnly />
-                </div>
+                  <label>Total thread (m)</label>
+<input value={c.totalMeters} readOnly />
+                            </div>
               </div>
             </div>
           );
