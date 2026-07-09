@@ -103,10 +103,20 @@ export default function CostingPage() {
         setThreadRows([{ id: Date.now(), type: t.threadType || 'Thread', meters: t.totalMeters || 0, pricePerMeter: t.threadPricePerMeter || 0 }]);
       }
 
-      if (summary?.fabric_bom?.summary) {
-        const bom = summary.fabric_bom.summary;
-        // BOM currently stores consumption totals, not price. Keep a clear placeholder row for costing rate entry.
-        setFabricRows([{ id: Date.now() + 1, type: 'Fabric BOM total', baseSize: style.base_size || 'L', unit: 'kg/m/yd', consumption: 1, price: 0, source: bom }]);
+      if (summary?.fabric_bom?.summary?.fabricCostSummary) {
+        const fabricSummary = summary.fabric_bom.summary.fabricCostSummary;
+      
+        setFabricRows(
+          (fabricSummary.lines || []).map((line, index) => ({
+            id: Date.now() + index,
+            type: line.component || 'Fabric',
+            baseSize: style.base_size || 'L',
+            unit: 'garment',
+            consumption: 1,
+            price: Number(line.costPerGarment || 0),
+            source: 'fabric_bom',
+          }))
+        );
       }
     } catch (err) {
       toast('Failed to load style costing data: ' + err.message, 'error');
