@@ -541,7 +541,7 @@ c.totalMeters,
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
                 <div className="field">
                   <label>Seam length (cm)</label>
                   <input
@@ -564,7 +564,39 @@ c.totalMeters,
                     ))}
                   </select>
                 </div>
+<div className="field">
+  <label>Needle Thread</label>
+  <select
+    value={op.needleThread || ''}
+    onChange={e => setOp(op.id, 'needleThread', e.target.value)}
+  >
+    <option value="">Select needle thread</option>
+    {threadMasters
+      .filter(t => t.thread_use === 'Needle' || t.thread_use === 'General')
+      .map(t => (
+        <option key={t.id} value={t.id}>
+          {t.thread_code} — {t.thread_name} — {t.currency} {t.price}/{t.price_unit}
+        </option>
+      ))}
+  </select>
+</div>
 
+<div className="field">
+  <label>Looper Thread</label>
+  <select
+    value={op.looperThread || ''}
+    onChange={e => setOp(op.id, 'looperThread', e.target.value)}
+  >
+    <option value="">Select looper thread</option>
+    {threadMasters
+      .filter(t => t.thread_use === 'Looper' || t.thread_use === 'General')
+      .map(t => (
+        <option key={t.id} value={t.id}>
+          {t.thread_code} — {t.thread_name} — {t.currency} {t.price}/{t.price_unit}
+        </option>
+      ))}
+  </select>
+</div>
                 <div className="field">
                   <label>Thread Ratio</label>
 <input value={`N ${op.needleRatio} / L ${op.looperRatio}`} readOnly />
