@@ -1,4 +1,5 @@
 import ThreadForm from '../components/thread/ThreadForm.jsx';
+import ThreadCard from '../components/thread/ThreadCard.jsx';
 import MasterStats from '../components/master/MasterStats.jsx';
 import MasterSearchBar from '../components/master/MasterSearchBar.jsx';
 import { useEffect, useMemo, useState } from 'react';
@@ -118,16 +119,25 @@ export default function ThreadMasterPage() {
           <p>No threads yet. Create your first thread master.</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))', gap: 14 }}>
-          {filtered.map(t => (
-          <ThreadCard
-            key={t.id}
-            thread={t}
-            onEdit={(thread) => {
-              setEditing(thread);
-              setShowForm(true);
-            }}
-            onDelete={remove}
-          />
-            );
-        )}
+        <div
+  style={{
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))',
+    gap: 14,
+  }}
+>
+  {filtered.map(t => (
+    <ThreadCard
+      key={t.id}
+      thread={t}
+      onEdit={(thread) => {
+        setEditing(thread);
+        setShowForm(true);
+      }}
+      onDelete={remove}
+    />
+  ))}
+</div>
+)}
+    );
+      }
