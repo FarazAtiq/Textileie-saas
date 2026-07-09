@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
-import { createReport, upsertStyleCostModule, getThreads } from '../lib/db.js';
+import {
+  createReport,
+  upsertStyleCostModule,
+  getThreads,
+  getStitches
+} from '../lib/db';
 import { ArticleSelector } from '../components/ArticleSelector.jsx';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useToast } from '../hooks/useToast.jsx';
@@ -94,9 +99,11 @@ export default function ThreadPage() {
   const [ops, setOps] = useState(DEFAULT_OPS);
   const [saving, setSaving] = useState(false);
   const [threadMasters, setThreadMasters] = useState([]);
+  const [stitchMasters, setStitchMasters] = useState([]);
 
 useEffect(() => {
   getThreads({ limit: 500 }).then(setThreadMasters);
+  getStitches({ limit: 500 }).then(setStitchMasters);
 }, []);
 
   const setOp = (id, key, val) => {
@@ -516,9 +523,10 @@ c.totalMeters,
                     value={op.stitchCode}
                     onChange={e => setOp(op.id, 'stitchCode', e.target.value)}
                   >
-                    {STITCH_OPTIONS.map(s => (
-                      <option key={s.code} value={s.code}>
-                        {s.code} — {s.name} ({s.ratio}x)
+                    <option value="">Select stitch</option>
+                    {stitchMasters.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.stitch_code} — {s.stitch_name}
                       </option>
                     ))}
                   </select>
