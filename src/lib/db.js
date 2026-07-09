@@ -872,3 +872,94 @@ export async function deleteThread(id) {
     throw error;
   }
 }
+
+// ════════════════════════════════════════════════════════════
+// STITCH MASTER
+// ════════════════════════════════════════════════════════════
+
+export async function getStitches({ search = '', status = 'all', limit = 100 } = {}) {
+  let query = supabase
+    .from('stitch_master')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (status !== 'all') query = query.eq('status', status);
+
+  if (search) {
+    query = query.or(
+      `stitch_code.ilike.%${search}%,stitch_name.ilike.%${search}%,seam_class.ilike.%${search}%`
+    );
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error('getStitches error:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+export async function createStitch(payload) {
+  const { data, error } = await supabase
+    .from('stitch_master')
+    .insert({
+      stitch_code: payload.stitch_code || '',
+      stitch_name: payload.stitch_name || '',
+      seam_class: payload.seam_class || '',
+      needle_ratio: Number(payload.needle_ratio || 0),
+      looper_ratio: Number(payload.looper_ratio || 0),
+      cover_ratio: Number(payload.cover_ratio || 0),
+      default_spi: Number(payload.default_spi || 0),
+      description: payload.description || '',
+      status: payload.status || 'Active',
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('createStitch error:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function updateStitch(id, payload) {
+  const { data, error } = await supabase
+    .from('stitch_master')
+    .update({
+      stitch_code: payload.stitch_code || '',
+      stitch_name: payload.stitch_name || '',
+      seam_class: payload.seam_class || '',
+      needle_ratio: Number(payload.needle_ratio || 0),
+      looper_ratio: Number(payload.looper_ratio || 0),
+      cover_ratio: Number(payload.cover_ratio || 0),
+      default_spi: Number(payload.default_spi || 0),
+      description: payload.description || '',
+      status: payload.status || 'Active',
+    })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('updateStitch error:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function deleteStitch(id) {
+  const { error } = await supabase
+    .from('stitch_master')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('deleteStitch error:', error);
+    throw error;
+  }
+}
