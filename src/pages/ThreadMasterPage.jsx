@@ -120,16 +120,14 @@ export default function ThreadMasterPage() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))', gap: 14 }}>
           {filtered.map(t => (
-            <div key={t.id} className="card" style={{ padding: 18 }}>
-              <strong>{t.thread_code}</strong>
-              <div>{t.thread_name}</div>
-              <div>{t.material} · {t.thread_use}</div>
-              <div>{t.currency} {t.price} / {t.price_unit}</div>
-              <button className="btn btn-danger btn-sm" onClick={() => remove(t.id)}>Delete</button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+          <ThreadCard
+            key={t.id}
+            thread={t}
+            onEdit={(thread) => {
+              setEditing(thread);
+              setShowForm(true);
+            }}
+            onDelete={remove}
+          />
+            );
+        )}
