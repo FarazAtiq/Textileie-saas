@@ -125,7 +125,8 @@ const totalMeters = +(totalNeedleMeters + totalLooperMeters).toFixed(4);
 const threadCost = +ops.reduce((s, op) => s + calcOp(op, wastePct).totalCost, 0).toFixed(4);
 const totalNeedleCost = +ops.reduce((s, op) => s + calcOp(op, wastePct).needleCost, 0).toFixed(4);
 const totalLooperCost = +ops.reduce((s, op) => s + calcOp(op, wastePct).looperCost, 0).toFixed(4);
-  
+const totalConsumption = totalMeters * 100;
+const totalEstimated = totalMeters * 100;
   const handleStyleSelect = ({ style, color }) => {
     setSelectedStyle(style);
     setSelectedColor(color || null);
