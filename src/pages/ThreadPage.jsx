@@ -278,8 +278,23 @@ const totalEstimated = totalMeters * 100;
   <label>Needle Thread</label>
   <select
     value={op.needleThread || ''}
-    onChange={e => setOp(op.id, 'needleThread', e.target.value)}
-  >
+    onChange={e => {
+        const stitchId = e.target.value;
+      
+        const stitch = stitchMasters.find(
+          s => String(s.id) === String(stitchId)
+        );
+      
+        setOp(op.id, 'stitchCode', stitchId);
+      
+        if (stitch) {
+          setOp(op.id, 'needleRatio', stitch.needle_ratio || 0);
+          setOp(op.id, 'looperRatio', stitch.looper_ratio || 0);
+          setOp(op.id, 'coverRatio', stitch.cover_ratio || 0);
+          setOp(op.id, 'spi', stitch.default_spi || 0);
+        }
+      }}
+    >
     <option value="">Select Needle Thread</option>
     {threadMasters
       .filter(t => t.thread_use === 'Needle' || t.thread_use === 'General')
@@ -561,10 +576,31 @@ c.totalMeters,
   </select>
 </div>
                 <div className="field">
-                  <label>Thread Ratio</label>
-<input value={`N ${op.needleRatio} / L ${op.looperRatio}`} readOnly />
-              
-                </div>
+  <label>Needle Ratio</label>
+  <input
+    type="number"
+    value={op.needleRatio || 0}
+    onChange={e => setOp(op.id, 'needleRatio', e.target.value)}
+  />
+</div>
+
+<div className="field">
+  <label>Looper Ratio</label>
+  <input
+    type="number"
+    value={op.looperRatio || 0}
+    onChange={e => setOp(op.id, 'looperRatio', e.target.value)}
+  />
+</div>
+
+<div className="field">
+  <label>Cover Ratio</label>
+  <input
+    type="number"
+    value={op.coverRatio || 0}
+    onChange={e => setOp(op.id, 'coverRatio', e.target.value)}
+  />
+</div>
 
                 <div className="field">
                   <label>Total thread (m)</label>
