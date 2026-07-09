@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { createReport, upsertStyleCostModule } from '../lib/db.js';
+import { useEffect, useState } from 'react';
+import { createReport, upsertStyleCostModule, getThreads } from '../lib/db.js';
 import { ArticleSelector } from '../components/ArticleSelector.jsx';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useToast } from '../hooks/useToast.jsx';
@@ -93,6 +93,11 @@ export default function ThreadPage() {
   const [threadPricePerMeter, setThreadPricePerMeter] = useState(0.0015);
   const [ops, setOps] = useState(DEFAULT_OPS);
   const [saving, setSaving] = useState(false);
+  const [threadMasters, setThreadMasters] = useState([]);
+
+useEffect(() => {
+  getThreads({ limit: 500 }).then(setThreadMasters);
+}, []);
 
   const setOp = (id, key, val) => {
     setOps(prev => prev.map(o => o.id === id ? { ...o, [key]: val } : o));
@@ -122,9 +127,22 @@ export default function ThreadPage() {
 const totalNeedleMeters = ops.reduce((s, op) => s + calcOp(op, wastePct).needleMeters, 0);
 const totalLooperMeters = ops.reduce((s, op) => s + calcOp(op, wastePct).looperMeters, 0);
 const totalMeters = +(totalNeedleMeters + totalLooperMeters).toFixed(4);
-const threadCost = +ops.reduce((s, op) => s + calcOp(op, wastePct).totalCost, 0).toFixed(4);
-const totalNeedleCost = +ops.reduce((s, op) => s + calcOp(op, wastePct).needleCost, 0).toFixed(4);
-const totalLooperCost = +ops.reduce((s, op) => s + calcOp(op, wastePct).looperCost, 0).toFixed(4);
+const getThreadPrice = (id) => {
+  const t = threadMasters.find(x => String(x.id) === String(id));
+  return Number(t?.price || 0);
+};
+
+const totalNeedleCost = +ops.reduce((s, op) => {
+  const c = calcOp(op, wastePct);
+  return s + (c.needleMeters * getThreadPrice(op.needleThread));
+}, 0).toFixed(4);
+
+const totalLooperCost = +ops.reduce((s, op) => {
+  const c = calcOp(op, wastePct);
+  return s + (c.looperMeters * getThreadPrice(op.looperThread));
+}, 0).toFixed(4);
+
+const threadCost = +(totalNeedleCost + totalLooperCost).toFixed(4);
 const totalConsumption = totalMeters * 100;
 const totalEstimated = totalMeters * 100;
   const handleStyleSelect = ({ style, color }) => {
@@ -249,7 +267,37 @@ const totalEstimated = totalMeters * 100;
 
       autoTable(doc, {
         startY: 52,
-        head: [['Seq', 'Operation Name', 'Seam Length (cm)', 'Stitch Type', 'Needle m', 'Looper m', 'Total m', 'Cost']],
+        head: [['Seq', 'Operation Name', 'Seam Length (cm)', 'Stitch Type',<div className="field">
+  <label>Needle Thread</label>
+  <select
+    value={op.needleThread || ''}
+    onChange={e => setOp(op.id, 'needleThread', e.target.value)}
+  >
+    <option value="">Select Needle Thread</option>
+    {threadMasters
+      .filter(t => t.thread_use === 'Needle' || t.thread_use === 'General')
+      .map(t => (
+        <option key={t.id} value={t.id}>
+          {t.thread_code} — {t.thread_name}
+        </option>
+      ))}
+  </select>
+</div>,<div className="field">
+  <label>Looper Thread</label>
+  <select
+    value={op.looperThread || ''}
+    onChange={e => setOp(op.id, 'looperThread', e.target.value)}
+  >
+    <option value="">Select Looper Thread</option>
+    {threadMasters
+      .filter(t => t.thread_use === 'Looper' || t.thread_use === 'General')
+      .map(t => (
+        <option key={t.id} value={t.id}>
+          {t.thread_code} — {t.thread_name}
+        </option>
+      ))}
+  </select>
+</div>,'Needle m', 'Looper m', 'Total m', 'Cost']],
         body: ops.map((op, i) => {
           const c = calcOp(op, wastePct);
           return [
@@ -459,7 +507,11 @@ c.totalMeters,
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {ops.map((op, i) => {
           const c = calcOp(op, wastePct);
-
+          const needlePrice = getThreadPrice(op.needleThread);
+          const looperPrice = getThreadPrice(op.looperThread);
+          const needleCost = +(c.needleMeters * needlePrice).toFixed(4);
+          const looperCost = +(c.looperMeters * looperPrice).toFixed(4);
+          const operationCost = +(needleCost + looperCost).toFixed(4);
           return (
             <div key={op.id} className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -523,6 +575,20 @@ c.totalMeters,
                   <label>Total thread (m)</label>
 <input value={c.totalMeters} readOnly />
                             </div>
+                <div style={{
+  gridColumn: 'span 4',
+  padding: '10px 12px',
+  background: 'var(--teal-light)',
+  borderRadius: 8,
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+  gap: 8,
+  fontSize: 12
+}}>
+  <div><b>Needle Cost:</b> ${needleCost}</div>
+  <div><b>Looper Cost:</b> ${looperCost}</div>
+  <div><b>Operation Cost:</b> ${operationCost}</div>
+</div>
               </div>
             </div>
           );
