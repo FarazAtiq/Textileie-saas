@@ -249,7 +249,7 @@ const totalEstimated = totalMeters * 100;
 
       autoTable(doc, {
         startY: 52,
-        head: [['Seq', 'Operation Name', 'Seam Length (cm)', 'Stitch Type', 'Ratio', 'Net Thread (cm)', 'Est. Thread (cm)']],
+        head: [['Seq', 'Operation Name', 'Seam Length (cm)', 'Stitch Type', 'Needle m', 'Looper m', 'Total m', 'Cost']],
         body: ops.map((op, i) => {
           const c = calcOp(op, wastePct);
           return [
@@ -257,12 +257,16 @@ const totalEstimated = totalMeters * 100;
             op.operationName || 'Operation ' + (i + 1),
             op.seamLength,
             getStitchName(op.stitchCode),
-            c.ratio,
-            c.consumption,
-            c.estimated,
+            c.needleMeters,
+c.looperMeters,
+c.totalMeters,
+'$' + c.totalCost,
+ 
+            
+         
           ];
         }),
-        foot: [['', 'TOTAL', '', '', '', totalConsumption.toFixed(1), totalEstimated.toFixed(1)]],
+        foot: [['', 'TOTAL', '', '', totalNeedleMeters.toFixed(2), totalLooperMeters.toFixed(2), totalMeters.toFixed(2), '$' + threadCost.toFixed(4)]],
         theme: 'striped',
         headStyles: { fillColor: [15, 41, 66], textColor: 255, fontSize: 8 },
         footStyles: { fillColor: [13, 122, 107], textColor: 255, fontSize: 9, fontStyle: 'bold' },
@@ -286,9 +290,12 @@ const totalEstimated = totalMeters * 100;
           <td>${op.operationName || 'Operation ' + (i + 1)}</td>
           <td>${op.seamLength}</td>
           <td>${getStitchName(op.stitchCode)}</td>
-          <td>${c.ratio}</td>
-          <td>${c.consumption}</td>
-          <td>${c.estimated}</td>
+          <td>${c.needleMeters}</td>
+<td>${c.looperMeters}</td>
+<td>${c.totalMeters}</td>
+<td>$${c.totalCost}</td>
+          
+          
         </tr>`;
     }).join('');
 
@@ -305,15 +312,21 @@ const totalEstimated = totalMeters * 100;
           <th>Operation</th>
           <th>Seam Length</th>
           <th>Stitch Type</th>
-          <th>Ratio</th>
-          <th>Net cm</th>
-          <th>Estimated cm</th>
+          <th>Needle m</th>
+<th>Looper m</th>
+<th>Total m</th>
+<th>Cost</th>
+          
+          
         </tr>
         ${rows}
         <tr>
           <td colspan="5"><b>TOTAL</b></td>
-          <td><b>${totalConsumption.toFixed(1)}</b></td>
-          <td><b>${totalEstimated.toFixed(1)}</b></td>
+          <td><b>${totalNeedleMeters.toFixed(2)}</b></td>
+<td><b>${totalLooperMeters.toFixed(2)}</b></td>
+<td><b>${totalMeters.toFixed(2)}</b></td>
+<td><b>$${threadCost.toFixed(4)}</b></td>
+          
         </tr>
       </table>
       </body>
