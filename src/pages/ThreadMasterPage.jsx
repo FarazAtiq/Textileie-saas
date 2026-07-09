@@ -1,3 +1,4 @@
+import ThreadForm from '../components/thread/ThreadForm.jsx';
 import MasterStats from '../components/master/MasterStats.jsx';
 import MasterSearchBar from '../components/master/MasterSearchBar.jsx';
 import { useEffect, useMemo, useState } from 'react';
@@ -101,11 +102,13 @@ export default function ThreadMasterPage() {
       />
 
       {showForm && (
-        <div className="card" style={{ padding: 16, marginBottom: 16 }}>
-          <h3>Thread form will be added next</h3>
-          <button className="btn btn-secondary" onClick={closeForm}>Close</button>
-        </div>
-      )}
+  <ThreadForm
+    editing={editing}
+    onCancel={closeForm}
+    onSaved={saved}
+    toast={toast}
+  />
+)}
 
       {loading ? (
         <div className="empty-state"><p>Loading threads...</p></div>
