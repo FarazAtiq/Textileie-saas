@@ -418,7 +418,7 @@ export default function ThreadPage() {
                     <label>Needle thread</label>
                     <select value={op.needleThreadId} onChange={e => setOperation(op.id, 'needleThreadId', e.target.value)}>
                       <option value="">Not required / select thread</option>
-                      {threads.filter(t => ['Needle', 'General'].includes(t.thread_use)).map(t => <option key={t.id} value={t.id}>{t.thread_code} 鈥� {t.thread_name}</option>)}
+                      {threads.map(t => <option key={t.id} value={t.id}>{t.thread_code} 鈥� {t.thread_name}{t.thread_use ? ` 路 ${t.thread_use}` : ''}</option>)}
                     </select>
                     <small>{op.calculation.needleMeters} m 路 {currency} {op.calculation.needleCost}</small>
                   </div>
@@ -426,7 +426,7 @@ export default function ThreadPage() {
                     <label>Looper thread</label>
                     <select value={op.looperThreadId} onChange={e => setOperation(op.id, 'looperThreadId', e.target.value)}>
                       <option value="">Not required / select thread</option>
-                      {threads.filter(t => ['Looper', 'General'].includes(t.thread_use)).map(t => <option key={t.id} value={t.id}>{t.thread_code} 鈥� {t.thread_name}</option>)}
+                      {threads.map(t => <option key={t.id} value={t.id}>{t.thread_code} 鈥� {t.thread_name}{t.thread_use ? ` 路 ${t.thread_use}` : ''}</option>)}
                     </select>
                     <small>{op.calculation.looperMeters} m 路 {currency} {op.calculation.looperCost}</small>
                   </div>
@@ -434,7 +434,7 @@ export default function ThreadPage() {
                     <label>Cover thread</label>
                     <select value={op.coverThreadId} onChange={e => setOperation(op.id, 'coverThreadId', e.target.value)}>
                       <option value="">Not required / select thread</option>
-                      {threads.filter(t => ['Cover', 'General'].includes(t.thread_use)).map(t => <option key={t.id} value={t.id}>{t.thread_code} 鈥� {t.thread_name}</option>)}
+                      {threads.map(t => <option key={t.id} value={t.id}>{t.thread_code} 鈥� {t.thread_name}{t.thread_use ? ` 路 ${t.thread_use}` : ''}</option>)}
                     </select>
                     <small>{op.calculation.coverMeters} m 路 {currency} {op.calculation.coverCost}</small>
                   </div>
