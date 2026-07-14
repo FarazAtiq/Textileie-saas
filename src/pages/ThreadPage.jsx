@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { createReport, getStitches, getThreads, upsertStyleCostModule } from '../lib/db.js';
+import { createReport, getStitches, getThreads, getStyleCostSummary, upsertStyleCostModule } from '../lib/db.js';
 import { ArticleSelector } from '../components/ArticleSelector.jsx';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useToast } from '../hooks/useToast.jsx';
@@ -96,6 +96,8 @@ export default function ThreadPage() {
 
   const [selectedStyle, setSelectedStyle] = useState(null);
   const [selectedColor, setSelectedColor] = useState(null);
+  const [syncingOperations, setSyncingOperations] = useState(false);
+  const [operationSource, setOperationSource] = useState('manual');
   const [threads, setThreads] = useState([]);
   const [stitches, setStitches] = useState([]);
   const [operations, setOperations] = useState([makeOperation()]);
@@ -177,9 +179,79 @@ export default function ThreadPage() {
   const addOperation = () => setOperations(prev => [...prev, makeOperation()]);
   const removeOperation = id => setOperations(prev => prev.length === 1 ? prev : prev.filter(op => op.id !== id));
 
-  const handleStyleSelect = ({ style, color }) => {
+  const buildOperationsFromSmv = (smvOperations = [], existingOperations = []) => {
+    const sewingOps = smvOperations.filter(op => (op.processType || 'sewing') === 'sewing');
+    const existingBySource = new Map(
+      existingOperations
+        .filter(op => op.sourceOperationId)
+        .map(op => [String(op.sourceOperationId), op])
+    );
+
+    return sewingOps.map((smvOp, index) => {
+      const sourceId = String(smvOp.id || `${smvOp.name || 'operation'}-${index}`);
+      const existing = existingBySource.get(sourceId);
+      return {
+        ...makeOperation(),
+        ...existing,
+        id: existing?.id || (crypto.randomUUID?.() || `${Date.now()}-${index}-${Math.random()}`),
+        sourceOperationId: sourceId,
+        operationName: smvOp.name || existing?.operationName || `Operation ${index + 1}`,
+        processType: smvOp.processType || 'sewing',
+        machine: smvOp.machine || '',
+        basicTime: Number(smvOp.basicTime || 0),
+        allowancePct: Number(smvOp.allowancePct || 0),
+      };
+    });
+  };
+
+  const syncStyleOperations = async (style, color, preserveExisting = true) => {
+    if (!style?.id) return;
+    setSyncingOperations(true);
+    try {
+      const summary = await getStyleCostSummary({
+        style_id: style.id,
+        color_id: color?.id || null,
+      });
+
+      const savedThreadOps = summary?.thread?.data?.operations || [];
+      const smvOperations = summary?.smv?.data?.operations || [];
+
+      if (savedThreadOps.length) {
+        setOperations(savedThreadOps.map(op => ({
+          ...makeOperation(),
+          ...op,
+          stitchId: op.stitchId || op.stitch?.id || '',
+          needleThreadId: op.needleThreadId || op.needleThread?.id || '',
+          looperThreadId: op.looperThreadId || op.looperThread?.id || '',
+          coverThreadId: op.coverThreadId || op.coverThread?.id || '',
+        })));
+        setWastePct(summary?.thread?.summary?.wastePct ?? summary?.thread?.data?.wastePct ?? 10);
+        setOperationSource('saved-thread');
+        return;
+      }
+
+      if (smvOperations.length) {
+        setOperations(prev => buildOperationsFromSmv(smvOperations, preserveExisting ? prev : []));
+        setOperationSource('smv');
+        toast('Sewing operations loaded from SMV Operational Breakdown');
+        return;
+      }
+
+      setOperations([makeOperation()]);
+      setOperationSource('manual');
+      toast('No sewing operations found in SMV. Add operations manually.', 'error');
+    } catch (err) {
+      setOperationSource('manual');
+      toast(`Could not load operational breakdown: ${err.message}`, 'error');
+    } finally {
+      setSyncingOperations(false);
+    }
+  };
+
+  const handleStyleSelect = async ({ style, color }) => {
     setSelectedStyle(style);
     setSelectedColor(color || null);
+    if (style?.id) await syncStyleOperations(style, color, false);
   };
 
   const validate = () => {
@@ -321,7 +393,14 @@ export default function ThreadPage() {
           <span className="status-pill status-pill-success"><CheckCircle2 size={13} /> Costing connected</span>
           <button className="btn btn-secondary" onClick={exportCsv}><FileSpreadsheet size={15} /> Excel</button>
           <button className="btn btn-secondary" onClick={exportPdf}><Download size={15} /> PDF</button>
-          <button className="btn btn-primary" onClick={handleSave} disabled={saving || loadingMasters}>
+          <button
+            className="btn btn-secondary"
+            onClick={() => syncStyleOperations(selectedStyle, selectedColor, true)}
+            disabled={!selectedStyle || syncingOperations}
+          >
+            <Scissors size={15} /> {syncingOperations ? 'Syncing...' : 'Sync SMV operations'}
+          </button>
+          <button className="btn btn-primary" onClick={handleSave} disabled={saving || loadingMasters || syncingOperations}>
             <Save size={15} /> {saving ? 'Saving...' : 'Save engineering'}
           </button>
         </div>
@@ -346,6 +425,17 @@ export default function ThreadPage() {
           <div className="info-banner"><LockKeyhole size={15} /> Stitch ratios and SPI are locked here and maintained only in Stitch Master.</div>
         </div>
       </div>
+
+      {selectedStyle && (
+        <div className="info-banner" style={{ marginBottom: 16 }}>
+          <Info size={15} />
+          {operationSource === 'saved-thread'
+            ? 'Loaded saved Thread Engineering data for this article. Use Sync SMV operations to add newly created sewing operations without losing existing thread selections.'
+            : operationSource === 'smv'
+              ? 'Operations are synchronized from the saved SMV Operational Breakdown. Enter seam lengths and select thread types.'
+              : 'No saved operational breakdown was found. Operations are being managed manually.'}
+        </div>
+      )}
 
       <div className="thread-kpi-grid">
         <SummaryCard icon={Scissors} label="Total thread" value={`${round(totals.totalMeters, 2)} m`} helper="Per garment / selected color" tone="teal" />
