@@ -182,11 +182,15 @@ export default function CostingPage() {
         setFabricRows(
           (fabricSummary.lines || []).map((line, index) => ({
             id: Date.now() + index,
-            type: line.component || 'Fabric',
+            type: line.component || line.fabricName || 'Fabric',
+            fabricCode: line.fabricCode || '',
+            supplier: line.supplier || '',
             baseSize: style.base_size || 'L',
-            unit: 'garment',
-            consumption: 1,
+            unit: line.uom || 'garment',
+            consumption: Number(line.consumptionPerGarment || 1),
+            unitPrice: Number(line.unitPrice || 0),
             price: Number(line.costPerGarment || 0),
+            currency: line.currency || 'USD',
             source: 'fabric_bom',
           }))
         );
@@ -368,7 +372,7 @@ export default function CostingPage() {
 
           {/* Article + SMV pull */}
           <div className="card">
-            <h3 style={{ marginBottom: 12 }}>Article & CMT (from SMV)</h3>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: 3 }}>MANUFACTURING COST</div><h3 style={{ marginBottom: 12 }}>Article & CMT (from SMV)</h3>
             <div className="field">
               <label>Department for CMT</label>
               <select
@@ -410,7 +414,7 @@ export default function CostingPage() {
           {/* Fabric & thread */}
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <h3>Fabric cost summary {connections.fabric && <span className="badge badge-green" style={{ marginLeft: 6 }}>Auto from BOM</span>}</h3>
+              <div><div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>MATERIAL COST</div><h3>Fabric cost summary {connections.fabric && <span className="badge badge-green" style={{ marginLeft: 6 }}>Auto from BOM</span>}</h3></div>
               {!connections.fabric && <button className="btn btn-secondary btn-sm" onClick={addFabric}><Plus size={13} /> Add fabric</button>}
             </div>
             {fabricRows.map(f => (
@@ -468,7 +472,7 @@ export default function CostingPage() {
 
           {/* Other costs */}
           <div className="card">
-            <h3 style={{ marginBottom: 12 }}>Overhead & charges</h3>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: 3 }}>COMMERCIAL COST</div><h3 style={{ marginBottom: 12 }}>Overhead & charges</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               {[
                 ['overhead', 'Overhead / unit ($)', overhead, setOverhead],
