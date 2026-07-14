@@ -48,6 +48,7 @@ export default function CostingPage() {
   const [selectedStyle, setSelectedStyle] = useState(null);
   const [selectedColor, setSelectedColor] = useState(null);
   const [loadingStyleData, setLoadingStyleData] = useState(false);
+  const [connections, setConnections] = useState({ smv: false, fabric: false, thread: false });
 
   // CMT rate ($/min) — defaults from profile if saved, else 0.05
   const [cmtRate, setCmtRate] = useState(profile?.cmt_rate_per_min ?? 0.05);
@@ -105,7 +106,10 @@ export default function CostingPage() {
   const handleStyleSelect = async ({ style, color }) => {
     setSelectedStyle(style || null);
     setSelectedColor(color || null);
-    if (!style) return;
+    if (!style) {
+      setConnections({ smv: false, fabric: false, thread: false });
+      return;
+    }
 
     setArticleNumber(style.article_number || '');
     setLoadingStyleData(true);
@@ -122,26 +126,73 @@ export default function CostingPage() {
         });
       }
 
-      if (summary?.thread?.summary) {
+      const hasSmv = Boolean(summary?.smv?.summary?.total_smv);
+      const hasThread = Boolean(summary?.thread?.summary);
+      const hasFabric = Boolean(summary?.fabric_bom?.summary?.fabricCostSummary);
+      setConnections({ smv: hasSmv, thread: hasThread, fabric: hasFabric });
+
+      if (hasThread) {
         const t = summary.thread.summary;
-        setThreadRows([{ id: Date.now(), type: t.threadType || 'Thread', meters: t.totalMeters || 0, pricePerMeter: t.threadPricePerMeter || 0 }]);
+        const savedOperations = summary.thread.data?.operations || [];
+        const grouped = new Map();
+
+        savedOperations.forEach(op => {
+          [
+            [op.needleThread, op.calculation?.needleMeters],
+            [op.looperThread, op.calculation?.looperMeters],
+            [op.coverThread, op.calculation?.coverMeters],
+          ].forEach(([thread, meters]) => {
+            if (!thread?.id || !Number(meters || 0)) return;
+            const key = String(thread.id);
+            const current = grouped.get(key) || {
+              id: key,
+              type: `${thread.thread_code || ''} — ${thread.thread_name || 'Thread'}`,
+              meters: 0,
+              pricePerMeter: 0,
+              source: 'thread_engineering',
+            };
+            current.meters += Number(meters || 0);
+            grouped.set(key, current);
+          });
+        });
+
+        const importedRows = Array.from(grouped.values());
+        if (importedRows.length) {
+          const totalMeters = importedRows.reduce((sum, row) => sum + row.meters, 0);
+          const totalCost = Number(t.totalCost || 0);
+          setThreadRows(importedRows.map(row => ({
+            ...row,
+            pricePerMeter: totalMeters > 0 ? totalCost / totalMeters : 0,
+          })));
+        } else {
+          setThreadRows([{
+            id: Date.now(),
+            type: 'Thread Engineering total',
+            meters: 1,
+            pricePerMeter: Number(t.totalCost || t.threadCost || 0),
+            source: 'thread_engineering',
+          }]);
+        }
+      } else {
+        setThreadRows([]);
       }
 
-if (summary?.fabric_bom?.summary?.fabricCostSummary) {
-  const fabricSummary = summary.fabric_bom.summary.fabricCostSummary;
-
-  setFabricRows(
-    (fabricSummary.lines || []).map((line, index) => ({
-      id: Date.now() + index,
-      type: line.component || 'Fabric',
-      baseSize: style.base_size || 'L',
-      unit: 'garment',
-      consumption: 1,
-      price: Number(line.costPerGarment || 0),
-      source: 'fabric_bom',
-    }))
-  );
-}
+      if (hasFabric) {
+        const fabricSummary = summary.fabric_bom.summary.fabricCostSummary;
+        setFabricRows(
+          (fabricSummary.lines || []).map((line, index) => ({
+            id: Date.now() + index,
+            type: line.component || 'Fabric',
+            baseSize: style.base_size || 'L',
+            unit: 'garment',
+            consumption: 1,
+            price: Number(line.costPerGarment || 0),
+            source: 'fabric_bom',
+          }))
+        );
+      } else {
+        setFabricRows([]);
+      }
     } catch (err) {
       toast('Failed to load style costing data: ' + err.message, 'error');
     } finally {
@@ -298,6 +349,23 @@ if (summary?.fabric_bom?.summary?.fabricCostSummary) {
           />
           {loadingStyleData && <div className="card" style={{ padding: 12, fontSize: 12 }}>Loading SMV, Fabric BOM and Thread data from Style Master...</div>}
 
+          {selectedStyle && !loadingStyleData && (
+            <div className="card" style={{ padding: 14 }}>
+              <h3 style={{ marginBottom: 10 }}>Connected engineering modules</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                {[
+                  ['SMV / CMT', connections.smv],
+                  ['Fabric BOM', connections.fabric],
+                  ['Thread Engineering', connections.thread],
+                ].map(([label, connected]) => (
+                  <div key={label} style={{ padding: '9px 10px', borderRadius: 8, background: connected ? 'var(--green-light)' : 'var(--amber-light)', color: connected ? 'var(--green)' : 'var(--amber)', fontSize: 12, fontWeight: 700 }}>
+                    {connected ? 'Connected' : 'Missing'} · {label}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Article + SMV pull */}
           <div className="card">
             <h3 style={{ marginBottom: 12 }}>Article & CMT (from SMV)</h3>
@@ -342,31 +410,31 @@ if (summary?.fabric_bom?.summary?.fabricCostSummary) {
           {/* Fabric & thread */}
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <h3>Fabric cost summary</h3>
-              <button className="btn btn-secondary btn-sm" onClick={addFabric}><Plus size={13} /> Add fabric</button>
+              <h3>Fabric cost summary {connections.fabric && <span className="badge badge-green" style={{ marginLeft: 6 }}>Auto from BOM</span>}</h3>
+              {!connections.fabric && <button className="btn btn-secondary btn-sm" onClick={addFabric}><Plus size={13} /> Add fabric</button>}
             </div>
             {fabricRows.map(f => (
               <div key={f.id} style={{ display: 'grid', gridTemplateColumns: '1.3fr 70px 80px 80px 80px 28px', gap: 6, marginBottom: 8, alignItems: 'center' }}>
-                <input value={f.type} onChange={e => setFabric(f.id, 'type', e.target.value)} placeholder="Fabric type" style={{ fontSize: 12 }} />
-                <input value={f.baseSize} onChange={e => setFabric(f.id, 'baseSize', e.target.value)} placeholder="Base size" style={{ fontSize: 12 }} />
-                <select value={f.unit} onChange={e => setFabric(f.id, 'unit', e.target.value)} style={{ fontSize: 12 }}><option value="meter">meter</option><option value="yard">yard</option><option value="kg">kg</option></select>
-                <input type="number" step="0.001" value={f.consumption} onChange={e => setFabric(f.id, 'consumption', parseFloat(e.target.value) || 0)} style={{ fontSize: 12 }} />
-                <input type="number" step="0.01" value={f.price} onChange={e => setFabric(f.id, 'price', parseFloat(e.target.value) || 0)} style={{ fontSize: 12 }} />
-                <button onClick={() => removeFabric(f.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><Trash2 size={13} /></button>
+                <input value={f.type} readOnly={f.source === 'fabric_bom'} onChange={e => setFabric(f.id, 'type', e.target.value)} placeholder="Fabric type" style={{ fontSize: 12 }} />
+                <input value={f.baseSize} readOnly={f.source === 'fabric_bom'} onChange={e => setFabric(f.id, 'baseSize', e.target.value)} placeholder="Base size" style={{ fontSize: 12 }} />
+                <select value={f.unit} disabled={f.source === 'fabric_bom'} onChange={e => setFabric(f.id, 'unit', e.target.value)} style={{ fontSize: 12 }}><option value="meter">meter</option><option value="yard">yard</option><option value="kg">kg</option></select>
+                <input type="number" step="0.001" value={f.consumption} readOnly={f.source === 'fabric_bom'} onChange={e => setFabric(f.id, 'consumption', parseFloat(e.target.value) || 0)} style={{ fontSize: 12 }} />
+                <input type="number" step="0.01" value={f.price} readOnly={f.source === 'fabric_bom'} onChange={e => setFabric(f.id, 'price', parseFloat(e.target.value) || 0)} style={{ fontSize: 12 }} />
+                {f.source !== 'fabric_bom' && <button onClick={() => removeFabric(f.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><Trash2 size={13} /></button>}
               </div>
             ))}
             <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid var(--border-light)' }}><span>Fabric total / unit</span><strong>${fabricCostPerUnit.toFixed(4)}</strong></div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '16px 0 12px' }}>
-              <h3>Thread cost by type</h3>
-              <button className="btn btn-secondary btn-sm" onClick={addThread}><Plus size={13} /> Add thread</button>
+              <h3>Thread cost by type {connections.thread && <span className="badge badge-green" style={{ marginLeft: 6 }}>Auto from Engineering</span>}</h3>
+              {!connections.thread && <button className="btn btn-secondary btn-sm" onClick={addThread}><Plus size={13} /> Add thread</button>}
             </div>
             {threadRows.map(t => (
               <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 90px 90px 28px', gap: 6, marginBottom: 8, alignItems: 'center' }}>
-                <input value={t.type} onChange={e => setThread(t.id, 'type', e.target.value)} placeholder="Thread type" style={{ fontSize: 12 }} />
-                <input type="number" step="0.001" value={t.meters} onChange={e => setThread(t.id, 'meters', parseFloat(e.target.value) || 0)} style={{ fontSize: 12 }} />
-                <input type="number" step="0.0001" value={t.pricePerMeter} onChange={e => setThread(t.id, 'pricePerMeter', parseFloat(e.target.value) || 0)} style={{ fontSize: 12 }} />
-                <button onClick={() => removeThread(t.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><Trash2 size={13} /></button>
+                <input value={t.type} readOnly={t.source === 'thread_engineering'} onChange={e => setThread(t.id, 'type', e.target.value)} placeholder="Thread type" style={{ fontSize: 12 }} />
+                <input type="number" step="0.001" value={t.meters} readOnly={t.source === 'thread_engineering'} onChange={e => setThread(t.id, 'meters', parseFloat(e.target.value) || 0)} style={{ fontSize: 12 }} />
+                <input type="number" step="0.0001" value={t.pricePerMeter} readOnly={t.source === 'thread_engineering'} onChange={e => setThread(t.id, 'pricePerMeter', parseFloat(e.target.value) || 0)} style={{ fontSize: 12 }} />
+                {t.source !== 'thread_engineering' && <button onClick={() => removeThread(t.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><Trash2 size={13} /></button>}
               </div>
             ))}
             <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid var(--border-light)' }}><span>Thread total / unit</span><strong>${threadCostPerUnit.toFixed(4)}</strong></div>
