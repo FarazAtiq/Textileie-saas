@@ -499,32 +499,12 @@ export async function getStyleCostModules({ style_id, color_id } = {}) {
 }
 
 export async function getStyleCostSummary({ style_id, color_id }) {
-  const userId = await getCurrentUserId();
-  if (!userId || !style_id) return {};
-
-  const { data, error } = await supabase
-    .from("style_cost_modules")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("style_id", style_id)
-    .order("updated_at", { ascending: true });
-
-  if (error) {
-    console.error("getStyleCostSummary error:", error);
-    return {};
-  }
-
-  const common = {};
-  const colorSpecific = {};
-  (data || []).forEach((module) => {
-    if (module.color_id == null) common[module.module_type] = module;
-    if (color_id && String(module.color_id) === String(color_id)) {
-      colorSpecific[module.module_type] = module;
-    }
+  const modules = await getStyleCostModules({ style_id, color_id });
+  const byType = {};
+  modules.forEach((m) => {
+    byType[m.module_type] = m;
   });
-
-  // Common style data is used as a fallback; color-specific data overrides it.
-  return { ...common, ...colorSpecific };
+  return byType;
 }
 // ════════════════════════════════════════════════════════════
 // FABRIC MASTER
@@ -584,6 +564,14 @@ export async function createFabric(payload) {
       storage_location: payload.storage_location || "",
       status: payload.status || "Active",
       notes: payload.notes || "",
+      fabric_type: payload.fabric_type || "",
+      fabric_category: payload.fabric_category || "",
+      supplier_fabric_code: payload.supplier_fabric_code || "",
+      fabric_form: payload.fabric_form || "Open Width",
+      color_type: payload.color_type || "Solid",
+      shrinkage_length_pct: Number(payload.shrinkage_length_pct || 0),
+      shrinkage_width_pct: Number(payload.shrinkage_width_pct || 0),
+      image_url: payload.image_url || "",
       fabric_type: payload.fabric_type || "",
       fabric_category: payload.fabric_category || "",
       supplier_fabric_code: payload.supplier_fabric_code || "",
@@ -970,4 +958,4 @@ export async function deleteStitch(id) {
     console.error("deleteStitch error:", error);
     throw error;
   }
-      }
+}
