@@ -120,6 +120,12 @@ export default function SMVPage() {
   const activeOps = smvView === 'combined' ? ops : ops.filter(o => (PROCESS_DEPARTMENT[o.processType] || 'sewing') === smvView);
   const r = calcSMV(activeOps);
   const combined = calcSMV(ops);
+  const operationBreakdown = ops.map((op, index) => ({
+    ...op,
+    operationNo: index + 1,
+    department: PROCESS_DEPARTMENT[op.processType] || 'sewing',
+    threadSyncEligible: (op.processType || 'sewing') === 'sewing',
+  }));
 
   const handleArticleChange = (val) => {
     setArticleNumber(val);
@@ -164,8 +170,8 @@ export default function SMVPage() {
           style_id: selectedStyle.id,
           color_id: selectedColor?.id || null,
           module_type: 'smv',
-          data: { operations: ops, styleMeta },
-          summary: { total_smv: combined.totalSMV, department_breakdown: smvSummary, article_number: articleNumber, garment_type: garmentType }
+          data: { operations: operationBreakdown, styleMeta, workflowVersion: 1, updatedAt: new Date().toISOString() },
+          summary: { total_smv: combined.totalSMV, department_breakdown: smvSummary, article_number: articleNumber, garment_type: garmentType, operation_count: operationBreakdown.length, sewing_operation_count: operationBreakdown.filter(op => op.threadSyncEligible).length }
         });
       }
       toast('SMV report saved and linked to Style Master');
@@ -184,8 +190,8 @@ export default function SMVPage() {
           style_id: selectedStyle.id,
           color_id: selectedColor?.id || null,
           module_type: 'smv',
-          data: { operations: ops },
-          summary: { total_smv: combined.totalSMV, department_breakdown: smvSummary, article_number: articleNumber, garment_type: garmentType }
+          data: { operations: operationBreakdown, workflowVersion: 1, updatedAt: new Date().toISOString() },
+          summary: { total_smv: combined.totalSMV, department_breakdown: smvSummary, article_number: articleNumber, garment_type: garmentType, operation_count: operationBreakdown.length, sewing_operation_count: operationBreakdown.filter(op => op.threadSyncEligible).length }
         });
       }
       toast('Art#' + articleNumber + ' saved to Style Master / SMV library');
