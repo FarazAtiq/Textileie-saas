@@ -270,16 +270,7 @@ label {
 }
 /* ── Mobile Responsive ─────────────────────────────────────── */
 @media (max-width: 768px) {
-  /* Hide sidebar on mobile */
-  aside {
-    display: none !important;
-  }
-
-  /* Full width main */
-  main {
-    padding: 16px !important;
-    width: 100vw !important;
-  }
+  /* The enterprise shell controls its own sidebar, drawer and main area. */
 
   /* Stack calc grid vertically */
   .calc-grid-mobile,
