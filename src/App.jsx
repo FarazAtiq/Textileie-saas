@@ -27,7 +27,7 @@ function PrivateRoute({ children }) {
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       height: '100vh', flexDirection: 'column', gap: 12, color: 'var(--text-muted)'
     }}>
-      <div style={{ fontSize: 32 }}>🧵</div>
+      <div style={{ fontSize: 32 }}>ðŸ§µ</div>
       <p style={{ fontSize: 14 }}>Loading TextileIE...</p>
     </div>
   );
@@ -50,7 +50,7 @@ function AppRoutes() {
 
       {/* Protected */}
       <Route path="/dashboard"  element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-      <Route path="/styles" element={<StyleLibraryPage />} />
+      <Route path="/styles" element={<PrivateRoute><StyleLibraryPage /></PrivateRoute>} />
       <Route path="/efficiency" element={<PrivateRoute><EfficiencyPage /></PrivateRoute>} />
       <Route path="/capacity"   element={<PrivateRoute><CapacityPage /></PrivateRoute>} />
       <Route path="/smv"        element={<PrivateRoute><SMVPage /></PrivateRoute>} />
