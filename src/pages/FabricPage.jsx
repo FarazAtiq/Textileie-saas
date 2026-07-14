@@ -180,10 +180,30 @@ function BomSheetTab() {
       return sum + costPerPiece;
     }, 0);
 
+    const representative = sizes[0] ? calcForSize(comp, sizes[0].id) : { consumption: 0 };
+
     return {
       component: comp.usageAt || comp.fabricDescription || `Component ${comp.compNo}`,
+      fabricId: comp.fabric_id || null,
+      fabricCode: comp.fabricCode || '',
+      fabricName: comp.fabricDescription || '',
+      supplier: comp.supplier || '',
+      composition: comp.composition || '',
+      gsm: Number(comp.gsm || 0),
+      width: Number(comp.fabricWidth || 0),
+      widthUnit: comp.widthUnit || 'inch',
+      uom: comp.uom || 'KG',
+      consumptionPerGarment: Number(representative.consumption || 0),
+      unitPrice: Number(
+        String(comp.uom || 'KG').toUpperCase() === 'KG'
+          ? comp.costPerKg || 0
+          : String(comp.uom || '').toUpperCase() === 'YARD'
+            ? comp.costPerYard || 0
+            : comp.costPerMeter || 0
+      ),
       currency: comp.currency || 'USD',
       costPerGarment: Number(totalCost.toFixed(4)),
+      source: 'fabric_bom',
     };
   });
 
@@ -404,7 +424,7 @@ const kgConsumption =
           summary: { results, fabricCostSummary, components: calculatedComponents, sizes: sizes.map(s => s.label), article_number: artNo, style_name: styleName, buyer: customer }
         });
       }
-      toast('Fabric BOM saved and linked to Style Master');
+      toast('Fabric BOM saved and automatically linked to Costing');
     } catch (err) { toast('Failed: ' + err.message, 'error'); }
     finally { setSaving(false); }
   };
