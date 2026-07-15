@@ -19,12 +19,12 @@ const blankStitch = () => ({
 });
 
 const SEAM_CLASSES = [
-  { value: 'SS', label: 'SS — Superimposed Seam' },
-  { value: 'LS', label: 'LS — Lapped Seam' },
-  { value: 'BS', label: 'BS — Bound Seam' },
-  { value: 'FS', label: 'FS — Flat Seam' },
-  { value: 'OS', label: 'OS — Ornamental Seam' },
-  { value: 'EF', label: 'EF — Edge Finishing Seam' },
+  { value: 'SS', label: 'SS - Superimposed Seam' },
+  { value: 'LS', label: 'LS - Lapped Seam' },
+  { value: 'BS', label: 'BS - Bound Seam' },
+  { value: 'FS', label: 'FS - Flat Seam' },
+  { value: 'OS', label: 'OS - Ornamental Seam' },
+  { value: 'EF', label: 'EF - Edge Finishing Seam' },
 ];
 
 function normalizeCode(value) {
@@ -250,7 +250,7 @@ export default function StitchForm({
     if (duplicateName) {
       toast(
         `Stitch name "${form.stitch_name.trim()}" already exists with code ${
-          duplicateName.stitch_code || '—'
+          duplicateName.stitch_code || '鈥�'
         }. Please edit the existing record or use another name.`,
         'error'
       );
@@ -363,7 +363,7 @@ export default function StitchForm({
                 color: 'var(--text-muted)',
               }}
             >
-              Checking stitch code…
+              Checking stitch code...
             </div>
           )}
 
@@ -400,7 +400,7 @@ export default function StitchForm({
             >
               <strong>Stitch code already exists.</strong>
               <br />
-              {duplicateCode.stitch_code} —{' '}
+              {duplicateCode.stitch_code} 鈥攞' '}
               {duplicateCode.stitch_name || 'Existing stitch'}
             </div>
           )}
@@ -429,7 +429,7 @@ export default function StitchForm({
             >
               <strong>Stitch name already exists.</strong>
               <br />
-              Existing code: {duplicateName.stitch_code || '—'}
+              Existing code: {duplicateName.stitch_code || '鈥�'}
             </div>
           )}
         </div>
