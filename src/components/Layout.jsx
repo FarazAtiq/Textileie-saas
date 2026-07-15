@@ -2,27 +2,29 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import {
   LayoutDashboard, FolderOpen, TrendingUp, Factory, Clock, Layers,
-  Scissors, DollarSign, FileText, LogOut, Hash, Settings, Menu, X
+  Scissors, DollarSign, FileText, LogOut, Settings, Menu, X
 } from 'lucide-react';
 import { useState } from 'react';
 
 const NAV = [
   { section: 'Overview' },
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/styles', icon: FolderOpen, label: 'Style Master' },
-  { to: '/fabric-master', icon: Layers, label: 'Fabric Master' },
-  { to: '/thread-master', icon: Scissors, label: 'Thread Master' },
-  { to: '/stitch-master', icon: Scissors, label: 'Stitch Master' },
-  { to: '/reports',   icon: FileText,        label: 'Reports' },
-  { section: 'IE Calculators' },
-  { to: '/efficiency', icon: TrendingUp, label: 'Efficiency' },
-  { to: '/capacity',   icon: Factory,    label: 'Capacity' },
-  { to: '/smv',        icon: Clock,      label: 'SMV / SAM' },
-  { to: '/fabric',     icon: Layers,     label: 'Fabric' },
-  { to: '/thread',     icon: Scissors,   label: 'Thread' },
-  { to: '/costing',    icon: DollarSign, label: 'Costing' },
-  { section: 'Account' },
-  { to: '/settings',   icon: Settings,   label: 'Administration' },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', module: 'dashboard' },
+  { section: 'Master Data' },
+  { to: '/styles', icon: FolderOpen, label: 'Style Master', module: 'styles' },
+  { to: '/fabric-master', icon: Layers, label: 'Fabric Master', module: 'fabric_master' },
+  { to: '/thread-master', icon: Scissors, label: 'Thread Master', module: 'thread_master' },
+  { to: '/stitch-master', icon: Scissors, label: 'Stitch Master', module: 'stitch_master' },
+  { section: 'Industrial Engineering' },
+  { to: '/smv', icon: Clock, label: 'SMV / SAM', module: 'smv' },
+  { to: '/efficiency', icon: TrendingUp, label: 'Efficiency', module: 'efficiency' },
+  { to: '/capacity', icon: Factory, label: 'Capacity', module: 'capacity' },
+  { to: '/fabric', icon: Layers, label: 'Fabric Engineering', module: 'fabric_engineering' },
+  { to: '/thread', icon: Scissors, label: 'Thread Engineering', module: 'thread_engineering' },
+  { to: '/costing', icon: DollarSign, label: 'Garment Costing', module: 'costing' },
+  { section: 'Insights' },
+  { to: '/reports', icon: FileText, label: 'Report Studio', module: 'reports' },
+  { section: 'Administration' },
+  { to: '/settings', icon: Settings, label: 'Administration', module: 'administration' },
 ];
 
 const BOTTOM_NAV = [
@@ -34,9 +36,17 @@ const BOTTOM_NAV = [
 ];
 
 export function Layout({ children }) {
-  const { user, profile, logout } = useAuth();
+  const { user, profile, role, logout, can } = useAuth();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const visibleNav = NAV.filter((item, index, all) => {
+    if (!item.section) return can(item.module, 'view');
+    const nextItems = all.slice(index + 1);
+    const nextSectionIndex = nextItems.findIndex(next => next.section);
+    const sectionItems = nextSectionIndex === -1 ? nextItems : nextItems.slice(0, nextSectionIndex);
+    return sectionItems.some(next => !next.section && can(next.module, 'view'));
+  });
 
   const handleLogout = async () => {
     await logout();
@@ -79,7 +89,7 @@ export function Layout({ children }) {
 
         {/* Nav */}
         <nav style={{ flex: 1, padding: '6px 0' }}>
-          {NAV.map((item, i) => {
+          {visibleNav.map((item, i) => {
             if (item.section) return (
               <div key={i} style={{ padding: '12px 16px 4px', fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.28)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 {item.section}
@@ -104,7 +114,8 @@ export function Layout({ children }) {
         {/* User footer */}
         <div style={{ padding: '12px 16px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', fontWeight: 500 }}>{profile?.full_name || user?.email}</div>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 10, marginTop: 1 }}>{user?.email}</div>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 1 }}>{user?.email}</div>
+          <div style={{ fontSize: 10, color: 'var(--teal)', marginBottom: 10, marginTop: 3 }}>{role?.name || 'Owner'}</div>
           <button onClick={handleLogout} className="btn btn-ghost btn-sm" style={{ color: 'rgba(255,255,255,0.4)', width: '100%', justifyContent: 'flex-start' }}>
             <LogOut size={12} /> Sign out
           </button>
@@ -142,7 +153,7 @@ export function Layout({ children }) {
             </div>
 
             <nav style={{ flex: 1, padding: '6px 0' }}>
-              {NAV.map((item, i) => {
+              {visibleNav.map((item, i) => {
                 if (item.section) return (
                   <div key={i} style={{ padding: '12px 16px 4px', fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.28)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                     {item.section}
