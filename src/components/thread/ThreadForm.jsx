@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Save, X } from 'lucide-react';
 import { createThread, updateThread, findThreadByCode } from '../../lib/db.js';
 import { validateThreadForm, duplicateMessage, normalizeCode } from '../../lib/validation.js';
+import { useLiveDuplicateCheck } from '../../hooks/useLiveDuplicateCheck.js';
+import DuplicateStatus from '../common/DuplicateStatus.jsx';
 
 const blankThread = () => ({
   thread_code: '',
@@ -36,12 +38,17 @@ function Section({ title, children }) {
 export default function ThreadForm({ editing, onCancel, onSaved, toast }) {
   const [form, setForm] = useState(editing ? { ...blankThread(), ...editing } : blankThread());
   const [saving, setSaving] = useState(false);
+  const codeRef = useRef(null);
+  const checkCode = useCallback((value, excludeId) => findThreadByCode(normalizeCode(value), excludeId), []);
+  const duplicateState = useLiveDuplicateCheck({ value: form.thread_code, excludeId: editing?.id, check: checkCode });
 
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
   const save = async () => {
     const errors = validateThreadForm(form);
-    if (errors.length) return toast(errors[0], 'error');
+    if (errors.length) { codeRef.current?.focus(); return toast(errors[0], 'error'); }
+    if (duplicateState.checking) return toast('Please wait while duplicate checking finishes', 'error');
+    if (duplicateState.duplicate) { codeRef.current?.focus(); return toast(duplicateMessage({ entity: 'Thread code', code: normalizeCode(form.thread_code), existing: duplicateState.duplicate }), 'error'); }
 
     setSaving(true);
     try {
@@ -75,7 +82,7 @@ export default function ThreadForm({ editing, onCancel, onSaved, toast }) {
       </div>
 
       <Section title="General Information">
-        <div className="field"><label>Thread Code *</label><input value={form.thread_code} onChange={e => set('thread_code', e.target.value)} placeholder="TH-001" /></div>
+        <div className="field"><label>Thread Code *</label><input ref={codeRef} value={form.thread_code} onChange={e => set('thread_code', e.target.value.toUpperCase())} onBlur={() => set('thread_code', normalizeCode(form.thread_code))} placeholder="TH-001" /><DuplicateStatus checking={duplicateState.checking} duplicate={duplicateState.duplicate} error={duplicateState.error} availableText="Thread code is available" duplicateTitle="Thread code already exists" details={duplicateState.duplicate ? `${duplicateState.duplicate.thread_code} - ${duplicateState.duplicate.thread_name || 'Existing thread'}` : ''} /></div>
         <div className="field"><label>Thread Name *</label><input value={form.thread_name} onChange={e => set('thread_name', e.target.value)} placeholder="Polyester 120T" /></div>
 
         <div className="field">
@@ -157,7 +164,7 @@ export default function ThreadForm({ editing, onCancel, onSaved, toast }) {
       </Section>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button className="btn btn-primary" disabled={saving} onClick={save}>
+        <button className="btn btn-primary" disabled={saving || duplicateState.checking || !!duplicateState.duplicate} onClick={save}>
           <Save size={14} /> {saving ? 'Saving...' : 'Save Thread'}
         </button>
       </div>
