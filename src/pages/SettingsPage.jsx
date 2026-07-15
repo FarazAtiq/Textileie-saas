@@ -19,6 +19,8 @@ import {
   Workflow,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.jsx';
+import UserManagement from '../components/UserManagement.jsx';
+import PermissionMatrix from '../components/PermissionMatrix.jsx';
 import { updateProfile } from '../lib/db.js';
 import { supabase } from '../lib/supabase.js';
 import { useToast } from '../hooks/useToast.jsx';
@@ -466,36 +468,13 @@ export default function SettingsPage() {
 
           {activeTab === 'users' && (
             <div className="card">
-              <SectionTitle icon={Users} title="User Management" subtitle="User invitations and factory assignments will be connected to Supabase in the next permissions update" />
-              <div style={{ padding: 18, background: 'var(--bg)', borderRadius: 12, border: '1px solid var(--border-light)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
-                  <div>
-                    <strong>{profile?.full_name || user?.email}</strong>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>{user?.email}</div>
-                  </div>
-                  <StatusPill tone="navy">Owner</StatusPill>
-                </div>
-              </div>
+              <UserManagement />
             </div>
           )}
 
           {activeTab === 'permissions' && (
             <div className="card">
-              <SectionTitle icon={ShieldCheck} title="Roles & Permissions" subtitle="Enterprise permission matrix foundation" />
-              {[
-                ['Owner', 'Full company, billing, users and module access'],
-                ['Admin', 'Administration and all operational modules'],
-                ['IE Manager', 'Style, SMV, efficiency, capacity, fabric and thread engineering'],
-                ['Production Manager', 'Dashboard, efficiency, capacity, production and reports'],
-                ['Merchandiser', 'Style, BOM, costing and commercial reports'],
-                ['Store Manager', 'Inventory and purchase requests'],
-                ['Read Only', 'View permitted modules without editing'],
-              ].map(([role, description]) => (
-                <div key={role} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '12px 0', borderBottom: '1px solid var(--border-light)' }}>
-                  <div><strong>{role}</strong><div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{description}</div></div>
-                  <StatusPill tone="navy">Default Role</StatusPill>
-                </div>
-              ))}
+              <PermissionMatrix />
             </div>
           )}
 
@@ -611,4 +590,4 @@ export default function SettingsPage() {
       `}</style>
     </div>
   );
-  }
+}
