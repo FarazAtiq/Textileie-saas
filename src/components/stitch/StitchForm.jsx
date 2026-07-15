@@ -250,7 +250,7 @@ export default function StitchForm({
     if (duplicateName) {
       toast(
         `Stitch name "${form.stitch_name.trim()}" already exists with code ${
-          duplicateName.stitch_code || '鈥�'
+          duplicateName.stitch_code || '-'
         }. Please edit the existing record or use another name.`,
         'error'
       );
@@ -400,7 +400,7 @@ export default function StitchForm({
             >
               <strong>Stitch code already exists.</strong>
               <br />
-              {duplicateCode.stitch_code} 鈥攞' '}
+              {duplicateCode.stitch_code} {' - '}
               {duplicateCode.stitch_name || 'Existing stitch'}
             </div>
           )}
@@ -429,7 +429,7 @@ export default function StitchForm({
             >
               <strong>Stitch name already exists.</strong>
               <br />
-              Existing code: {duplicateName.stitch_code || '鈥�'}
+              Existing code: {duplicateName.stitch_code || '-'}
             </div>
           )}
         </div>
@@ -597,4 +597,4 @@ export default function StitchForm({
       </div>
     </div>
   );
-}
+      }
