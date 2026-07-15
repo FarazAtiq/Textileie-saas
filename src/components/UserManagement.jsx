@@ -6,8 +6,8 @@ import {
   getCompanyRoles,
   getCompanyUsers,
   updateCompanyUserAccess,
-} from '../../lib/db.js';
-import { useToast } from '../../hooks/useToast.jsx';
+} from '../lib/db.js';
+import { useToast } from '../hooks/useToast.jsx';
 
 export default function UserManagement() {
   const { toast, ToastContainer } = useToast();
