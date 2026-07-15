@@ -7,8 +7,8 @@ import {
   getCompanyRoles,
   getRolePermissions,
   saveRolePermissions,
-} from '../../lib/db.js';
-import { useToast } from '../../hooks/useToast.jsx';
+} from '../lib/db.js';
+import { useToast } from '../hooks/useToast.jsx';
 
 const MODULE_LABELS = {
   dashboard: 'Dashboard',
