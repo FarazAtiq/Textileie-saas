@@ -1,60 +1,137 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase.js';
-import { signUp, signIn, signOut, getProfile } from '../lib/db.js';
+import {
+  signUp,
+  signIn,
+  signOut,
+  getProfile,
+  getMyAccessContext,
+} from '../lib/db.js';
 
 const AuthContext = createContext(null);
 
+const FULL_ACCESS_ACTIONS = {
+  view: true,
+  create: true,
+  edit: true,
+  delete: true,
+  approve: true,
+  export: true,
+  view_cost: true,
+  design_reports: true,
+};
+
 export function AuthProvider({ children }) {
-  const [user, setUser]       = useState(null);
+  const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [access, setAccess] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const loadProfile = async (userId) => {
-    try {
-      const p = await getProfile(userId);
-      setProfile(p);
-    } catch { setProfile(null); }
-  };
+  const loadUserContext = useCallback(async (authUser) => {
+    if (!authUser?.id) {
+      setProfile(null);
+      setAccess(null);
+      return;
+    }
+
+    const [profileResult, accessResult] = await Promise.allSettled([
+      getProfile(authUser.id),
+      getMyAccessContext(),
+    ]);
+
+    setProfile(profileResult.status === 'fulfilled' ? profileResult.value : null);
+    setAccess(accessResult.status === 'fulfilled' ? accessResult.value : null);
+  }, []);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) loadProfile(session.user.id);
+    let mounted = true;
+
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!mounted) return;
+      const nextUser = session?.user ?? null;
+      setUser(nextUser);
+      await loadUserContext(nextUser);
+      if (mounted) setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const nextUser = session?.user ?? null;
+      setUser(nextUser);
+      await loadUserContext(nextUser);
       setLoading(false);
     });
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) loadProfile(session.user.id);
-      else setProfile(null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [loadUserContext]);
 
   const register = async (data) => {
     await signUp(data);
-    // Supabase sends a confirmation email by default
-    // For dev, disable it: Supabase → Auth → Settings → Disable email confirmation
   };
 
   const login = async (email, password) => {
-    const { user } = await signIn({ email, password });
-    return user;
+    const { user: signedInUser } = await signIn({ email, password });
+    return signedInUser;
   };
 
   const logout = async () => {
     await signOut();
     setUser(null);
     setProfile(null);
+    setAccess(null);
   };
 
-  const refreshProfile = () => user && loadProfile(user.id);
+  const refreshProfile = async () => {
+    if (user) await loadUserContext(user);
+  };
+
+  const refreshAccess = async () => {
+    if (user) {
+      const nextAccess = await getMyAccessContext();
+      setAccess(nextAccess);
+      return nextAccess;
+    }
+    return null;
+  };
+
+  const can = useCallback((moduleKey, actionKey = 'view') => {
+    if (!user) return false;
+
+    // Existing single-user installations remain fully usable until
+    // enterprise access has been configured in Supabase.
+    if (!access || access.isOwner || !access.hasConfiguredAccess) return true;
+
+    return Boolean(access.permissions?.[moduleKey]?.[actionKey]);
+  }, [access, user]);
+
+  const getModulePermissions = useCallback((moduleKey) => {
+    if (!access || access.isOwner || !access.hasConfiguredAccess) {
+      return { ...FULL_ACCESS_ACTIONS };
+    }
+    return { ...(access.permissions?.[moduleKey] || {}) };
+  }, [access]);
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, register, login, logout, refreshProfile }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        access,
+        role: access?.role || null,
+        membership: access?.membership || null,
+        permissions: access?.permissions || {},
+        loading,
+        register,
+        login,
+        logout,
+        refreshProfile,
+        refreshAccess,
+        can,
+        getModulePermissions,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
