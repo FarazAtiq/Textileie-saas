@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Save, X } from 'lucide-react';
-import { createThread, updateThread } from '../../lib/db.js';
+import { createThread, updateThread, findThreadByCode } from '../../lib/db.js';
+import { validateThreadForm, duplicateMessage, normalizeCode } from '../../lib/validation.js';
 
 const blankThread = () => ({
   thread_code: '',
@@ -39,17 +40,21 @@ export default function ThreadForm({ editing, onCancel, onSaved, toast }) {
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
   const save = async () => {
-    if (!form.thread_code.trim()) return toast('Thread code is required', 'error');
-    if (!form.thread_name.trim()) return toast('Thread name is required', 'error');
-    if ((Number(form.price) || 0) < 0) return toast('Price cannot be negative', 'error');
+    const errors = validateThreadForm(form);
+    if (errors.length) return toast(errors[0], 'error');
 
     setSaving(true);
     try {
+      const duplicate = await findThreadByCode(normalizeCode(form.thread_code), editing?.id || null);
+      if (duplicate) {
+        toast(duplicateMessage({ entity: 'Thread code', code: normalizeCode(form.thread_code), existing: duplicate }), 'error');
+        return;
+      }
       if (editing?.id) {
-        await updateThread(editing.id, form);
+        await updateThread(editing.id, { ...form, thread_code: normalizeCode(form.thread_code) });
         toast('Thread updated');
       } else {
-        await createThread(form);
+        await createThread({ ...form, thread_code: normalizeCode(form.thread_code) });
         toast('Thread created');
       }
       await onSaved?.();
