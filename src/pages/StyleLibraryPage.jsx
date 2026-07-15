@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, Save, Trash2, Edit3, Search, Shirt, Palette, Ruler, X } from 'lucide-react';
 import { PageHeader } from '../components/ResultCard.jsx';
-import { createStyle, deleteStyle, getStyles, updateStyle } from '../lib/db.js';
+import { createStyle, deleteStyle, getStyles, updateStyle, findStyleByArticle } from '../lib/db.js';
 import { useToast } from '../hooks/useToast.jsx';
+import { validateStyleForm, duplicateMessage, normalizeCode } from '../lib/validation.js';
 
 const DEFAULT_SIZES = [
   { size_name: 'S', ratio: 1, scale_pct: -4 },
@@ -44,18 +45,24 @@ function StyleForm({ editing, onCancel, onSaved }) {
   const addSize = () => setForm(prev => ({ ...prev, sizes: [...prev.sizes, { size_name: '', ratio: 1, scale_pct: 0 }] }));
   const removeSize = (idx) => setForm(prev => ({ ...prev, sizes: prev.sizes.filter((_, i) => i !== idx) }));
 const save = async () => {
-  if (!form.article_number.trim()) {
-    toast('Article number is required', 'error');
+  const errors = validateStyleForm(form);
+  if (errors.length) {
+    toast(errors[0], 'error');
     return;
   }
 
   setSaving(true);
   try {
+    const duplicate = await findStyleByArticle(normalizeCode(form.article_number), editing?.id || null);
+    if (duplicate) {
+      toast(duplicateMessage({ entity: 'Article', code: normalizeCode(form.article_number), existing: duplicate }), 'error');
+      return;
+    }
     if (editing?.id) {
-      await updateStyle(editing.id, form);
+      await updateStyle(editing.id, { ...form, article_number: normalizeCode(form.article_number) });
       toast('Style updated');
     } else {
-      await createStyle(form);
+      await createStyle({ ...form, article_number: normalizeCode(form.article_number) });
       toast('Style created');
     }
 
@@ -148,7 +155,7 @@ function getCompletion(style) {
 }
 
 function formatDate(date) {
-  if (!date) return '—';
+  if (!date) return '鈥�';
   return new Date(date).toLocaleDateString('en-PK');
 }
 function progressColor(percent) {
@@ -191,7 +198,7 @@ export default function StyleLibraryPage() {
   return (
     <div>
       <ToastContainer />
-      <PageHeader title="Style Master" subtitle="Industrial Engineering Workspace — create a style once and use it across SMV, Fabric BOM, Thread, Costing, Efficiency, Capacity and Reports" badge={{ text: 'IE Workspace' }} />
+      <PageHeader title="Style Master" subtitle="Industrial Engineering Workspace 鈥� create a style once and use it across SMV, Fabric BOM, Thread, Costing, Efficiency, Capacity and Reports" badge={{ text: 'IE Workspace' }} />
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
         <div style={{ position: 'relative', flex: 1 }}>
@@ -252,12 +259,12 @@ export default function StyleLibraryPage() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12, marginBottom: 14 }}>
-        <div><b>Buyer:</b> {s.buyer || '—'}</div>
-        <div><b>Brand:</b> {s.brand || '—'}</div>
-        <div><b>Category:</b> {s.product_category || '—'}</div>
-        <div><b>Garment:</b> {s.garment_type || '—'}</div>
-        <div><b>Season:</b> {s.season || '—'}</div>
-        <div><b>Base Size:</b> {s.base_size || '—'}</div>
+        <div><b>Buyer:</b> {s.buyer || '鈥�'}</div>
+        <div><b>Brand:</b> {s.brand || '鈥�'}</div>
+        <div><b>Category:</b> {s.product_category || '鈥�'}</div>
+        <div><b>Garment:</b> {s.garment_type || '鈥�'}</div>
+        <div><b>Season:</b> {s.season || '鈥�'}</div>
+        <div><b>Base Size:</b> {s.base_size || '鈥�'}</div>
         <div><b>Costing:</b> {s.costing_method || 'FOB'}</div>
         <div><b>Strategy:</b> {s.costing_mode === 'size_wise' ? 'Size-wise' : 'Base size'}</div>
       </div>
@@ -276,7 +283,7 @@ export default function StyleLibraryPage() {
               fontSize: 11,
               fontWeight: 700
             }}>
-              ● {c.color_name}
+              鈼� {c.color_name}
             </span>
           )) : <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>No colors</span>}
         </div>
@@ -345,7 +352,7 @@ export default function StyleLibraryPage() {
           border: '1px solid var(--border-light)'
         }}
       >
-        {item.done ? '✔' : '○'} {item.label}
+        {item.done ? '鉁�' : '鈼�'} {item.label}
       </span>
     ))}
   </div>
@@ -358,7 +365,7 @@ export default function StyleLibraryPage() {
     marginBottom: 12
   }}
 >
-  Updated · {formatDate(s.updated_at || s.created_at)}
+  Updated 路 {formatDate(s.updated_at || s.created_at)}
 </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
