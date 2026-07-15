@@ -959,3 +959,48 @@ export async function deleteStitch(id) {
     throw error;
   }
 }
+
+// ════════════════════════════════════════════════════════════
+// MASTER DATA DUPLICATE CHECKS
+// ════════════════════════════════════════════════════════════
+export async function findStyleByArticle(articleNumber, excludeId = null) {
+  const userId = await getCurrentUserId();
+  if (!userId || !articleNumber) return null;
+  let query = supabase
+    .from("styles")
+    .select("id, article_number, style_name, buyer, created_at")
+    .eq("user_id", userId)
+    .ilike("article_number", String(articleNumber).trim());
+  if (excludeId) query = query.neq("id", excludeId);
+  const { data, error } = await query.limit(1).maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
+export async function findFabricByCode(fabricCode, excludeId = null) {
+  const userId = await getCurrentUserId();
+  if (!userId || !fabricCode) return null;
+  let query = supabase
+    .from("fabric_master")
+    .select("id, fabric_code, fabric_name, supplier, created_at")
+    .eq("user_id", userId)
+    .ilike("fabric_code", String(fabricCode).trim());
+  if (excludeId) query = query.neq("id", excludeId);
+  const { data, error } = await query.limit(1).maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
+export async function findThreadByCode(threadCode, excludeId = null) {
+  const userId = await getCurrentUserId();
+  if (!userId || !threadCode) return null;
+  let query = supabase
+    .from("thread_master")
+    .select("id, thread_code, thread_name, supplier, created_at")
+    .eq("user_id", userId)
+    .ilike("thread_code", String(threadCode).trim());
+  if (excludeId) query = query.neq("id", excludeId);
+  const { data, error } = await query.limit(1).maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
