@@ -1004,3 +1004,288 @@ export async function findThreadByCode(threadCode, excludeId = null) {
   if (error) throw error;
   return data || null;
 }
+
+// ════════════════════════════════════════════════════════════
+// ENTERPRISE ACCESS CONTROL
+// ════════════════════════════════════════════════════════════
+
+export const MODULE_KEYS = [
+  "dashboard",
+  "styles",
+  "fabric_master",
+  "thread_master",
+  "stitch_master",
+  "smv",
+  "efficiency",
+  "capacity",
+  "fabric_engineering",
+  "thread_engineering",
+  "costing",
+  "reports",
+  "administration",
+  "inventory",
+];
+
+export const PERMISSION_ACTIONS = [
+  "view",
+  "create",
+  "edit",
+  "delete",
+  "approve",
+  "export",
+  "view_cost",
+  "design_reports",
+];
+
+export async function getMyAccessContext() {
+  const userId = await getCurrentUserId();
+  if (!userId) return null;
+
+  const { data: membership, error } = await supabase
+    .from("company_users")
+    .select(
+      `
+      id,
+      company_id,
+      factory_id,
+      department_id,
+      status,
+      role_id,
+      companies(id, name, code),
+      factories(id, name, code),
+      departments(id, name, code),
+      roles(id, name, code, is_system)
+    `
+    )
+    .eq("user_id", userId)
+    .eq("status", "Active")
+    .maybeSingle();
+
+  if (error) {
+    console.error("getMyAccessContext membership error:", error);
+    return null;
+  }
+
+  if (!membership) {
+    return {
+      membership: null,
+      role: null,
+      permissions: {},
+      isOwner: true,
+      hasConfiguredAccess: false,
+    };
+  }
+
+  const { data: rows, error: permissionsError } = await supabase
+    .from("role_permissions")
+    .select("module_key, action_key, allowed")
+    .eq("role_id", membership.role_id);
+
+  if (permissionsError) {
+    console.error("getMyAccessContext permissions error:", permissionsError);
+  }
+
+  const permissions = {};
+  (rows || []).forEach((row) => {
+    if (!permissions[row.module_key]) permissions[row.module_key] = {};
+    permissions[row.module_key][row.action_key] = Boolean(row.allowed);
+  });
+
+  const roleCode = membership.roles?.code || "";
+  const isOwner = roleCode === "OWNER";
+
+  return {
+    membership,
+    role: membership.roles || null,
+    permissions,
+    isOwner,
+    hasConfiguredAccess: true,
+  };
+}
+
+export async function getCompanyRoles() {
+  const access = await getMyAccessContext();
+  const companyId = access?.membership?.company_id;
+  if (!companyId) return [];
+
+  const { data, error } = await supabase
+    .from("roles")
+    .select("*")
+    .eq("company_id", companyId)
+    .order("name");
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getRolePermissions(roleId) {
+  if (!roleId) return [];
+
+  const { data, error } = await supabase
+    .from("role_permissions")
+    .select("*")
+    .eq("role_id", roleId)
+    .order("module_key")
+    .order("action_key");
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function saveRolePermissions(roleId, matrix) {
+  if (!roleId) throw new Error("Role is required");
+
+  const rows = [];
+  Object.entries(matrix || {}).forEach(([moduleKey, actions]) => {
+    Object.entries(actions || {}).forEach(([actionKey, allowed]) => {
+      rows.push({
+        role_id: roleId,
+        module_key: moduleKey,
+        action_key: actionKey,
+        allowed: Boolean(allowed),
+        updated_at: new Date().toISOString(),
+      });
+    });
+  });
+
+  if (!rows.length) return [];
+
+  const { data, error } = await supabase
+    .from("role_permissions")
+    .upsert(rows, { onConflict: "role_id,module_key,action_key" })
+    .select();
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function createCompanyRole({ name, code }) {
+  const access = await getMyAccessContext();
+  const companyId = access?.membership?.company_id;
+  if (!companyId) throw new Error("Company access is not configured");
+
+  const normalizedCode = String(code || name || "")
+    .trim()
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .toUpperCase();
+
+  const { data, error } = await supabase
+    .from("roles")
+    .insert({
+      company_id: companyId,
+      name: String(name || "").trim(),
+      code: normalizedCode,
+      is_system: false,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function getCompanyUsers() {
+  const access = await getMyAccessContext();
+  const companyId = access?.membership?.company_id;
+  if (!companyId) return [];
+
+  const { data, error } = await supabase
+    .from("company_users")
+    .select(
+      `
+      id,
+      user_id,
+      invited_email,
+      status,
+      company_id,
+      factory_id,
+      department_id,
+      role_id,
+      created_at,
+      profiles(id, full_name, company_name),
+      roles(id, name, code),
+      factories(id, name, code),
+      departments(id, name, code)
+    `
+    )
+    .eq("company_id", companyId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function createUserInvitation({ email, role_id, factory_id = null, department_id = null, }) {
+  const access = await getMyAccessContext();
+  const companyId = access?.membership?.company_id;
+  if (!companyId) throw new Error("Company access is not configured");
+
+  const normalizedEmail = String(email || "")
+    .trim()
+    .toLowerCase();
+  if (!normalizedEmail) throw new Error("Email is required");
+
+  const { data, error } = await supabase
+    .from("company_user_invitations")
+    .insert({
+      company_id: companyId,
+      email: normalizedEmail,
+      role_id,
+      factory_id: factory_id || null,
+      department_id: department_id || null,
+      invited_by: await getCurrentUserId(),
+      status: "Pending",
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateCompanyUserAccess(id, updates) {
+  const { data, error } = await supabase
+    .from("company_users")
+    .update({
+      role_id: updates.role_id,
+      factory_id: updates.factory_id || null,
+      department_id: updates.department_id || null,
+      status: updates.status || "Active",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function getCompanyFactoriesAndDepartments() {
+  const access = await getMyAccessContext();
+  const companyId = access?.membership?.company_id;
+  if (!companyId) return { factories: [], departments: [] };
+
+  const [
+    { data: factories, error: fError },
+    { data: departments, error: dError },
+  ] = await Promise.all([
+    supabase
+      .from("factories")
+      .select("*")
+      .eq("company_id", companyId)
+      .eq("status", "Active")
+      .order("name"),
+    supabase
+      .from("departments")
+      .select("*")
+      .eq("company_id", companyId)
+      .eq("status", "Active")
+      .order("name"),
+  ]);
+
+  if (fError) throw fError;
+  if (dError) throw dError;
+
+  return { factories: factories || [], departments: departments || [] };
+}
