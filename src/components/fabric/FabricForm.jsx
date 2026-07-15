@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Save, X } from 'lucide-react';
 import { createFabric, updateFabric, findFabricByCode } from '../../lib/db.js';
 import { validateFabricForm, duplicateMessage, normalizeCode } from '../../lib/validation.js';
+import { useLiveDuplicateCheck } from '../../hooks/useLiveDuplicateCheck.js';
+import DuplicateStatus from '../common/DuplicateStatus.jsx';
 
 
 const blankFabric = () => ({
@@ -46,13 +48,18 @@ function Section({ title, children }) {
 export default function FabricForm({ editing, onCancel, onSaved, toast }) {
   const [form, setForm] = useState(editing ? { ...blankFabric(), ...editing } : blankFabric());
   const [saving, setSaving] = useState(false);
- 
+  const codeRef = useRef(null);
+  const checkCode = useCallback((value, excludeId) => findFabricByCode(normalizeCode(value), excludeId), []);
+  const duplicateState = useLiveDuplicateCheck({ value: form.fabric_code, excludeId: editing?.id, check: checkCode });
+
 
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
   const save = async () => {
     const errors = validateFabricForm(form);
-    if (errors.length) return toast(errors[0], 'error');
+    if (errors.length) { codeRef.current?.focus(); return toast(errors[0], 'error'); }
+    if (duplicateState.checking) return toast('Please wait while duplicate checking finishes', 'error');
+    if (duplicateState.duplicate) { codeRef.current?.focus(); return toast(duplicateMessage({ entity: 'Fabric code', code: normalizeCode(form.fabric_code), existing: duplicateState.duplicate }), 'error'); }
 
     setSaving(true);
     try {
@@ -86,7 +93,7 @@ export default function FabricForm({ editing, onCancel, onSaved, toast }) {
       </div>
 
       <Section title="General Information">
-        <div className="field"><label>Fabric Code *</label><input value={form.fabric_code} onChange={e => set('fabric_code', e.target.value)} placeholder="F001" /></div>
+        <div className="field"><label>Fabric Code *</label><input ref={codeRef} value={form.fabric_code} onChange={e => set('fabric_code', e.target.value.toUpperCase())} onBlur={() => set('fabric_code', normalizeCode(form.fabric_code))} placeholder="F001" /><DuplicateStatus checking={duplicateState.checking} duplicate={duplicateState.duplicate} error={duplicateState.error} availableText="Fabric code is available" duplicateTitle="Fabric code already exists" details={duplicateState.duplicate ? `${duplicateState.duplicate.fabric_code} - ${duplicateState.duplicate.fabric_name || 'Existing fabric'}` : ''} /></div>
         <div className="field"><label>Fabric Name *</label><input value={form.fabric_name} onChange={e => set('fabric_name', e.target.value)} placeholder="Cotton Interlock" /></div>
         <div className="field">
           <label>Fabric Type</label>
@@ -151,10 +158,10 @@ export default function FabricForm({ editing, onCancel, onSaved, toast }) {
       </Section>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button className="btn btn-primary" disabled={saving} onClick={save}>
+        <button className="btn btn-primary" disabled={saving || duplicateState.checking || !!duplicateState.duplicate} onClick={save}>
           <Save size={14} /> {saving ? 'Saving...' : 'Save Fabric'}
         </button>
       </div>
     </div>
   );
-          }
+}
