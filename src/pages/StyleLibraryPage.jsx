@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, Save, Trash2, Edit3, Search, Shirt, Palette, Ruler, X } from 'lucide-react';
 import { PageHeader } from '../components/ResultCard.jsx';
 import { createStyle, deleteStyle, getStyles, updateStyle, findStyleByArticle } from '../lib/db.js';
 import { useToast } from '../hooks/useToast.jsx';
 import { validateStyleForm, duplicateMessage, normalizeCode } from '../lib/validation.js';
+import { useLiveDuplicateCheck } from '../hooks/useLiveDuplicateCheck.js';
+import DuplicateStatus from '../components/common/DuplicateStatus.jsx';
 
 const DEFAULT_SIZES = [
   { size_name: 'S', ratio: 1, scale_pct: -4 },
@@ -31,7 +33,10 @@ function StyleForm({ editing, onCancel, onSaved }) {
     sizes: (editing.style_sizes || []).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)).map(s => ({ size_name: s.size_name, ratio: s.ratio, scale_pct: s.scale_pct }))
   } : blankForm());
   const [saving, setSaving] = useState(false);
+  const articleRef = useRef(null);
   const { toast } = useToast();
+  const checkArticle = useCallback((value, excludeId) => findStyleByArticle(normalizeCode(value), excludeId), []);
+  const duplicateState = useLiveDuplicateCheck({ value: form.article_number, excludeId: editing?.id, check: checkArticle });
 
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
   const setColor = (idx, k, v) => setForm(prev => ({ ...prev, colors: prev.colors.map((c, i) => i === idx ? { ...c, [k]: v } : c) }));
@@ -81,7 +86,7 @@ const save = async () => {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-        <div className="field"><label>Article #</label><input value={form.article_number} onChange={e => set('article_number', e.target.value)} placeholder="4210" /></div>
+        <div className="field"><label>Article #</label><input ref={articleRef} value={form.article_number} onChange={e => set('article_number', e.target.value.toUpperCase())} onBlur={() => set('article_number', normalizeCode(form.article_number))} placeholder="4210" /><DuplicateStatus checking={duplicateState.checking} duplicate={duplicateState.duplicate} error={duplicateState.error} availableText="Article number is available" duplicateTitle="Article number already exists" details={duplicateState.duplicate ? `${duplicateState.duplicate.article_number} - ${duplicateState.duplicate.style_name || duplicateState.duplicate.garment_type || 'Existing style'}` : ''} /></div>
         <div className="field"><label>Style name</label><input value={form.style_name} onChange={e => set('style_name', e.target.value)} placeholder="Basic polo" /></div>
         <div className="field"><label>Buyer</label><input value={form.buyer} onChange={e => set('buyer', e.target.value)} placeholder="Buyer name" /></div>
         <div className="field"><label>Brand</label><input value={form.brand || ''} onChange={e => set('brand', e.target.value)} placeholder="Nike" /></div>
@@ -101,7 +106,7 @@ const save = async () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}><h3 style={{ fontSize: 13 }}><Palette size={14}/> Colors</h3><button className="btn btn-secondary btn-sm" onClick={addColor}><Plus size={12}/> Add</button></div>
           {form.colors.map((c, i) => (
             <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 80px 36px', gap: 8, marginBottom: 8 }}>
-              <input value={c.color_name} onChange={e => setColor(i, 'color_name', e.target.value)} placeholder="Color" />
+              <input value={cleanText(c.color_name)} onChange={e => setColor(i, 'color_name', e.target.value)} placeholder="Color" />
               <input value={c.buyer_color_code || ''} onChange={e => setColor(i, 'buyer_color_code', e.target.value)} placeholder="Buyer code" />
               <input value={c.pantone || ''} onChange={e => setColor(i, 'pantone', e.target.value)} placeholder="Pantone" />
               <select value={c.status || 'Active'} onChange={e => setColor(i, 'status', e.target.value)}>
@@ -127,7 +132,7 @@ const save = async () => {
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
-        <button className="btn btn-primary" disabled={saving} onClick={save}><Save size={14}/> {saving ? 'Saving...' : 'Save Style'}</button>
+        <button className="btn btn-primary" disabled={saving || duplicateState.checking || !!duplicateState.duplicate} onClick={save}><Save size={14}/> {saving ? 'Saving...' : 'Save Style'}</button>
       </div>
     </div>
   );
@@ -152,6 +157,11 @@ function getCompletion(style) {
   const percent = Math.round((items.filter(x => x.done).length / items.length) * 100);
 
   return { items, percent };
+}
+
+
+function cleanText(value) {
+  return String(value || '').replace(/[\uFFFD]/g, '').replace(/閿熸枻鎷�/g, '').trim();
 }
 
 function formatDate(date) {
@@ -198,7 +208,7 @@ export default function StyleLibraryPage() {
   return (
     <div>
       <ToastContainer />
-      <PageHeader title="Style Master" subtitle="Industrial Engineering Workspace 鈥� create a style once and use it across SMV, Fabric BOM, Thread, Costing, Efficiency, Capacity and Reports" badge={{ text: 'IE Workspace' }} />
+      <PageHeader title="Style Master" subtitle="Industrial Engineering Workspace - create a style once and use it across SMV, Fabric BOM, Thread, Costing, Efficiency, Capacity and Reports" badge={{ text: 'IE Workspace' }} />
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
         <div style={{ position: 'relative', flex: 1 }}>
@@ -259,12 +269,12 @@ export default function StyleLibraryPage() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12, marginBottom: 14 }}>
-        <div><b>Buyer:</b> {s.buyer || '鈥�'}</div>
-        <div><b>Brand:</b> {s.brand || '鈥�'}</div>
-        <div><b>Category:</b> {s.product_category || '鈥�'}</div>
-        <div><b>Garment:</b> {s.garment_type || '鈥�'}</div>
-        <div><b>Season:</b> {s.season || '鈥�'}</div>
-        <div><b>Base Size:</b> {s.base_size || '鈥�'}</div>
+        <div><b>Buyer:</b> {cleanText(s.buyer) || '-'}</div>
+        <div><b>Brand:</b> {cleanText(s.brand) || '-'}</div>
+        <div><b>Category:</b> {cleanText(s.product_category) || '-'}</div>
+        <div><b>Garment:</b> {cleanText(s.garment_type) || '-'}</div>
+        <div><b>Season:</b> {cleanText(s.season) || '-'}</div>
+        <div><b>Base Size:</b> {cleanText(s.base_size) || '-'}</div>
         <div><b>Costing:</b> {s.costing_method || 'FOB'}</div>
         <div><b>Strategy:</b> {s.costing_mode === 'size_wise' ? 'Size-wise' : 'Base size'}</div>
       </div>
@@ -283,7 +293,7 @@ export default function StyleLibraryPage() {
               fontSize: 11,
               fontWeight: 700
             }}>
-              鈼� {c.color_name}
+              {cleanText(c.color_name)}
             </span>
           )) : <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>No colors</span>}
         </div>
@@ -352,7 +362,7 @@ export default function StyleLibraryPage() {
           border: '1px solid var(--border-light)'
         }}
       >
-        {item.done ? '鉁�' : '鈼�'} {item.label}
+        {item.done ? 'Done' : 'Pending'}: {item.label}
       </span>
     ))}
   </div>
@@ -365,7 +375,7 @@ export default function StyleLibraryPage() {
     marginBottom: 12
   }}
 >
-  Updated 路 {formatDate(s.updated_at || s.created_at)}
+  Updated: {formatDate(s.updated_at || s.created_at)}
 </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
