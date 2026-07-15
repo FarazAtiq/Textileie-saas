@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Save, X } from 'lucide-react';
-import { createFabric, updateFabric } from '../../lib/db.js';
+import { createFabric, updateFabric, findFabricByCode } from '../../lib/db.js';
+import { validateFabricForm, duplicateMessage, normalizeCode } from '../../lib/validation.js';
 
 
 const blankFabric = () => ({
@@ -50,19 +51,21 @@ export default function FabricForm({ editing, onCancel, onSaved, toast }) {
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
   const save = async () => {
-    if (!form.fabric_code.trim()) return toast('Fabric code is required', 'error');
-    if (!form.fabric_name.trim()) return toast('Fabric name is required', 'error');
-    if ((Number(form.gsm) || 0) <= 0) return toast('GSM must be greater than 0', 'error');
-    if ((Number(form.cuttable_width) || 0) <= 0) return toast('Cuttable width must be greater than 0', 'error');
-    if ((Number(form.price) || 0) < 0) return toast('Price cannot be negative', 'error');
+    const errors = validateFabricForm(form);
+    if (errors.length) return toast(errors[0], 'error');
 
     setSaving(true);
     try {
+      const duplicate = await findFabricByCode(normalizeCode(form.fabric_code), editing?.id || null);
+      if (duplicate) {
+        toast(duplicateMessage({ entity: 'Fabric code', code: normalizeCode(form.fabric_code), existing: duplicate }), 'error');
+        return;
+      }
       if (editing?.id) {
-        await updateFabric(editing.id, form);
+        await updateFabric(editing.id, { ...form, fabric_code: normalizeCode(form.fabric_code) });
         toast('Fabric updated');
       } else {
-        await createFabric(form);
+        await createFabric({ ...form, fabric_code: normalizeCode(form.fabric_code) });
         toast('Fabric created');
       }
       await onSaved?.();
@@ -154,4 +157,4 @@ export default function FabricForm({ editing, onCancel, onSaved, toast }) {
       </div>
     </div>
   );
-              }
+          }
