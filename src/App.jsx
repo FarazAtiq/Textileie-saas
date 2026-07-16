@@ -11,6 +11,7 @@ import SettingsPage from './pages/SettingsPage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
 import ExportOrdersPage from './pages/ExportOrdersPage.jsx';
 import FabricRequirementsPage from './pages/FabricRequirementsPage.jsx';
+import ThreadRequirementsPage from './pages/ThreadRequirementsPage.jsx';
 import { EfficiencyPage, CapacityPage } from './pages/EffCapPages.jsx';
 import FabricPage from './pages/FabricPage.jsx';
 import CostingPage from './pages/CostingPage.jsx';
@@ -76,6 +77,7 @@ function AppRoutes() {
       <Route path="/costing" element={<ProtectedModule module="costing"><CostingPage /></ProtectedModule>} />
       <Route path="/export-orders" element={<ProtectedModule module="export_orders"><ExportOrdersPage /></ProtectedModule>} />
       <Route path="/fabric-requirements" element={<ProtectedModule module="fabric_requirements"><FabricRequirementsPage /></ProtectedModule>} />
+      <Route path="/thread-requirements" element={<ProtectedModule module="thread_requirements"><ThreadRequirementsPage /></ProtectedModule>} />
       <Route path="/export-order" element={<Navigate to="/export-orders" replace />} />
       <Route path="/exportorders" element={<Navigate to="/export-orders" replace />} />
       <Route path="/reports" element={<ProtectedModule module="reports"><ReportsPage /></ProtectedModule>} />
