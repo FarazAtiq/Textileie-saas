@@ -498,12 +498,44 @@ export async function getStyleCostModules({ style_id, color_id } = {}) {
   return data || [];
 }
 
-export async function getStyleCostSummary({ style_id, color_id }) {
-  const modules = await getStyleCostModules({ style_id, color_id });
+export async function getStyleCostSummary({ style_id, color_id } = {}) {
+  const userId = await getCurrentUserId();
+  if (!userId || !style_id) return {};
+
+  // Load all saved engineering modules for the style. This supports older
+  // records saved against a color as well as newer common style-level records.
+  const { data, error } = await supabase
+    .from("style_cost_modules")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("style_id", style_id)
+    .order("updated_at", { ascending: false });
+
+  if (error) {
+    console.error("getStyleCostSummary error:", error);
+    return {};
+  }
+
   const byType = {};
-  modules.forEach((m) => {
-    byType[m.module_type] = m;
+  const rows = data || [];
+
+  // Priority:
+  // 1. Requested color-specific record, when a color is supplied.
+  // 2. Common style-level record (color_id is null).
+  // 3. Latest record saved under any color, for backward compatibility.
+  const moduleTypes = [
+    ...new Set(rows.map((row) => row.module_type).filter(Boolean)),
+  ];
+
+  moduleTypes.forEach((moduleType) => {
+    const matches = rows.filter((row) => row.module_type === moduleType);
+    const requestedColor = color_id
+      ? matches.find((row) => String(row.color_id || "") === String(color_id))
+      : null;
+    const common = matches.find((row) => row.color_id == null);
+    byType[moduleType] = requestedColor || common || matches[0];
   });
+
   return byType;
 }
 // ════════════════════════════════════════════════════════════
@@ -1674,4 +1706,4 @@ export async function duplicateExportOrder(id) {
       })),
     })),
   });
-                                          }
+}
