@@ -4,7 +4,7 @@ import {
   Bell, Building2, ChevronDown, CircleHelp, Clock3, DollarSign,
   Factory, FileBarChart2, FolderKanban, Gauge, LayoutDashboard,
   Layers3, LogOut, Menu, PackageSearch, Scissors, Search, Settings,
-  ShieldCheck, Sparkles, TrendingUp, UserRound, X, ClipboardList
+  ShieldCheck, Sparkles, TrendingUp, UserRound, X, ClipboardList, ListChecks
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
@@ -36,6 +36,7 @@ const NAV_GROUPS = [
     label: 'Planning',
     items: [
       { to: '/export-orders', icon: ClipboardList, label: 'Export Orders', module: 'export_orders' },
+      { to: '/fabric-requirements', icon: ListChecks, label: 'Fabric Requirements', module: 'fabric_requirements' },
     ],
   },
   {
@@ -64,6 +65,7 @@ const PAGE_TITLES = {
   '/fabric': 'Fabric Engineering',
   '/costing': 'Garment Costing',
   '/export-orders': 'Export Orders',
+  '/fabric-requirements': 'Fabric Requirements',
   '/export-order': 'Export Orders',
   '/reports': 'Reports & Analytics',
   '/settings': 'Administration',
