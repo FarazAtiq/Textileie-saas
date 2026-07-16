@@ -470,9 +470,12 @@ export default function ExportOrdersPage() {
       return;
     }
 
+    // Engineering consumption is controlled at style level.
+    // All colors under the same PO reuse the approved SMV, Fabric BOM,
+    // and Thread Engineering unless a future color-specific override is added.
     const modules = await getStyleCostSummary({
       style_id: style.id,
-      color_id: selected.id,
+      color_id: null,
     });
     const readiness = readinessFromModules(modules);
 
@@ -976,7 +979,7 @@ export default function ExportOrdersPage() {
                         <Palette size={15} /> Colors & Size Breakdown
                       </h4>
                       <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                        Each color has its own size quantities.
+                        Each color has its own size quantities. Engineering consumption is inherited from the selected style.
                       </p>
                     </div>
                     <button
@@ -1384,4 +1387,4 @@ export default function ExportOrdersPage() {
       `}</style>
     </div>
   );
-}
+    }
