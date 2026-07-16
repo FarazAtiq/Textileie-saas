@@ -1056,6 +1056,7 @@ export const MODULE_KEYS = [
   "reports",
   "administration",
   "export_orders",
+  "fabric_requirements",
   "inventory",
 ];
 
@@ -1663,6 +1664,11 @@ export async function updateExportOrderStatus(id, status) {
     .single();
 
   if (error) throw error;
+
+  if (status === "Approved") {
+    await generateFabricRequirementsForExportOrder(id);
+  }
+
   return data;
 }
 
@@ -1706,4 +1712,374 @@ export async function duplicateExportOrder(id) {
       })),
     })),
   });
+}
+
+// ============================================================
+// AUTOMATIC FABRIC REQUIREMENT - PHASE 2A
+// ============================================================
+
+function getFabricConsumptionForSize(component, sizeId, sizeName) {
+  const sizeData = component?.sizeData || {};
+
+  let row = sizeId ? sizeData[sizeId] : null;
+
+  if (!row && sizeName) {
+    row = Object.values(sizeData).find(
+      (item) =>
+        String(item?.size_name || item?.sizeName || item?.label || "")
+          .trim()
+          .toLowerCase() === String(sizeName).trim().toLowerCase()
+    );
+  }
+
+  row = row || {};
+
+  const uom = String(
+    component?.uom || component?.priceUnit || "KG"
+  ).toUpperCase();
+
+  if (uom === "M" || uom === "METER" || uom === "METERS") {
+    return Number(row.meterConsumption || row.consumption || 0);
+  }
+
+  if (uom === "YD" || uom === "YARD" || uom === "YARDS") {
+    return Number(row.yardConsumption || row.consumption || 0);
+  }
+
+  return Number(row.kgConsumption || row.consumption || 0);
+}
+
+function fabricComponentKey(component, index) {
+  return String(
+    component?.fabric_id ||
+      component?.fabricCode ||
+      component?.fabric_code ||
+      component?.id ||
+      `${
+        component?.usageAt || component?.fabricDescription || "FABRIC"
+      }-${index}`
+  );
+}
+
+export async function generateFabricRequirementsForExportOrder(exportOrderId) {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error("Not logged in");
+
+  const order = await getExportOrder(exportOrderId);
+  if (!order) throw new Error("Export Order not found");
+
+  const { data: existing, error: existingError } = await supabase
+    .from("fabric_requirements")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("export_order_id", exportOrderId)
+    .maybeSingle();
+
+  if (existingError) throw existingError;
+
+  let requirementId = existing?.id || null;
+
+  if (!requirementId) {
+    const { data: created, error } = await supabase
+      .from("fabric_requirements")
+      .insert({
+        user_id: userId,
+        company_id: order.company_id || null,
+        export_order_id: exportOrderId,
+        requirement_number: `FR-${order.order_number}`,
+        order_number: order.order_number,
+        buyer: order.buyer || "",
+        factory_name: order.factory_name || "",
+        shipment_date: order.shipment_date || null,
+        status: "Generated",
+        total_lines: 0,
+        generated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    requirementId = created.id;
+  } else {
+    const { error } = await supabase
+      .from("fabric_requirements")
+      .update({
+        order_number: order.order_number,
+        buyer: order.buyer || "",
+        factory_name: order.factory_name || "",
+        shipment_date: order.shipment_date || null,
+        status: "Generated",
+        generated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", requirementId)
+      .eq("user_id", userId);
+
+    if (error) throw error;
+
+    const { error: deleteError } = await supabase
+      .from("fabric_requirement_lines")
+      .delete()
+      .eq("fabric_requirement_id", requirementId)
+      .eq("user_id", userId);
+
+    if (deleteError) throw deleteError;
+  }
+
+  const lines = [];
+
+  for (const po of order.export_order_pos || []) {
+    const moduleSummary = await getStyleCostSummary({
+      style_id: po.style_id,
+      color_id: null,
+    });
+
+    const fabricModule = moduleSummary?.fabric_bom;
+
+    if (!fabricModule) {
+      throw new Error(
+        `Fabric BOM is missing for Article ${
+          po.article_number || po.style_name || "-"
+        }`
+      );
+    }
+
+    const bomData = fabricModule.data || fabricModule.summary || {};
+    const components =
+      bomData.components ||
+      fabricModule.summary?.components ||
+      fabricModule.data?.components ||
+      [];
+
+    if (!components.length) {
+      throw new Error(
+        `Fabric BOM has no components for Article ${po.article_number || "-"}`
+      );
+    }
+
+    for (const color of po.export_order_po_colors || []) {
+      for (
+        let componentIndex = 0;
+        componentIndex < components.length;
+        componentIndex += 1
+      ) {
+        const component = components[componentIndex];
+        const sizeBreakdown = [];
+        let totalRequirement = 0;
+
+        for (const size of color.export_order_sizes || []) {
+          const consumptionPerGarment = getFabricConsumptionForSize(
+            component,
+            size.size_id,
+            size.size_name
+          );
+
+          if (Number(size.quantity || 0) > 0 && consumptionPerGarment <= 0) {
+            throw new Error(
+              `Fabric consumption is missing for Article ${
+                po.article_number
+              }, Size ${size.size_name}, Component ${
+                component.usageAt ||
+                component.fabricDescription ||
+                componentIndex + 1
+              }`
+            );
+          }
+
+          const requiredQuantity =
+            consumptionPerGarment * Number(size.quantity || 0);
+
+          totalRequirement += requiredQuantity;
+
+          sizeBreakdown.push({
+            size_id: size.size_id || null,
+            size_name: size.size_name,
+            po_quantity: Number(size.quantity || 0),
+            consumption_per_garment: consumptionPerGarment,
+            required_quantity: requiredQuantity,
+          });
+        }
+
+        lines.push({
+          user_id: userId,
+          company_id: order.company_id || null,
+          fabric_requirement_id: requirementId,
+          export_order_id: order.id,
+          export_order_po_id: po.id,
+          export_order_po_color_id: color.id,
+          po_number: po.po_number,
+          style_id: po.style_id,
+          article_number: po.article_number || "",
+          style_name: po.style_name || "",
+          color_id: color.color_id || null,
+          color_code: color.color_code || "",
+          color_name: color.color_name || "",
+          component_key: fabricComponentKey(component, componentIndex),
+          component_name:
+            component.usageAt ||
+            component.fabricCategory ||
+            `Fabric Component ${componentIndex + 1}`,
+          fabric_id: component.fabric_id || null,
+          fabric_code: component.fabricCode || component.fabric_code || "",
+          fabric_name:
+            component.fabricDescription ||
+            component.fabric_name ||
+            component.fabricType ||
+            "",
+          supplier: component.supplier || "",
+          composition: component.composition || "",
+          gsm: Number(component.gsm || 0),
+          width: Number(component.fabricWidth || component.width || 0),
+          width_unit: component.widthUnit || "inch",
+          uom: String(component.uom || "KG").toUpperCase(),
+          allowance_pct: Number(component.allowancePct || 0),
+          total_requirement: totalRequirement,
+          size_breakdown: sizeBreakdown,
+          required_date: order.shipment_date || order.delivery_date || null,
+          source_module_updated_at: fabricModule.updated_at || null,
+          status: "Generated",
+        });
+      }
+    }
+  }
+
+  if (lines.length) {
+    const { error: lineError } = await supabase
+      .from("fabric_requirement_lines")
+      .insert(lines);
+
+    if (lineError) throw lineError;
+  }
+
+  const { error: headerError } = await supabase
+    .from("fabric_requirements")
+    .update({
+      total_lines: lines.length,
+      generated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", requirementId)
+    .eq("user_id", userId);
+
+  if (headerError) throw headerError;
+
+  return getFabricRequirement(requirementId);
+}
+
+export async function getFabricRequirements({ search = "", status = "all", limit = 200, } = {}) {
+  const userId = await getCurrentUserId();
+  if (!userId) return [];
+
+  let query = supabase
+    .from("fabric_requirements")
+    .select(
+      `
+      *,
+      fabric_requirement_lines(*)
+    `
+    )
+    .eq("user_id", userId)
+    .order("generated_at", { ascending: false })
+    .limit(limit);
+
+  if (status && status !== "all") query = query.eq("status", status);
+
+  if (search) {
+    query = query.or(
+      `requirement_number.ilike.%${search}%,order_number.ilike.%${search}%,buyer.ilike.%${search}%`
+    );
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getFabricRequirement(id) {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error("Not logged in");
+
+  const { data, error } = await supabase
+    .from("fabric_requirements")
+    .select(
+      `
+      *,
+      fabric_requirement_lines(*)
+    `
+    )
+    .eq("user_id", userId)
+    .eq("id", id)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function getCombinedFabricRequirements() {
+  const userId = await getCurrentUserId();
+  if (!userId) return [];
+
+  const { data, error } = await supabase
+    .from("fabric_requirement_lines")
+    .select("*")
+    .eq("user_id", userId)
+    .in("status", ["Generated", "Reviewed", "Reserved"])
+    .order("required_date", { ascending: true });
+
+  if (error) throw error;
+
+  const grouped = new Map();
+
+  for (const line of data || []) {
+    const key = [
+      line.fabric_id || "",
+      line.fabric_code || "",
+      line.fabric_name || "",
+      line.color_code || line.color_name || "",
+      line.uom || "",
+    ]
+      .join("|")
+      .toLowerCase();
+
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        key,
+        fabric_id: line.fabric_id,
+        fabric_code: line.fabric_code,
+        fabric_name: line.fabric_name,
+        color_code: line.color_code,
+        color_name: line.color_name,
+        supplier: line.supplier,
+        uom: line.uom,
+        total_requirement: 0,
+        required_date: line.required_date,
+        po_details: [],
+      });
+    }
+
+    const group = grouped.get(key);
+    group.total_requirement += Number(line.total_requirement || 0);
+
+    if (
+      !group.required_date ||
+      (line.required_date && line.required_date < group.required_date)
+    ) {
+      group.required_date = line.required_date;
+    }
+
+    group.po_details.push({
+      export_order_id: line.export_order_id,
+      po_number: line.po_number,
+      article_number: line.article_number,
+      style_name: line.style_name,
+      color_code: line.color_code,
+      color_name: line.color_name,
+      component_name: line.component_name,
+      quantity: Number(line.total_requirement || 0),
+    });
+  }
+
+  return [...grouped.values()].sort((a, b) =>
+    String(a.required_date || "").localeCompare(String(b.required_date || ""))
+  );
 }
