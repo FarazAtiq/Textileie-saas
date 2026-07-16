@@ -319,6 +319,7 @@ export default function ThreadRequirementsPage() {
                             <th>Article</th>
                             <th>Order Color</th>
                             <th>Thread Code</th>
+                            <th>Thread Type</th>
                             <th>Thread</th>
                             <th>Thread Shade</th>
                             <th>PO Qty</th>
@@ -344,6 +345,19 @@ export default function ThreadRequirementsPage() {
                               </td>
                               <td>
                                 <strong>{line.thread_code}</strong>
+                              </td>
+                              <td>
+                                <span style={{
+                                  display: 'inline-flex',
+                                  padding: '3px 8px',
+                                  borderRadius: 20,
+                                  background: 'var(--teal-light)',
+                                  color: 'var(--teal)',
+                                  fontSize: 10,
+                                  fontWeight: 800,
+                                }}>
+                                  {line.thread_type || 'General'}
+                                </span>
                               </td>
                               <td>
                                 {line.thread_name || '-'}
@@ -401,6 +415,7 @@ export default function ThreadRequirementsPage() {
             <thead>
               <tr>
                 <th>Thread Code</th>
+                <th>Thread Type</th>
                 <th>Thread</th>
                 <th>Thread Shade</th>
                 <th>Supplier</th>
@@ -415,6 +430,19 @@ export default function ThreadRequirementsPage() {
               {combined.map(item => (
                 <tr key={item.key}>
                   <td><strong>{item.thread_code}</strong></td>
+                  <td>
+                    <span style={{
+                      display: 'inline-flex',
+                      padding: '3px 8px',
+                      borderRadius: 20,
+                      background: 'var(--teal-light)',
+                      color: 'var(--teal)',
+                      fontSize: 10,
+                      fontWeight: 800,
+                    }}>
+                      {item.thread_type || 'General'}
+                    </span>
+                  </td>
                   <td>
                     {item.thread_name || '-'}
                     <div style={{
@@ -466,7 +494,7 @@ export default function ThreadRequirementsPage() {
                               borderRadius: 7,
                             }}
                           >
-                            {detail.po_number} | Article {detail.article_number} | {detail.order_color_name} | {Number(detail.po_quantity || 0).toLocaleString()} pcs x {number(detail.consumption_per_garment, 3)} m = {number(detail.total_meters)} m
+                            {detail.po_number} | Article {detail.article_number} | {item.thread_type || 'General'} | {detail.order_color_name} | {Number(detail.po_quantity || 0).toLocaleString()} pcs x {number(detail.consumption_per_garment, 3)} m = {number(detail.total_meters)} m
                           </div>
                         ))}
                       </div>
