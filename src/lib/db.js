@@ -1,20 +1,16 @@
-import { supabase } from "./supabase.js";
+import { supabase } from './supabase.js';
 
 export async function signUp({ email, password, full_name, company_name }) {
   const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: { data: { full_name, company_name } },
+    email, password,
+    options: { data: { full_name, company_name } }
   });
   if (error) throw error;
   return data;
 }
 
 export async function signIn({ email, password }) {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw error;
   return data;
 }
@@ -26,12 +22,12 @@ export async function signOut() {
 
 export async function getProfile(userId) {
   const { data, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", userId)
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
     .single();
   if (error) {
-    console.error("getProfile error:", error);
+    console.error('getProfile error:', error);
     return null;
   }
   return data;
@@ -39,9 +35,9 @@ export async function getProfile(userId) {
 
 export async function updateProfile(userId, updates) {
   const { data, error } = await supabase
-    .from("profiles")
+    .from('profiles')
     .update(updates)
-    .eq("id", userId)
+    .eq('id', userId)
     .select()
     .single();
   if (error) throw error;
@@ -50,15 +46,15 @@ export async function updateProfile(userId, updates) {
 
 export async function getReports({ type, starred, limit = 50 } = {}) {
   let query = supabase
-    .from("reports")
-    .select("*")
-    .order("created_at", { ascending: false })
+    .from('reports')
+    .select('*')
+    .order('created_at', { ascending: false })
     .limit(limit);
-  if (type) query = query.eq("type", type);
-  if (starred) query = query.eq("is_starred", true);
+  if (type) query = query.eq('type', type);
+  if (starred) query = query.eq('is_starred', true);
   const { data, error } = await query;
   if (error) {
-    console.error("getReports error:", error);
+    console.error('getReports error:', error);
     return [];
   }
   return data || [];
@@ -67,80 +63,81 @@ export async function getReports({ type, starred, limit = 50 } = {}) {
 export async function getReportStats() {
   try {
     const { count: total } = await supabase
-      .from("reports")
-      .select("*", { count: "exact", head: true });
+      .from('reports')
+      .select('*', { count: 'exact', head: true });
 
-    const { data: allReports } = await supabase.from("reports").select("type");
+    const { data: allReports } = await supabase
+      .from('reports')
+      .select('type');
 
     const byType = {};
     if (allReports) {
-      allReports.forEach((r) => {
+      allReports.forEach(r => {
         byType[r.type] = (byType[r.type] || 0) + 1;
       });
     }
 
     const { data: recent } = await supabase
-      .from("reports")
-      .select("*")
-      .order("created_at", { ascending: false })
+      .from('reports')
+      .select('*')
+      .order('created_at', { ascending: false })
       .limit(5);
 
     return {
       total: total || 0,
       byType: byType || {},
-      recent: recent || [],
+      recent: recent || []
     };
   } catch (err) {
-    console.error("getReportStats error:", err);
+    console.error('getReportStats error:', err);
     return { total: 0, byType: {}, recent: [] };
   }
 }
 
-export async function createReport({ type, title, inputs, results, notes, tags, }) {
+export async function createReport({ type, title, inputs, results, notes, tags }) {
   try {
-    const { data: sessionData, error: sessionError } =
-      await supabase.auth.getSession();
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
     if (sessionError) {
-      throw new Error("Session error: " + sessionError.message);
+      throw new Error('Session error: ' + sessionError.message);
     }
 
     if (!sessionData.session) {
-      throw new Error("Not logged in");
+      throw new Error('Not logged in');
     }
 
     const userId = sessionData.session.user.id;
 
     const { data, error } = await supabase
-      .from("reports")
+      .from('reports')
       .insert({
         user_id: userId,
         type: type,
         title: title,
         inputs: inputs,
         results: results,
-        notes: notes || "",
-        tags: tags || [],
+        notes: notes || '',
+        tags: tags || []
       })
       .select()
       .single();
 
     if (error) {
-      throw new Error(error.message || "Failed to insert report");
+      throw new Error(error.message || 'Failed to insert report');
     }
 
     return data;
   } catch (err) {
-    console.error("createReport failed:", err);
+    console.error('createReport failed:', err);
     throw err;
   }
 }
 
 export async function updateReport(id, updates) {
   const { data, error } = await supabase
-    .from("reports")
+    .from('reports')
     .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq("id", id)
+    .eq('id', id)
     .select()
     .single();
   if (error) throw error;
@@ -148,7 +145,10 @@ export async function updateReport(id, updates) {
 }
 
 export async function deleteReport(id) {
-  const { error } = await supabase.from("reports").delete().eq("id", id);
+  const { error } = await supabase
+    .from('reports')
+    .delete()
+    .eq('id', id);
   if (error) throw error;
 }
 
@@ -158,29 +158,29 @@ export async function toggleStar(id, current) {
 
 export async function getSMVTemplates() {
   const { data, error } = await supabase
-    .from("smv_templates")
-    .select("*")
-    .order("created_at", { ascending: false });
+    .from('smv_templates')
+    .select('*')
+    .order('created_at', { ascending: false });
   if (error) {
-    console.error("getSMVTemplates error:", error);
+    console.error('getSMVTemplates error:', error);
     return [];
   }
   return data || [];
 }
 
-export async function createSMVTemplate({ name, garment_type, article_number, operations, total_smv, }) {
+export async function createSMVTemplate({ name, garment_type, article_number, operations, total_smv }) {
   const { data: sessionData } = await supabase.auth.getSession();
-  if (!sessionData.session) throw new Error("Not logged in");
+  if (!sessionData.session) throw new Error('Not logged in');
 
   const { data, error } = await supabase
-    .from("smv_templates")
+    .from('smv_templates')
     .insert({
       user_id: sessionData.session.user.id,
       name: name,
-      garment_type: garment_type || "",
-      article_number: article_number || "",
+      garment_type: garment_type || '',
+      article_number: article_number || '',
       operations: operations,
-      total_smv: total_smv,
+      total_smv: total_smv
     })
     .select()
     .single();
@@ -190,7 +190,10 @@ export async function createSMVTemplate({ name, garment_type, article_number, op
 }
 
 export async function deleteSMVTemplate(id) {
-  const { error } = await supabase.from("smv_templates").delete().eq("id", id);
+  const { error } = await supabase
+    .from('smv_templates')
+    .delete()
+    .eq('id', id);
   if (error) throw error;
 }
 
@@ -199,12 +202,12 @@ export async function getSMVDropdown() {
   if (!sessionData.session) return [];
 
   const { data, error } = await supabase
-    .from("smv_templates")
-    .select("id, name, garment_type, article_number, total_smv")
-    .order("article_number", { ascending: true });
+    .from('smv_templates')
+    .select('id, name, garment_type, article_number, total_smv')
+    .order('article_number', { ascending: true });
 
   if (error) {
-    console.error("getSMVDropdown error:", error);
+    console.error('getSMVDropdown error:', error);
     return [];
   }
   return data || [];
@@ -219,18 +222,18 @@ async function getCurrentUserId() {
   return data?.session?.user?.id || null;
 }
 
-export async function getStyles({ search = "", status, limit = 100 } = {}) {
+export async function getStyles({ search = '', status, limit = 100 } = {}) {
   const userId = await getCurrentUserId();
   if (!userId) return [];
 
   let query = supabase
-    .from("styles")
-    .select("*, style_colors(*), style_sizes(*), style_cost_modules(*)")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
+    .from('styles')
+    .select('*, style_colors(*), style_sizes(*), style_cost_modules(*)')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
     .limit(limit);
 
-  if (status && status !== "all") query = query.eq("status", status);
+  if (status && status !== 'all') query = query.eq('status', status);
   if (search) {
     query = query.or(
       `article_number.ilike.%${search}%,buyer.ilike.%${search}%,style_name.ilike.%${search}%`
@@ -239,7 +242,7 @@ export async function getStyles({ search = "", status, limit = 100 } = {}) {
 
   const { data, error } = await query;
   if (error) {
-    console.error("getStyles error:", error);
+    console.error('getStyles error:', error);
     return [];
   }
   return data || [];
@@ -247,13 +250,13 @@ export async function getStyles({ search = "", status, limit = 100 } = {}) {
 
 export async function getStyle(id) {
   const userId = await getCurrentUserId();
-  if (!userId) throw new Error("Not logged in");
+  if (!userId) throw new Error('Not logged in');
 
   const { data, error } = await supabase
-    .from("styles")
-    .select("*, style_colors(*), style_sizes(*)")
-    .eq("user_id", userId)
-    .eq("id", id)
+    .from('styles')
+    .select('*, style_colors(*), style_sizes(*)')
+    .eq('user_id', userId)
+    .eq('id', id)
     .single();
 
   if (error) throw error;
@@ -262,72 +265,72 @@ export async function getStyle(id) {
 
 export async function createStyle(payload) {
   const userId = await getCurrentUserId();
-  if (!userId) throw new Error("Not logged in");
+  if (!userId) throw new Error('Not logged in');
 
   const { data: style, error: styleError } = await supabase
-    .from("styles")
+    .from('styles')
     .insert({
       user_id: userId,
-      article_number: payload.article_number || "",
-      style_name: payload.style_name || "",
-      buyer: payload.buyer || "",
-      brand: payload.brand || "",
-      season: payload.season || "",
-      garment_type: payload.garment_type || "",
-      product_category: payload.product_category || "",
-      base_size: payload.base_size || "L",
-      costing_mode: payload.costing_mode || "base_size",
-      costing_method: payload.costing_method || "FOB",
-      description: payload.description || "",
-      notes: payload.notes || "",
-      status: payload.status || "development",
+      article_number: payload.article_number || '',
+      style_name: payload.style_name || '',
+      buyer: payload.buyer || '',
+      brand: payload.brand || '',
+      season: payload.season || '',
+      garment_type: payload.garment_type || '',
+      product_category: payload.product_category || '',
+      base_size: payload.base_size || 'L',
+      costing_mode: payload.costing_mode || 'base_size',
+      costing_method: payload.costing_method || 'FOB',
+      description: payload.description || '',
+      notes: payload.notes || '',
+      status: payload.status || 'development'
     })
     .select()
     .single();
 
   if (styleError) {
-    console.error("createStyle style error:", styleError);
+    console.error('createStyle style error:', styleError);
     throw styleError;
   }
 
   const colors = (payload.colors || [])
-    .filter((c) => c.color_name && c.color_name.trim())
-    .map((c) => ({
-      user_id: userId,
-      style_id: style.id,
-      color_name: c.color_name || "",
-      color_code: c.color_code || "",
-      order_qty: Number(c.order_qty || 0),
-      buyer_color_code: c.buyer_color_code || "",
-      pantone: c.pantone || "",
-      status: c.status || "Active",
-    }));
+    .filter(c => c.color_name && c.color_name.trim())
+    .map(c => ({
+  user_id: userId,
+  style_id: style.id,
+  color_name: c.color_name || '',
+  color_code: c.color_code || '',
+  order_qty: Number(c.order_qty || 0),
+  buyer_color_code: c.buyer_color_code || '',
+  pantone: c.pantone || '',
+  status: c.status || 'Active'
+}));
 
   if (colors.length) {
-    const { error } = await supabase.from("style_colors").insert(colors);
+    const { error } = await supabase.from('style_colors').insert(colors);
     if (error) {
-      console.error("createStyle colors error:", error);
+      console.error('createStyle colors error:', error);
       throw error;
     }
   }
 
   const sizes = (payload.sizes || [])
-    .filter((s) => s.size_name && s.size_name.trim())
-    .map((s, index) => ({
-      user_id: userId,
-      style_id: style.id,
-      size_name: s.size_name || "",
-      ratio: Number(s.ratio || 1),
-      scale_pct: Number(s.scale_pct || 0),
-      grading: Number(s.grading ?? s.scale_pct ?? 0),
-      status: s.status || "Active",
-      sort_order: index + 1,
-    }));
+    .filter(s => s.size_name && s.size_name.trim())
+   .map((s, index) => ({
+  user_id: userId,
+  style_id: style.id,
+  size_name: s.size_name || '',
+  ratio: Number(s.ratio || 1),
+  scale_pct: Number(s.scale_pct || 0),
+  grading: Number(s.grading ?? s.scale_pct ?? 0),
+  status: s.status || 'Active',
+  sort_order: index + 1
+}));
 
   if (sizes.length) {
-    const { error } = await supabase.from("style_sizes").insert(sizes);
+    const { error } = await supabase.from('style_sizes').insert(sizes);
     if (error) {
-      console.error("createStyle sizes error:", error);
+      console.error('createStyle sizes error:', error);
       throw error;
     }
   }
@@ -337,92 +340,92 @@ export async function createStyle(payload) {
 
 export async function updateStyle(id, payload) {
   const userId = await getCurrentUserId();
-  if (!userId) throw new Error("Not logged in");
+  if (!userId) throw new Error('Not logged in');
 
   const { data: style, error: styleError } = await supabase
-    .from("styles")
+    .from('styles')
     .update({
-      article_number: payload.article_number || "",
-      style_name: payload.style_name || "",
-      buyer: payload.buyer || "",
-      brand: payload.brand || "",
-      season: payload.season || "",
-      garment_type: payload.garment_type || "",
-      product_category: payload.product_category || "",
-      base_size: payload.base_size || "L",
-      costing_mode: payload.costing_mode || "base_size",
-      costing_method: payload.costing_method || "FOB",
-      description: payload.description || "",
-      status: payload.status || "development",
-      notes: payload.notes || "",
-      updated_at: new Date().toISOString(),
+      article_number: payload.article_number || '',
+      style_name: payload.style_name || '',
+      buyer: payload.buyer || '',
+      brand: payload.brand || '',
+      season: payload.season || '',
+      garment_type: payload.garment_type || '',
+      product_category: payload.product_category || '',
+      base_size: payload.base_size || 'L',
+      costing_mode: payload.costing_mode || 'base_size',
+      costing_method: payload.costing_method || 'FOB',
+      description: payload.description || '',
+      status: payload.status || 'development',
+      notes: payload.notes || '',
+      updated_at: new Date().toISOString()
     })
-    .eq("id", id)
-    .eq("user_id", userId)
+    .eq('id', id)
+    .eq('user_id', userId)
     .select()
     .single();
 
   if (styleError) {
-    console.error("updateStyle style error:", styleError);
+    console.error('updateStyle style error:', styleError);
     throw styleError;
   }
 
   const { error: deleteColorsError } = await supabase
-    .from("style_colors")
+    .from('style_colors')
     .delete()
-    .eq("style_id", id);
+    .eq('style_id', id);
 
   if (deleteColorsError) {
-    console.error("updateStyle delete colors error:", deleteColorsError);
+    console.error('updateStyle delete colors error:', deleteColorsError);
     throw deleteColorsError;
   }
 
   const { error: deleteSizesError } = await supabase
-    .from("style_sizes")
+    .from('style_sizes')
     .delete()
-    .eq("style_id", id);
+    .eq('style_id', id);
 
   if (deleteSizesError) {
-    console.error("updateStyle delete sizes error:", deleteSizesError);
+    console.error('updateStyle delete sizes error:', deleteSizesError);
     throw deleteSizesError;
   }
 
   const colors = (payload.colors || [])
-    .filter((c) => c.color_name && c.color_name.trim())
-    .map((c) => ({
+    .filter(c => c.color_name && c.color_name.trim())
+    .map(c => ({
       style_id: id,
-      color_name: c.color_name || "",
-      color_code: c.color_code || "",
+      color_name: c.color_name || '',
+      color_code: c.color_code || '',
       order_qty: Number(c.order_qty || 0),
-      buyer_color_code: c.buyer_color_code || "",
-      pantone: c.pantone || "",
-      status: c.status || "Active",
+      buyer_color_code: c.buyer_color_code || '',
+      pantone: c.pantone || '',
+      status: c.status || 'Active'
     }));
 
   if (colors.length) {
-    const { error } = await supabase.from("style_colors").insert(colors);
+    const { error } = await supabase.from('style_colors').insert(colors);
     if (error) {
-      console.error("updateStyle colors error:", error);
+      console.error('updateStyle colors error:', error);
       throw error;
     }
   }
 
   const sizes = (payload.sizes || [])
-    .filter((s) => s.size_name && s.size_name.trim())
+    .filter(s => s.size_name && s.size_name.trim())
     .map((s, index) => ({
       style_id: id,
-      size_name: s.size_name || "",
+      size_name: s.size_name || '',
       ratio: Number(s.ratio || 1),
       scale_pct: Number(s.scale_pct || 0),
       grading: Number(s.grading ?? s.scale_pct ?? 0),
-      status: s.status || "Active",
-      sort_order: index + 1,
+      status: s.status || 'Active',
+      sort_order: index + 1
     }));
 
   if (sizes.length) {
-    const { error } = await supabase.from("style_sizes").insert(sizes);
+    const { error } = await supabase.from('style_sizes').insert(sizes);
     if (error) {
-      console.error("updateStyle sizes error:", error);
+      console.error('updateStyle sizes error:', error);
       throw error;
     }
   }
@@ -432,13 +435,13 @@ export async function updateStyle(id, payload) {
 
 export async function deleteStyle(id) {
   const userId = await getCurrentUserId();
-  if (!userId) throw new Error("Not logged in");
+  if (!userId) throw new Error('Not logged in');
 
   const { error } = await supabase
-    .from("styles")
+    .from('styles')
     .delete()
-    .eq("id", id)
-    .eq("user_id", userId);
+    .eq('id', id)
+    .eq('user_id', userId);
 
   if (error) throw error;
 }
@@ -446,20 +449,18 @@ export async function deleteStyle(id) {
 export async function getStyleDropdown() {
   const userId = await getCurrentUserId();
   const { data, error } = await supabase
-    .from("styles")
-    .select(
-      "id, article_number, style_name, buyer, garment_type, base_size, costing_mode, style_colors(id, color_name, order_qty), style_sizes(id, size_name, ratio, scale_pct)"
-    )
-    .eq("user_id", userId)
-    .order("article_number", { ascending: true });
+    .from('styles')
+    .select('id, article_number, style_name, buyer, garment_type, base_size, costing_mode, style_colors(id, color_name, order_qty), style_sizes(id, size_name, ratio, scale_pct)')
+    .eq('user_id', userId)
+    .order('article_number', { ascending: true });
   if (error) {
-    console.error("getStyleDropdown error:", error);
+    console.error('getStyleDropdown error:', error);
     return [];
   }
-  return data || [];
+    return data || [];
 }
 
-export async function upsertStyleCostModule({ style_id, color_id, module_type, data, summary, }) {
+export async function upsertStyleCostModule({ style_id, color_id, module_type, data, summary }) {
   const userId = await getCurrentUserId();
   const payload = {
     user_id: userId,
@@ -468,12 +469,12 @@ export async function upsertStyleCostModule({ style_id, color_id, module_type, d
     module_type,
     data: data || {},
     summary: summary || {},
-    updated_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
   };
 
   const { data: saved, error } = await supabase
-    .from("style_cost_modules")
-    .upsert(payload, { onConflict: "user_id,style_id,color_id,module_type" })
+    .from('style_cost_modules')
+    .upsert(payload, { onConflict: 'user_id,style_id,color_id,module_type' })
     .select()
     .single();
   if (error) throw error;
@@ -483,16 +484,16 @@ export async function upsertStyleCostModule({ style_id, color_id, module_type, d
 export async function getStyleCostModules({ style_id, color_id } = {}) {
   const userId = await getCurrentUserId();
   let query = supabase
-    .from("style_cost_modules")
-    .select("*")
-    .eq("user_id", userId)
-    .order("updated_at", { ascending: false });
-  if (style_id) query = query.eq("style_id", style_id);
-  if (color_id === null) query = query.is("color_id", null);
-  if (color_id) query = query.eq("color_id", color_id);
+    .from('style_cost_modules')
+    .select('*')
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false });
+  if (style_id) query = query.eq('style_id', style_id);
+  if (color_id === null) query = query.is('color_id', null);
+  if (color_id) query = query.eq('color_id', color_id);
   const { data, error } = await query;
   if (error) {
-    console.error("getStyleCostModules error:", error);
+    console.error('getStyleCostModules error:', error);
     return [];
   }
   return data || [];
@@ -505,14 +506,14 @@ export async function getStyleCostSummary({ style_id, color_id } = {}) {
   // Load all saved engineering modules for the style. This supports older
   // records saved against a color as well as newer common style-level records.
   const { data, error } = await supabase
-    .from("style_cost_modules")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("style_id", style_id)
-    .order("updated_at", { ascending: false });
+    .from('style_cost_modules')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('style_id', style_id)
+    .order('updated_at', { ascending: false });
 
   if (error) {
-    console.error("getStyleCostSummary error:", error);
+    console.error('getStyleCostSummary error:', error);
     return {};
   }
 
@@ -523,16 +524,14 @@ export async function getStyleCostSummary({ style_id, color_id } = {}) {
   // 1. Requested color-specific record, when a color is supplied.
   // 2. Common style-level record (color_id is null).
   // 3. Latest record saved under any color, for backward compatibility.
-  const moduleTypes = [
-    ...new Set(rows.map((row) => row.module_type).filter(Boolean)),
-  ];
+  const moduleTypes = [...new Set(rows.map(row => row.module_type).filter(Boolean))];
 
-  moduleTypes.forEach((moduleType) => {
-    const matches = rows.filter((row) => row.module_type === moduleType);
+  moduleTypes.forEach(moduleType => {
+    const matches = rows.filter(row => row.module_type === moduleType);
     const requestedColor = color_id
-      ? matches.find((row) => String(row.color_id || "") === String(color_id))
+      ? matches.find(row => String(row.color_id || '') === String(color_id))
       : null;
-    const common = matches.find((row) => row.color_id == null);
+    const common = matches.find(row => row.color_id == null);
     byType[moduleType] = requestedColor || common || matches[0];
   });
 
@@ -542,18 +541,18 @@ export async function getStyleCostSummary({ style_id, color_id } = {}) {
 // FABRIC MASTER
 // ════════════════════════════════════════════════════════════
 
-export async function getFabrics({ search = "", status = "all", limit = 100, } = {}) {
+export async function getFabrics({ search = '', status = 'all', limit = 100 } = {}) {
   const userId = await getCurrentUserId();
   if (!userId) return [];
 
   let query = supabase
-    .from("fabric_master")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
+    .from('fabric_master')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
     .limit(limit);
 
-  if (status && status !== "all") query = query.eq("status", status);
+  if (status && status !== 'all') query = query.eq('status', status);
 
   if (search) {
     query = query.or(
@@ -564,7 +563,7 @@ export async function getFabrics({ search = "", status = "all", limit = 100, } =
   const { data, error } = await query;
 
   if (error) {
-    console.error("getFabrics error:", error);
+    console.error('getFabrics error:', error);
     return [];
   }
 
@@ -573,51 +572,50 @@ export async function getFabrics({ search = "", status = "all", limit = 100, } =
 
 export async function createFabric(payload) {
   const userId = await getCurrentUserId();
-  if (!userId) throw new Error("Not logged in");
+  if (!userId) throw new Error('Not logged in');
 
   const { data, error } = await supabase
-    .from("fabric_master")
+    .from('fabric_master')
     .insert({
       user_id: userId,
-      fabric_code: payload.fabric_code || "",
-      fabric_name: payload.fabric_name || "",
-      description: payload.description || "",
-      composition: payload.composition || "",
+      fabric_code: payload.fabric_code || '',
+      fabric_name: payload.fabric_name || '',
+      description: payload.description || '',
+      composition: payload.composition || '',
       gsm: Number(payload.gsm || 0),
       finished_width: Number(payload.finished_width || 0),
       cuttable_width: Number(payload.cuttable_width || 0),
-      width_unit: payload.width_unit || "inch",
-      supplier: payload.supplier || "",
-      price_unit: payload.price_unit || "KG",
+      width_unit: payload.width_unit || 'inch',
+      supplier: payload.supplier || '',
+      price_unit: payload.price_unit || 'KG',
       price: Number(payload.price || 0),
-      currency: payload.currency || "USD",
+      currency: payload.currency || 'USD',
       lead_time_days: Number(payload.lead_time_days || 0),
       moq: Number(payload.moq || 0),
-      storage_location: payload.storage_location || "",
-      status: payload.status || "Active",
-      notes: payload.notes || "",
-      fabric_type: payload.fabric_type || "",
-      fabric_category: payload.fabric_category || "",
-      supplier_fabric_code: payload.supplier_fabric_code || "",
-      fabric_form: payload.fabric_form || "Open Width",
-      color_type: payload.color_type || "Solid",
+      storage_location: payload.storage_location || '',
+      status: payload.status || 'Active',
+      notes: payload.notes || '',
+      fabric_type: payload.fabric_type || '',
+      fabric_category: payload.fabric_category || '',
+      supplier_fabric_code: payload.supplier_fabric_code || '',
+      fabric_form: payload.fabric_form || 'Open Width',
+      color_type: payload.color_type || 'Solid',
       shrinkage_length_pct: Number(payload.shrinkage_length_pct || 0),
       shrinkage_width_pct: Number(payload.shrinkage_width_pct || 0),
-      image_url: payload.image_url || "",
-      fabric_type: payload.fabric_type || "",
-      fabric_category: payload.fabric_category || "",
-      supplier_fabric_code: payload.supplier_fabric_code || "",
-      fabric_form: payload.fabric_form || "Open Width",
-      color_type: payload.color_type || "Solid",
+      image_url: payload.image_url || '',fabric_type: payload.fabric_type || '',
+      fabric_category: payload.fabric_category || '',
+      supplier_fabric_code: payload.supplier_fabric_code || '',
+      fabric_form: payload.fabric_form || 'Open Width',
+      color_type: payload.color_type || 'Solid',
       shrinkage_length_pct: Number(payload.shrinkage_length_pct || 0),
       shrinkage_width_pct: Number(payload.shrinkage_width_pct || 0),
-      image_url: payload.image_url || "",
+      image_url: payload.image_url || ''
     })
     .select()
     .single();
 
   if (error) {
-    console.error("createFabric error:", error);
+    console.error('createFabric error:', error);
     throw error;
   }
 
@@ -626,45 +624,45 @@ export async function createFabric(payload) {
 
 export async function updateFabric(id, payload) {
   const userId = await getCurrentUserId();
-  if (!userId) throw new Error("Not logged in");
+  if (!userId) throw new Error('Not logged in');
 
   const { data, error } = await supabase
-    .from("fabric_master")
+    .from('fabric_master')
     .update({
-      fabric_code: payload.fabric_code || "",
-      fabric_name: payload.fabric_name || "",
-      description: payload.description || "",
-      composition: payload.composition || "",
+      fabric_code: payload.fabric_code || '',
+      fabric_name: payload.fabric_name || '',
+      description: payload.description || '',
+      composition: payload.composition || '',
       gsm: Number(payload.gsm || 0),
       finished_width: Number(payload.finished_width || 0),
       cuttable_width: Number(payload.cuttable_width || 0),
-      width_unit: payload.width_unit || "inch",
-      supplier: payload.supplier || "",
-      price_unit: payload.price_unit || "KG",
+      width_unit: payload.width_unit || 'inch',
+      supplier: payload.supplier || '',
+      price_unit: payload.price_unit || 'KG',
       price: Number(payload.price || 0),
-      currency: payload.currency || "USD",
+      currency: payload.currency || 'USD',
       lead_time_days: Number(payload.lead_time_days || 0),
       moq: Number(payload.moq || 0),
-      storage_location: payload.storage_location || "",
-      status: payload.status || "Active",
-      notes: payload.notes || "",
-      fabric_type: payload.fabric_type || "",
-      fabric_category: payload.fabric_category || "",
-      supplier_fabric_code: payload.supplier_fabric_code || "",
-      fabric_form: payload.fabric_form || "Open Width",
-      color_type: payload.color_type || "Solid",
+      storage_location: payload.storage_location || '',
+      status: payload.status || 'Active',
+      notes: payload.notes || '',
+      fabric_type: payload.fabric_type || '',
+      fabric_category: payload.fabric_category || '',
+      supplier_fabric_code: payload.supplier_fabric_code || '',
+      fabric_form: payload.fabric_form || 'Open Width',
+      color_type: payload.color_type || 'Solid',
       shrinkage_length_pct: Number(payload.shrinkage_length_pct || 0),
       shrinkage_width_pct: Number(payload.shrinkage_width_pct || 0),
-      image_url: payload.image_url || "",
-      updated_at: new Date().toISOString(),
+      image_url: payload.image_url || '',
+      updated_at: new Date().toISOString()
     })
-    .eq("id", id)
-    .eq("user_id", userId)
+    .eq('id', id)
+    .eq('user_id', userId)
     .select()
     .single();
 
   if (error) {
-    console.error("updateFabric error:", error);
+    console.error('updateFabric error:', error);
     throw error;
   }
 
@@ -673,16 +671,16 @@ export async function updateFabric(id, payload) {
 
 export async function deleteFabric(id) {
   const userId = await getCurrentUserId();
-  if (!userId) throw new Error("Not logged in");
+  if (!userId) throw new Error('Not logged in');
 
   const { error } = await supabase
-    .from("fabric_master")
+    .from('fabric_master')
     .delete()
-    .eq("id", id)
-    .eq("user_id", userId);
+    .eq('id', id)
+    .eq('user_id', userId);
 
   if (error) {
-    console.error("deleteFabric error:", error);
+    console.error('deleteFabric error:', error);
     throw error;
   }
 }
@@ -690,19 +688,19 @@ export async function deleteFabric(id) {
 // SUPPLIER MASTER
 // ════════════════════════════════════════════════════════════
 
-export async function getSuppliers({ search = "", status = "all", type = "all", limit = 100, } = {}) {
+export async function getSuppliers({ search = '', status = 'all', type = 'all', limit = 100 } = {}) {
   const userId = await getCurrentUserId();
   if (!userId) return [];
 
   let query = supabase
-    .from("supplier_master")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
+    .from('supplier_master')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
     .limit(limit);
 
-  if (status !== "all") query = query.eq("status", status);
-  if (type !== "all") query = query.eq("supplier_type", type);
+  if (status !== 'all') query = query.eq('status', status);
+  if (type !== 'all') query = query.eq('supplier_type', type);
 
   if (search) {
     query = query.or(
@@ -712,7 +710,7 @@ export async function getSuppliers({ search = "", status = "all", type = "all", 
 
   const { data, error } = await query;
   if (error) {
-    console.error("getSuppliers error:", error);
+    console.error('getSuppliers error:', error);
     return [];
   }
 
@@ -721,31 +719,31 @@ export async function getSuppliers({ search = "", status = "all", type = "all", 
 
 export async function createSupplier(payload) {
   const userId = await getCurrentUserId();
-  if (!userId) throw new Error("Not logged in");
+  if (!userId) throw new Error('Not logged in');
 
   const { data, error } = await supabase
-    .from("supplier_master")
+    .from('supplier_master')
     .insert({
       user_id: userId,
-      supplier_code: payload.supplier_code || "",
-      supplier_name: payload.supplier_name || "",
-      supplier_type: payload.supplier_type || "Fabric",
-      contact_person: payload.contact_person || "",
-      phone: payload.phone || "",
-      email: payload.email || "",
-      address: payload.address || "",
-      city: payload.city || "",
-      country: payload.country || "",
-      payment_terms: payload.payment_terms || "",
+      supplier_code: payload.supplier_code || '',
+      supplier_name: payload.supplier_name || '',
+      supplier_type: payload.supplier_type || 'Fabric',
+      contact_person: payload.contact_person || '',
+      phone: payload.phone || '',
+      email: payload.email || '',
+      address: payload.address || '',
+      city: payload.city || '',
+      country: payload.country || '',
+      payment_terms: payload.payment_terms || '',
       lead_time_days: Number(payload.lead_time_days || 0),
-      status: payload.status || "Active",
-      notes: payload.notes || "",
+      status: payload.status || 'Active',
+      notes: payload.notes || ''
     })
     .select()
     .single();
 
   if (error) {
-    console.error("createSupplier error:", error);
+    console.error('createSupplier error:', error);
     throw error;
   }
 
@@ -754,33 +752,33 @@ export async function createSupplier(payload) {
 
 export async function updateSupplier(id, payload) {
   const userId = await getCurrentUserId();
-  if (!userId) throw new Error("Not logged in");
+  if (!userId) throw new Error('Not logged in');
 
   const { data, error } = await supabase
-    .from("supplier_master")
+    .from('supplier_master')
     .update({
-      supplier_code: payload.supplier_code || "",
-      supplier_name: payload.supplier_name || "",
-      supplier_type: payload.supplier_type || "Fabric",
-      contact_person: payload.contact_person || "",
-      phone: payload.phone || "",
-      email: payload.email || "",
-      address: payload.address || "",
-      city: payload.city || "",
-      country: payload.country || "",
-      payment_terms: payload.payment_terms || "",
+      supplier_code: payload.supplier_code || '',
+      supplier_name: payload.supplier_name || '',
+      supplier_type: payload.supplier_type || 'Fabric',
+      contact_person: payload.contact_person || '',
+      phone: payload.phone || '',
+      email: payload.email || '',
+      address: payload.address || '',
+      city: payload.city || '',
+      country: payload.country || '',
+      payment_terms: payload.payment_terms || '',
       lead_time_days: Number(payload.lead_time_days || 0),
-      status: payload.status || "Active",
-      notes: payload.notes || "",
-      updated_at: new Date().toISOString(),
+      status: payload.status || 'Active',
+      notes: payload.notes || '',
+      updated_at: new Date().toISOString()
     })
-    .eq("id", id)
-    .eq("user_id", userId)
+    .eq('id', id)
+    .eq('user_id', userId)
     .select()
     .single();
 
   if (error) {
-    console.error("updateSupplier error:", error);
+    console.error('updateSupplier error:', error);
     throw error;
   }
 
@@ -789,16 +787,16 @@ export async function updateSupplier(id, payload) {
 
 export async function deleteSupplier(id) {
   const userId = await getCurrentUserId();
-  if (!userId) throw new Error("Not logged in");
+  if (!userId) throw new Error('Not logged in');
 
   const { error } = await supabase
-    .from("supplier_master")
+    .from('supplier_master')
     .delete()
-    .eq("id", id)
-    .eq("user_id", userId);
+    .eq('id', id)
+    .eq('user_id', userId);
 
   if (error) {
-    console.error("deleteSupplier error:", error);
+    console.error('deleteSupplier error:', error);
     throw error;
   }
 }
@@ -806,14 +804,14 @@ export async function deleteSupplier(id) {
 // THREAD MASTER
 // ════════════════════════════════════════════════════════════
 
-export async function getThreads({ search = "", status = "all", limit = 100, } = {}) {
+export async function getThreads({ search = '', status = 'all', limit = 100 } = {}) {
   let query = supabase
-    .from("thread_master")
-    .select("*")
-    .order("created_at", { ascending: false })
+    .from('thread_master')
+    .select('*')
+    .order('created_at', { ascending: false })
     .limit(limit);
 
-  if (status !== "all") query = query.eq("status", status);
+  if (status !== 'all') query = query.eq('status', status);
 
   if (search) {
     query = query.or(
@@ -823,7 +821,7 @@ export async function getThreads({ search = "", status = "all", limit = 100, } =
 
   const { data, error } = await query;
   if (error) {
-    console.error("getThreads error:", error);
+    console.error('getThreads error:', error);
     return [];
   }
 
@@ -832,30 +830,30 @@ export async function getThreads({ search = "", status = "all", limit = 100, } =
 
 export async function createThread(payload) {
   const { data, error } = await supabase
-    .from("thread_master")
+    .from('thread_master')
     .insert({
-      thread_code: payload.thread_code || "",
-      thread_name: payload.thread_name || "",
-      material: payload.material || "",
-      thread_use: payload.thread_use || "",
-      ticket_no: payload.ticket_no || "",
-      tex: payload.tex || "",
-      denier: payload.denier || "",
-      supplier: payload.supplier || "",
+      thread_code: payload.thread_code || '',
+      thread_name: payload.thread_name || '',
+      material: payload.material || '',
+      thread_use: payload.thread_use || '',
+      ticket_no: payload.ticket_no || '',
+      tex: payload.tex || '',
+      denier: payload.denier || '',
+      supplier: payload.supplier || '',
       price: Number(payload.price || 0),
-      price_unit: payload.price_unit || "Meter",
-      currency: payload.currency || "USD",
+      price_unit: payload.price_unit || 'Meter',
+      currency: payload.currency || 'USD',
       cone_length: Number(payload.cone_length || 0),
       cone_weight: Number(payload.cone_weight || 0),
-      color: payload.color || "",
-      status: payload.status || "Active",
-      notes: payload.notes || "",
+      color: payload.color || '',
+      status: payload.status || 'Active',
+      notes: payload.notes || '',
     })
     .select()
     .single();
 
   if (error) {
-    console.error("createThread error:", error);
+    console.error('createThread error:', error);
     throw error;
   }
 
@@ -864,31 +862,31 @@ export async function createThread(payload) {
 
 export async function updateThread(id, payload) {
   const { data, error } = await supabase
-    .from("thread_master")
+    .from('thread_master')
     .update({
-      thread_code: payload.thread_code || "",
-      thread_name: payload.thread_name || "",
-      material: payload.material || "",
-      thread_use: payload.thread_use || "",
-      ticket_no: payload.ticket_no || "",
-      tex: payload.tex || "",
-      denier: payload.denier || "",
-      supplier: payload.supplier || "",
+      thread_code: payload.thread_code || '',
+      thread_name: payload.thread_name || '',
+      material: payload.material || '',
+      thread_use: payload.thread_use || '',
+      ticket_no: payload.ticket_no || '',
+      tex: payload.tex || '',
+      denier: payload.denier || '',
+      supplier: payload.supplier || '',
       price: Number(payload.price || 0),
-      price_unit: payload.price_unit || "Meter",
-      currency: payload.currency || "USD",
+      price_unit: payload.price_unit || 'Meter',
+      currency: payload.currency || 'USD',
       cone_length: Number(payload.cone_length || 0),
       cone_weight: Number(payload.cone_weight || 0),
-      color: payload.color || "",
-      status: payload.status || "Active",
-      notes: payload.notes || "",
+      color: payload.color || '',
+      status: payload.status || 'Active',
+      notes: payload.notes || '',
     })
-    .eq("id", id)
+    .eq('id', id)
     .select()
     .single();
 
   if (error) {
-    console.error("updateThread error:", error);
+    console.error('updateThread error:', error);
     throw error;
   }
 
@@ -896,10 +894,13 @@ export async function updateThread(id, payload) {
 }
 
 export async function deleteThread(id) {
-  const { error } = await supabase.from("thread_master").delete().eq("id", id);
+  const { error } = await supabase
+    .from('thread_master')
+    .delete()
+    .eq('id', id);
 
   if (error) {
-    console.error("deleteThread error:", error);
+    console.error('deleteThread error:', error);
     throw error;
   }
 }
@@ -908,14 +909,14 @@ export async function deleteThread(id) {
 // STITCH MASTER
 // ════════════════════════════════════════════════════════════
 
-export async function getStitches({ search = "", status = "all", limit = 100, } = {}) {
+export async function getStitches({ search = '', status = 'all', limit = 100 } = {}) {
   let query = supabase
-    .from("stitch_master")
-    .select("*")
-    .order("created_at", { ascending: false })
+    .from('stitch_master')
+    .select('*')
+    .order('created_at', { ascending: false })
     .limit(limit);
 
-  if (status !== "all") query = query.eq("status", status);
+  if (status !== 'all') query = query.eq('status', status);
 
   if (search) {
     query = query.or(
@@ -925,7 +926,7 @@ export async function getStitches({ search = "", status = "all", limit = 100, } 
 
   const { data, error } = await query;
   if (error) {
-    console.error("getStitches error:", error);
+    console.error('getStitches error:', error);
     return [];
   }
 
@@ -934,23 +935,23 @@ export async function getStitches({ search = "", status = "all", limit = 100, } 
 
 export async function createStitch(payload) {
   const { data, error } = await supabase
-    .from("stitch_master")
+    .from('stitch_master')
     .insert({
-      stitch_code: payload.stitch_code || "",
-      stitch_name: payload.stitch_name || "",
-      seam_class: payload.seam_class || "",
+      stitch_code: payload.stitch_code || '',
+      stitch_name: payload.stitch_name || '',
+      seam_class: payload.seam_class || '',
       needle_ratio: Number(payload.needle_ratio || 0),
       looper_ratio: Number(payload.looper_ratio || 0),
       cover_ratio: Number(payload.cover_ratio || 0),
       default_spi: Number(payload.default_spi || 0),
-      description: payload.description || "",
-      status: payload.status || "Active",
+      description: payload.description || '',
+      status: payload.status || 'Active',
     })
     .select()
     .single();
 
   if (error) {
-    console.error("createStitch error:", error);
+    console.error('createStitch error:', error);
     throw error;
   }
 
@@ -959,24 +960,24 @@ export async function createStitch(payload) {
 
 export async function updateStitch(id, payload) {
   const { data, error } = await supabase
-    .from("stitch_master")
+    .from('stitch_master')
     .update({
-      stitch_code: payload.stitch_code || "",
-      stitch_name: payload.stitch_name || "",
-      seam_class: payload.seam_class || "",
+      stitch_code: payload.stitch_code || '',
+      stitch_name: payload.stitch_name || '',
+      seam_class: payload.seam_class || '',
       needle_ratio: Number(payload.needle_ratio || 0),
       looper_ratio: Number(payload.looper_ratio || 0),
       cover_ratio: Number(payload.cover_ratio || 0),
       default_spi: Number(payload.default_spi || 0),
-      description: payload.description || "",
-      status: payload.status || "Active",
+      description: payload.description || '',
+      status: payload.status || 'Active',
     })
-    .eq("id", id)
+    .eq('id', id)
     .select()
     .single();
 
   if (error) {
-    console.error("updateStitch error:", error);
+    console.error('updateStitch error:', error);
     throw error;
   }
 
@@ -984,13 +985,17 @@ export async function updateStitch(id, payload) {
 }
 
 export async function deleteStitch(id) {
-  const { error } = await supabase.from("stitch_master").delete().eq("id", id);
+  const { error } = await supabase
+    .from('stitch_master')
+    .delete()
+    .eq('id', id);
 
   if (error) {
-    console.error("deleteStitch error:", error);
+    console.error('deleteStitch error:', error);
     throw error;
   }
 }
+
 
 // ════════════════════════════════════════════════════════════
 // MASTER DATA DUPLICATE CHECKS
@@ -998,12 +1003,9 @@ export async function deleteStitch(id) {
 export async function findStyleByArticle(articleNumber, excludeId = null) {
   const userId = await getCurrentUserId();
   if (!userId || !articleNumber) return null;
-  let query = supabase
-    .from("styles")
-    .select("id, article_number, style_name, buyer, created_at")
-    .eq("user_id", userId)
-    .ilike("article_number", String(articleNumber).trim());
-  if (excludeId) query = query.neq("id", excludeId);
+  let query = supabase.from('styles').select('id, article_number, style_name, buyer, created_at')
+    .eq('user_id', userId).ilike('article_number', String(articleNumber).trim());
+  if (excludeId) query = query.neq('id', excludeId);
   const { data, error } = await query.limit(1).maybeSingle();
   if (error) throw error;
   return data || null;
@@ -1012,12 +1014,9 @@ export async function findStyleByArticle(articleNumber, excludeId = null) {
 export async function findFabricByCode(fabricCode, excludeId = null) {
   const userId = await getCurrentUserId();
   if (!userId || !fabricCode) return null;
-  let query = supabase
-    .from("fabric_master")
-    .select("id, fabric_code, fabric_name, supplier, created_at")
-    .eq("user_id", userId)
-    .ilike("fabric_code", String(fabricCode).trim());
-  if (excludeId) query = query.neq("id", excludeId);
+  let query = supabase.from('fabric_master').select('id, fabric_code, fabric_name, supplier, created_at')
+    .eq('user_id', userId).ilike('fabric_code', String(fabricCode).trim());
+  if (excludeId) query = query.neq('id', excludeId);
   const { data, error } = await query.limit(1).maybeSingle();
   if (error) throw error;
   return data || null;
@@ -1026,49 +1025,48 @@ export async function findFabricByCode(fabricCode, excludeId = null) {
 export async function findThreadByCode(threadCode, excludeId = null) {
   const userId = await getCurrentUserId();
   if (!userId || !threadCode) return null;
-  let query = supabase
-    .from("thread_master")
-    .select("id, thread_code, thread_name, supplier, created_at")
-    .eq("user_id", userId)
-    .ilike("thread_code", String(threadCode).trim());
-  if (excludeId) query = query.neq("id", excludeId);
+  let query = supabase.from('thread_master').select('id, thread_code, thread_name, supplier, created_at')
+    .eq('user_id', userId).ilike('thread_code', String(threadCode).trim());
+  if (excludeId) query = query.neq('id', excludeId);
   const { data, error } = await query.limit(1).maybeSingle();
   if (error) throw error;
   return data || null;
 }
+
 
 // ════════════════════════════════════════════════════════════
 // ENTERPRISE ACCESS CONTROL
 // ════════════════════════════════════════════════════════════
 
 export const MODULE_KEYS = [
-  "dashboard",
-  "styles",
-  "fabric_master",
-  "thread_master",
-  "stitch_master",
-  "smv",
-  "efficiency",
-  "capacity",
-  "fabric_engineering",
-  "thread_engineering",
-  "costing",
-  "reports",
-  "administration",
-  "export_orders",
-  "fabric_requirements",
-  "inventory",
+  'dashboard',
+  'styles',
+  'fabric_master',
+  'thread_master',
+  'stitch_master',
+  'smv',
+  'efficiency',
+  'capacity',
+  'fabric_engineering',
+  'thread_engineering',
+  'costing',
+  'reports',
+  'administration',
+  'export_orders',
+  'fabric_requirements',
+  'thread_requirements',
+  'inventory',
 ];
 
 export const PERMISSION_ACTIONS = [
-  "view",
-  "create",
-  "edit",
-  "delete",
-  "approve",
-  "export",
-  "view_cost",
-  "design_reports",
+  'view',
+  'create',
+  'edit',
+  'delete',
+  'approve',
+  'export',
+  'view_cost',
+  'design_reports',
 ];
 
 export async function getMyAccessContext() {
@@ -1076,9 +1074,8 @@ export async function getMyAccessContext() {
   if (!userId) return null;
 
   const { data: membership, error } = await supabase
-    .from("company_users")
-    .select(
-      `
+    .from('company_users')
+    .select(`
       id,
       company_id,
       factory_id,
@@ -1089,14 +1086,13 @@ export async function getMyAccessContext() {
       factories(id, name, code),
       departments(id, name, code),
       roles(id, name, code, is_system)
-    `
-    )
-    .eq("user_id", userId)
-    .eq("status", "Active")
+    `)
+    .eq('user_id', userId)
+    .eq('status', 'Active')
     .maybeSingle();
 
   if (error) {
-    console.error("getMyAccessContext membership error:", error);
+    console.error('getMyAccessContext membership error:', error);
     return null;
   }
 
@@ -1111,22 +1107,22 @@ export async function getMyAccessContext() {
   }
 
   const { data: rows, error: permissionsError } = await supabase
-    .from("role_permissions")
-    .select("module_key, action_key, allowed")
-    .eq("role_id", membership.role_id);
+    .from('role_permissions')
+    .select('module_key, action_key, allowed')
+    .eq('role_id', membership.role_id);
 
   if (permissionsError) {
-    console.error("getMyAccessContext permissions error:", permissionsError);
+    console.error('getMyAccessContext permissions error:', permissionsError);
   }
 
   const permissions = {};
-  (rows || []).forEach((row) => {
+  (rows || []).forEach(row => {
     if (!permissions[row.module_key]) permissions[row.module_key] = {};
     permissions[row.module_key][row.action_key] = Boolean(row.allowed);
   });
 
-  const roleCode = membership.roles?.code || "";
-  const isOwner = roleCode === "OWNER";
+  const roleCode = membership.roles?.code || '';
+  const isOwner = roleCode === 'OWNER';
 
   return {
     membership,
@@ -1143,10 +1139,10 @@ export async function getCompanyRoles() {
   if (!companyId) return [];
 
   const { data, error } = await supabase
-    .from("roles")
-    .select("*")
-    .eq("company_id", companyId)
-    .order("name");
+    .from('roles')
+    .select('*')
+    .eq('company_id', companyId)
+    .order('name');
 
   if (error) throw error;
   return data || [];
@@ -1156,18 +1152,18 @@ export async function getRolePermissions(roleId) {
   if (!roleId) return [];
 
   const { data, error } = await supabase
-    .from("role_permissions")
-    .select("*")
-    .eq("role_id", roleId)
-    .order("module_key")
-    .order("action_key");
+    .from('role_permissions')
+    .select('*')
+    .eq('role_id', roleId)
+    .order('module_key')
+    .order('action_key');
 
   if (error) throw error;
   return data || [];
 }
 
 export async function saveRolePermissions(roleId, matrix) {
-  if (!roleId) throw new Error("Role is required");
+  if (!roleId) throw new Error('Role is required');
 
   const rows = [];
   Object.entries(matrix || {}).forEach(([moduleKey, actions]) => {
@@ -1185,8 +1181,8 @@ export async function saveRolePermissions(roleId, matrix) {
   if (!rows.length) return [];
 
   const { data, error } = await supabase
-    .from("role_permissions")
-    .upsert(rows, { onConflict: "role_id,module_key,action_key" })
+    .from('role_permissions')
+    .upsert(rows, { onConflict: 'role_id,module_key,action_key' })
     .select();
 
   if (error) throw error;
@@ -1196,18 +1192,18 @@ export async function saveRolePermissions(roleId, matrix) {
 export async function createCompanyRole({ name, code }) {
   const access = await getMyAccessContext();
   const companyId = access?.membership?.company_id;
-  if (!companyId) throw new Error("Company access is not configured");
+  if (!companyId) throw new Error('Company access is not configured');
 
-  const normalizedCode = String(code || name || "")
+  const normalizedCode = String(code || name || '')
     .trim()
-    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .replace(/[^a-zA-Z0-9]+/g, '_')
     .toUpperCase();
 
   const { data, error } = await supabase
-    .from("roles")
+    .from('roles')
     .insert({
       company_id: companyId,
-      name: String(name || "").trim(),
+      name: String(name || '').trim(),
       code: normalizedCode,
       is_system: false,
     })
@@ -1224,9 +1220,8 @@ export async function getCompanyUsers() {
   if (!companyId) return [];
 
   const { data, error } = await supabase
-    .from("company_users")
-    .select(
-      `
+    .from('company_users')
+    .select(`
       id,
       user_id,
       invited_email,
@@ -1240,35 +1235,37 @@ export async function getCompanyUsers() {
       roles(id, name, code),
       factories(id, name, code),
       departments(id, name, code)
-    `
-    )
-    .eq("company_id", companyId)
-    .order("created_at", { ascending: false });
+    `)
+    .eq('company_id', companyId)
+    .order('created_at', { ascending: false });
 
   if (error) throw error;
   return data || [];
 }
 
-export async function createUserInvitation({ email, role_id, factory_id = null, department_id = null, }) {
+export async function createUserInvitation({
+  email,
+  role_id,
+  factory_id = null,
+  department_id = null,
+}) {
   const access = await getMyAccessContext();
   const companyId = access?.membership?.company_id;
-  if (!companyId) throw new Error("Company access is not configured");
+  if (!companyId) throw new Error('Company access is not configured');
 
-  const normalizedEmail = String(email || "")
-    .trim()
-    .toLowerCase();
-  if (!normalizedEmail) throw new Error("Email is required");
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if (!normalizedEmail) throw new Error('Email is required');
 
   const { data, error } = await supabase
-    .from("company_user_invitations")
+    .from('company_user_invitations')
     .insert({
       company_id: companyId,
       email: normalizedEmail,
       role_id,
       factory_id: factory_id || null,
       department_id: department_id || null,
-      invited_by: await getCurrentUserId(),
-      status: "Pending",
+      invited_by: (await getCurrentUserId()),
+      status: 'Pending',
     })
     .select()
     .single();
@@ -1279,15 +1276,15 @@ export async function createUserInvitation({ email, role_id, factory_id = null, 
 
 export async function updateCompanyUserAccess(id, updates) {
   const { data, error } = await supabase
-    .from("company_users")
+    .from('company_users')
     .update({
       role_id: updates.role_id,
       factory_id: updates.factory_id || null,
       department_id: updates.department_id || null,
-      status: updates.status || "Active",
+      status: updates.status || 'Active',
       updated_at: new Date().toISOString(),
     })
-    .eq("id", id)
+    .eq('id', id)
     .select()
     .single();
 
@@ -1300,22 +1297,9 @@ export async function getCompanyFactoriesAndDepartments() {
   const companyId = access?.membership?.company_id;
   if (!companyId) return { factories: [], departments: [] };
 
-  const [
-    { data: factories, error: fError },
-    { data: departments, error: dError },
-  ] = await Promise.all([
-    supabase
-      .from("factories")
-      .select("*")
-      .eq("company_id", companyId)
-      .eq("status", "Active")
-      .order("name"),
-    supabase
-      .from("departments")
-      .select("*")
-      .eq("company_id", companyId)
-      .eq("status", "Active")
-      .order("name"),
+  const [{ data: factories, error: fError }, { data: departments, error: dError }] = await Promise.all([
+    supabase.from('factories').select('*').eq('company_id', companyId).eq('status', 'Active').order('name'),
+    supabase.from('departments').select('*').eq('company_id', companyId).eq('status', 'Active').order('name'),
   ]);
 
   if (fError) throw fError;
@@ -1324,18 +1308,22 @@ export async function getCompanyFactoriesAndDepartments() {
   return { factories: factories || [], departments: departments || [] };
 }
 
+
 // ============================================================
 // EXPORT ORDER PHASE 1
 // ============================================================
 
-export async function getExportOrders({ search = "", status = "all", limit = 200, } = {}) {
+export async function getExportOrders({
+  search = '',
+  status = 'all',
+  limit = 200,
+} = {}) {
   const userId = await getCurrentUserId();
   if (!userId) return [];
 
   let query = supabase
-    .from("export_orders")
-    .select(
-      `
+    .from('export_orders')
+    .select(`
       *,
       export_order_pos(
         *,
@@ -1344,13 +1332,12 @@ export async function getExportOrders({ search = "", status = "all", limit = 200
           export_order_sizes(*)
         )
       )
-    `
-    )
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
+    `)
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
     .limit(limit);
 
-  if (status && status !== "all") query = query.eq("status", status);
+  if (status && status !== 'all') query = query.eq('status', status);
 
   if (search) {
     query = query.or(
@@ -1365,12 +1352,11 @@ export async function getExportOrders({ search = "", status = "all", limit = 200
 
 export async function getExportOrder(id) {
   const userId = await getCurrentUserId();
-  if (!userId) throw new Error("Not logged in");
+  if (!userId) throw new Error('Not logged in');
 
   const { data, error } = await supabase
-    .from("export_orders")
-    .select(
-      `
+    .from('export_orders')
+    .select(`
       *,
       export_order_pos(
         *,
@@ -1379,10 +1365,9 @@ export async function getExportOrder(id) {
           export_order_sizes(*)
         )
       )
-    `
-    )
-    .eq("user_id", userId)
-    .eq("id", id)
+    `)
+    .eq('user_id', userId)
+    .eq('id', id)
     .single();
 
   if (error) throw error;
@@ -1391,71 +1376,63 @@ export async function getExportOrder(id) {
 
 export async function generateExportOrderNumber() {
   const userId = await getCurrentUserId();
-  if (!userId) throw new Error("Not logged in");
+  if (!userId) throw new Error('Not logged in');
 
   const year = new Date().getFullYear();
   const prefix = `EO-${year}-`;
 
   const { data, error } = await supabase
-    .from("export_orders")
-    .select("order_number")
-    .eq("user_id", userId)
-    .ilike("order_number", `${prefix}%`)
-    .order("order_number", { ascending: false })
+    .from('export_orders')
+    .select('order_number')
+    .eq('user_id', userId)
+    .ilike('order_number', `${prefix}%`)
+    .order('order_number', { ascending: false })
     .limit(1);
 
   if (error) throw error;
 
-  const latest = data?.[0]?.order_number || "";
-  const currentSequence = Number(latest.split("-").pop() || 0);
-  return prefix + String(currentSequence + 1).padStart(5, "0");
+  const latest = data?.[0]?.order_number || '';
+  const currentSequence = Number(latest.split('-').pop() || 0);
+  return prefix + String(currentSequence + 1).padStart(5, '0');
 }
 
-export async function checkDuplicateExportOrderNumber( orderNumber, excludeId = null ) {
+export async function checkDuplicateExportOrderNumber(orderNumber, excludeId = null) {
   const userId = await getCurrentUserId();
   if (!userId || !orderNumber) return null;
 
   let query = supabase
-    .from("export_orders")
-    .select("id, order_number, buyer, status, created_at")
-    .eq("user_id", userId)
-    .ilike("order_number", String(orderNumber).trim())
+    .from('export_orders')
+    .select('id, order_number, buyer, status, created_at')
+    .eq('user_id', userId)
+    .ilike('order_number', String(orderNumber).trim())
     .limit(1);
 
-  if (excludeId) query = query.neq("id", excludeId);
+  if (excludeId) query = query.neq('id', excludeId);
 
   const { data, error } = await query.maybeSingle();
   if (error) throw error;
   return data || null;
 }
 
-export async function checkDuplicatePONumbers( poNumbers, excludeOrderId = null ) {
+export async function checkDuplicatePONumbers(poNumbers, excludeOrderId = null) {
   const userId = await getCurrentUserId();
   if (!userId) return [];
 
-  const normalized = [
-    ...new Set(
-      (poNumbers || [])
-        .map((value) =>
-          String(value || "")
-            .trim()
-            .toUpperCase()
-        )
-        .filter(Boolean)
-    ),
-  ];
+  const normalized = [...new Set(
+    (poNumbers || [])
+      .map(value => String(value || '').trim().toUpperCase())
+      .filter(Boolean)
+  )];
 
   if (!normalized.length) return [];
 
   let query = supabase
-    .from("export_order_pos")
-    .select(
-      "id, export_order_id, po_number, article_number, color_name, export_orders!inner(user_id, order_number)"
-    )
-    .eq("export_orders.user_id", userId)
-    .in("po_number", normalized);
+    .from('export_order_pos')
+    .select('id, export_order_id, po_number, article_number, color_name, export_orders!inner(user_id, order_number)')
+    .eq('export_orders.user_id', userId)
+    .in('po_number', normalized);
 
-  if (excludeOrderId) query = query.neq("export_order_id", excludeOrderId);
+  if (excludeOrderId) query = query.neq('export_order_id', excludeOrderId);
 
   const { data, error } = await query;
   if (error) throw error;
@@ -1464,30 +1441,27 @@ export async function checkDuplicatePONumbers( poNumbers, excludeOrderId = null 
 
 export async function createExportOrder(payload) {
   const userId = await getCurrentUserId();
-  if (!userId) throw new Error("Not logged in");
+  if (!userId) throw new Error('Not logged in');
 
   const pos = payload.pos || [];
 
   const { data: order, error: orderError } = await supabase
-    .from("export_orders")
+    .from('export_orders')
     .insert({
       user_id: userId,
       order_number: payload.order_number,
-      buyer: payload.buyer || "",
-      brand: payload.brand || "",
-      season: payload.season || "",
-      factory_name: payload.factory_name || "",
-      merchandiser: payload.merchandiser || "",
+      buyer: payload.buyer || '',
+      brand: payload.brand || '',
+      season: payload.season || '',
+      factory_name: payload.factory_name || '',
+      merchandiser: payload.merchandiser || '',
       order_date: payload.order_date || null,
       shipment_date: payload.shipment_date || null,
       delivery_date: payload.delivery_date || null,
-      currency: payload.currency || "USD",
-      status: payload.status || "Draft",
-      remarks: payload.remarks || "",
-      total_quantity: pos.reduce(
-        (sum, po) => sum + Number(po.total_quantity || 0),
-        0
-      ),
+      currency: payload.currency || 'USD',
+      status: payload.status || 'Draft',
+      remarks: payload.remarks || '',
+      total_quantity: pos.reduce((sum, po) => sum + Number(po.total_quantity || 0), 0),
       po_count: pos.length,
     })
     .select()
@@ -1499,41 +1473,38 @@ export async function createExportOrder(payload) {
     await replaceExportOrderPOs(order.id, pos);
     return await getExportOrder(order.id);
   } catch (error) {
-    await supabase.from("export_orders").delete().eq("id", order.id);
+    await supabase.from('export_orders').delete().eq('id', order.id);
     throw error;
   }
 }
 
 export async function updateExportOrder(id, payload) {
   const userId = await getCurrentUserId();
-  if (!userId) throw new Error("Not logged in");
+  if (!userId) throw new Error('Not logged in');
 
   const pos = payload.pos || [];
 
   const { error } = await supabase
-    .from("export_orders")
+    .from('export_orders')
     .update({
       order_number: payload.order_number,
-      buyer: payload.buyer || "",
-      brand: payload.brand || "",
-      season: payload.season || "",
-      factory_name: payload.factory_name || "",
-      merchandiser: payload.merchandiser || "",
+      buyer: payload.buyer || '',
+      brand: payload.brand || '',
+      season: payload.season || '',
+      factory_name: payload.factory_name || '',
+      merchandiser: payload.merchandiser || '',
       order_date: payload.order_date || null,
       shipment_date: payload.shipment_date || null,
       delivery_date: payload.delivery_date || null,
-      currency: payload.currency || "USD",
-      status: payload.status || "Draft",
-      remarks: payload.remarks || "",
-      total_quantity: pos.reduce(
-        (sum, po) => sum + Number(po.total_quantity || 0),
-        0
-      ),
+      currency: payload.currency || 'USD',
+      status: payload.status || 'Draft',
+      remarks: payload.remarks || '',
+      total_quantity: pos.reduce((sum, po) => sum + Number(po.total_quantity || 0), 0),
       po_count: pos.length,
       updated_at: new Date().toISOString(),
     })
-    .eq("user_id", userId)
-    .eq("id", id);
+    .eq('user_id', userId)
+    .eq('id', id);
 
   if (error) throw error;
 
@@ -1543,13 +1514,13 @@ export async function updateExportOrder(id, payload) {
 
 async function replaceExportOrderPOs(exportOrderId, pos) {
   const userId = await getCurrentUserId();
-  if (!userId) throw new Error("Not logged in");
+  if (!userId) throw new Error('Not logged in');
 
   const { error: deleteError } = await supabase
-    .from("export_order_pos")
+    .from('export_order_pos')
     .delete()
-    .eq("export_order_id", exportOrderId)
-    .eq("user_id", userId);
+    .eq('export_order_id', exportOrderId)
+    .eq('user_id', userId);
 
   if (deleteError) throw deleteError;
 
@@ -1567,24 +1538,22 @@ async function replaceExportOrderPOs(exportOrderId, pos) {
     );
 
     const { data: poRow, error: poError } = await supabase
-      .from("export_order_pos")
+      .from('export_order_pos')
       .insert({
         user_id: userId,
         export_order_id: exportOrderId,
         sequence_no: sequence + 1,
-        po_number: String(po.po_number || "")
-          .trim()
-          .toUpperCase(),
+        po_number: String(po.po_number || '').trim().toUpperCase(),
         style_id: po.style_id || null,
-        article_number: po.article_number || "",
-        style_name: po.style_name || "",
-        buyer_style: po.buyer_style || "",
-        garment_type: po.garment_type || "",
+        article_number: po.article_number || '',
+        style_name: po.style_name || '',
+        buyer_style: po.buyer_style || '',
+        garment_type: po.garment_type || '',
         color_id: null,
-        color_code: "",
-        color_name: "",
+        color_code: '',
+        color_name: '',
         total_quantity: poTotal,
-        engineering_status: po.engineering_status || "Pending",
+        engineering_status: po.engineering_status || 'Pending',
         readiness: po.readiness || {},
       })
       .select()
@@ -1592,11 +1561,7 @@ async function replaceExportOrderPOs(exportOrderId, pos) {
 
     if (poError) throw poError;
 
-    for (
-      let colorSequence = 0;
-      colorSequence < colors.length;
-      colorSequence += 1
-    ) {
+    for (let colorSequence = 0; colorSequence < colors.length; colorSequence += 1) {
       const color = colors[colorSequence];
       const colorTotal = (color.sizes || []).reduce(
         (sum, size) => sum + Number(size.quantity || 0),
@@ -1604,18 +1569,18 @@ async function replaceExportOrderPOs(exportOrderId, pos) {
       );
 
       const { data: colorRow, error: colorError } = await supabase
-        .from("export_order_po_colors")
+        .from('export_order_po_colors')
         .insert({
           user_id: userId,
           export_order_id: exportOrderId,
           export_order_po_id: poRow.id,
           sequence_no: colorSequence + 1,
           color_id: color.color_id || null,
-          color_code: color.color_code || "",
-          color_name: color.color_name || "",
+          color_code: color.color_code || '',
+          color_name: color.color_name || '',
           total_quantity: colorTotal,
           readiness: color.readiness || {},
-          engineering_status: color.engineering_status || "Pending",
+          engineering_status: color.engineering_status || 'Pending',
         })
         .select()
         .single();
@@ -1623,7 +1588,7 @@ async function replaceExportOrderPOs(exportOrderId, pos) {
       if (colorError) throw colorError;
 
       const sizeRows = (color.sizes || [])
-        .filter((size) => String(size.size_name || "").trim())
+        .filter(size => String(size.size_name || '').trim())
         .map((size, index) => ({
           user_id: userId,
           export_order_id: exportOrderId,
@@ -1637,7 +1602,7 @@ async function replaceExportOrderPOs(exportOrderId, pos) {
 
       if (sizeRows.length) {
         const { error: sizeError } = await supabase
-          .from("export_order_sizes")
+          .from('export_order_sizes')
           .insert(sizeRows);
 
         if (sizeError) throw sizeError;
@@ -1648,25 +1613,26 @@ async function replaceExportOrderPOs(exportOrderId, pos) {
 
 export async function updateExportOrderStatus(id, status) {
   const userId = await getCurrentUserId();
-  if (!userId) throw new Error("Not logged in");
+  if (!userId) throw new Error('Not logged in');
 
   const { data, error } = await supabase
-    .from("export_orders")
+    .from('export_orders')
     .update({
       status,
-      approved_at: status === "Approved" ? new Date().toISOString() : null,
-      approved_by: status === "Approved" ? userId : null,
+      approved_at: status === 'Approved' ? new Date().toISOString() : null,
+      approved_by: status === 'Approved' ? userId : null,
       updated_at: new Date().toISOString(),
     })
-    .eq("user_id", userId)
-    .eq("id", id)
+    .eq('user_id', userId)
+    .eq('id', id)
     .select()
     .single();
 
   if (error) throw error;
 
-  if (status === "Approved") {
+  if (status === 'Approved') {
     await generateFabricRequirementsForExportOrder(id);
+    await generateThreadRequirementsForExportOrder(id);
   }
 
   return data;
@@ -1674,14 +1640,14 @@ export async function updateExportOrderStatus(id, status) {
 
 export async function deleteExportOrder(id) {
   const userId = await getCurrentUserId();
-  if (!userId) throw new Error("Not logged in");
+  if (!userId) throw new Error('Not logged in');
 
   const { error } = await supabase
-    .from("export_orders")
+    .from('export_orders')
     .delete()
-    .eq("user_id", userId)
-    .eq("id", id)
-    .eq("status", "Draft");
+    .eq('user_id', userId)
+    .eq('id', id)
+    .eq('status', 'Draft');
 
   if (error) throw error;
 }
@@ -1693,17 +1659,17 @@ export async function duplicateExportOrder(id) {
   return createExportOrder({
     ...source,
     order_number: orderNumber,
-    status: "Draft",
+    status: 'Draft',
     remarks: source.remarks
       ? `${source.remarks} | Copied from ${source.order_number}`
       : `Copied from ${source.order_number}`,
-    pos: (source.export_order_pos || []).map((po) => ({
+    pos: (source.export_order_pos || []).map(po => ({
       ...po,
       id: undefined,
-      colors: (po.export_order_po_colors || []).map((color) => ({
+      colors: (po.export_order_po_colors || []).map(color => ({
         ...color,
         id: undefined,
-        sizes: (color.export_order_sizes || []).map((size) => ({
+        sizes: (color.export_order_sizes || []).map(size => ({
           size_id: size.size_id,
           size_name: size.size_name,
           quantity: size.quantity,
@@ -1713,6 +1679,7 @@ export async function duplicateExportOrder(id) {
     })),
   });
 }
+
 
 // ============================================================
 // AUTOMATIC FABRIC REQUIREMENT - PHASE 2A
@@ -1724,25 +1691,22 @@ function getFabricConsumptionForSize(component, sizeId, sizeName) {
   let row = sizeId ? sizeData[sizeId] : null;
 
   if (!row && sizeName) {
-    row = Object.values(sizeData).find(
-      (item) =>
-        String(item?.size_name || item?.sizeName || item?.label || "")
-          .trim()
-          .toLowerCase() === String(sizeName).trim().toLowerCase()
+    row = Object.values(sizeData).find(item =>
+      String(item?.size_name || item?.sizeName || item?.label || '')
+        .trim()
+        .toLowerCase() === String(sizeName).trim().toLowerCase()
     );
   }
 
   row = row || {};
 
-  const uom = String(
-    component?.uom || component?.priceUnit || "KG"
-  ).toUpperCase();
+  const uom = String(component?.uom || component?.priceUnit || 'KG').toUpperCase();
 
-  if (uom === "M" || uom === "METER" || uom === "METERS") {
+  if (uom === 'M' || uom === 'METER' || uom === 'METERS') {
     return Number(row.meterConsumption || row.consumption || 0);
   }
 
-  if (uom === "YD" || uom === "YARD" || uom === "YARDS") {
+  if (uom === 'YD' || uom === 'YARD' || uom === 'YARDS') {
     return Number(row.yardConsumption || row.consumption || 0);
   }
 
@@ -1752,27 +1716,25 @@ function getFabricConsumptionForSize(component, sizeId, sizeName) {
 function fabricComponentKey(component, index) {
   return String(
     component?.fabric_id ||
-      component?.fabricCode ||
-      component?.fabric_code ||
-      component?.id ||
-      `${
-        component?.usageAt || component?.fabricDescription || "FABRIC"
-      }-${index}`
+    component?.fabricCode ||
+    component?.fabric_code ||
+    component?.id ||
+    `${component?.usageAt || component?.fabricDescription || 'FABRIC'}-${index}`
   );
 }
 
 export async function generateFabricRequirementsForExportOrder(exportOrderId) {
   const userId = await getCurrentUserId();
-  if (!userId) throw new Error("Not logged in");
+  if (!userId) throw new Error('Not logged in');
 
   const order = await getExportOrder(exportOrderId);
-  if (!order) throw new Error("Export Order not found");
+  if (!order) throw new Error('Export Order not found');
 
   const { data: existing, error: existingError } = await supabase
-    .from("fabric_requirements")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("export_order_id", exportOrderId)
+    .from('fabric_requirements')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('export_order_id', exportOrderId)
     .maybeSingle();
 
   if (existingError) throw existingError;
@@ -1781,17 +1743,17 @@ export async function generateFabricRequirementsForExportOrder(exportOrderId) {
 
   if (!requirementId) {
     const { data: created, error } = await supabase
-      .from("fabric_requirements")
+      .from('fabric_requirements')
       .insert({
         user_id: userId,
         company_id: order.company_id || null,
         export_order_id: exportOrderId,
         requirement_number: `FR-${order.order_number}`,
         order_number: order.order_number,
-        buyer: order.buyer || "",
-        factory_name: order.factory_name || "",
+        buyer: order.buyer || '',
+        factory_name: order.factory_name || '',
         shipment_date: order.shipment_date || null,
-        status: "Generated",
+        status: 'Generated',
         total_lines: 0,
         generated_at: new Date().toISOString(),
       })
@@ -1802,26 +1764,26 @@ export async function generateFabricRequirementsForExportOrder(exportOrderId) {
     requirementId = created.id;
   } else {
     const { error } = await supabase
-      .from("fabric_requirements")
+      .from('fabric_requirements')
       .update({
         order_number: order.order_number,
-        buyer: order.buyer || "",
-        factory_name: order.factory_name || "",
+        buyer: order.buyer || '',
+        factory_name: order.factory_name || '',
         shipment_date: order.shipment_date || null,
-        status: "Generated",
+        status: 'Generated',
         generated_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .eq("id", requirementId)
-      .eq("user_id", userId);
+      .eq('id', requirementId)
+      .eq('user_id', userId);
 
     if (error) throw error;
 
     const { error: deleteError } = await supabase
-      .from("fabric_requirement_lines")
+      .from('fabric_requirement_lines')
       .delete()
-      .eq("fabric_requirement_id", requirementId)
-      .eq("user_id", userId);
+      .eq('fabric_requirement_id', requirementId)
+      .eq('user_id', userId);
 
     if (deleteError) throw deleteError;
   }
@@ -1838,9 +1800,7 @@ export async function generateFabricRequirementsForExportOrder(exportOrderId) {
 
     if (!fabricModule) {
       throw new Error(
-        `Fabric BOM is missing for Article ${
-          po.article_number || po.style_name || "-"
-        }`
+        `Fabric BOM is missing for Article ${po.article_number || po.style_name || '-'}`
       );
     }
 
@@ -1853,16 +1813,12 @@ export async function generateFabricRequirementsForExportOrder(exportOrderId) {
 
     if (!components.length) {
       throw new Error(
-        `Fabric BOM has no components for Article ${po.article_number || "-"}`
+        `Fabric BOM has no components for Article ${po.article_number || '-'}`
       );
     }
 
     for (const color of po.export_order_po_colors || []) {
-      for (
-        let componentIndex = 0;
-        componentIndex < components.length;
-        componentIndex += 1
-      ) {
+      for (let componentIndex = 0; componentIndex < components.length; componentIndex += 1) {
         const component = components[componentIndex];
         const sizeBreakdown = [];
         let totalRequirement = 0;
@@ -1876,13 +1832,7 @@ export async function generateFabricRequirementsForExportOrder(exportOrderId) {
 
           if (Number(size.quantity || 0) > 0 && consumptionPerGarment <= 0) {
             throw new Error(
-              `Fabric consumption is missing for Article ${
-                po.article_number
-              }, Size ${size.size_name}, Component ${
-                component.usageAt ||
-                component.fabricDescription ||
-                componentIndex + 1
-              }`
+              `Fabric consumption is missing for Article ${po.article_number}, Size ${size.size_name}, Component ${component.usageAt || component.fabricDescription || componentIndex + 1}`
             );
           }
 
@@ -1909,35 +1859,38 @@ export async function generateFabricRequirementsForExportOrder(exportOrderId) {
           export_order_po_color_id: color.id,
           po_number: po.po_number,
           style_id: po.style_id,
-          article_number: po.article_number || "",
-          style_name: po.style_name || "",
+          article_number: po.article_number || '',
+          style_name: po.style_name || '',
           color_id: color.color_id || null,
-          color_code: color.color_code || "",
-          color_name: color.color_name || "",
+          color_code: color.color_code || '',
+          color_name: color.color_name || '',
           component_key: fabricComponentKey(component, componentIndex),
           component_name:
             component.usageAt ||
             component.fabricCategory ||
             `Fabric Component ${componentIndex + 1}`,
           fabric_id: component.fabric_id || null,
-          fabric_code: component.fabricCode || component.fabric_code || "",
+          fabric_code:
+            component.fabricCode ||
+            component.fabric_code ||
+            '',
           fabric_name:
             component.fabricDescription ||
             component.fabric_name ||
             component.fabricType ||
-            "",
-          supplier: component.supplier || "",
-          composition: component.composition || "",
+            '',
+          supplier: component.supplier || '',
+          composition: component.composition || '',
           gsm: Number(component.gsm || 0),
           width: Number(component.fabricWidth || component.width || 0),
-          width_unit: component.widthUnit || "inch",
-          uom: String(component.uom || "KG").toUpperCase(),
+          width_unit: component.widthUnit || 'inch',
+          uom: String(component.uom || 'KG').toUpperCase(),
           allowance_pct: Number(component.allowancePct || 0),
           total_requirement: totalRequirement,
           size_breakdown: sizeBreakdown,
           required_date: order.shipment_date || order.delivery_date || null,
           source_module_updated_at: fabricModule.updated_at || null,
-          status: "Generated",
+          status: 'Generated',
         });
       }
     }
@@ -1945,44 +1898,46 @@ export async function generateFabricRequirementsForExportOrder(exportOrderId) {
 
   if (lines.length) {
     const { error: lineError } = await supabase
-      .from("fabric_requirement_lines")
+      .from('fabric_requirement_lines')
       .insert(lines);
 
     if (lineError) throw lineError;
   }
 
   const { error: headerError } = await supabase
-    .from("fabric_requirements")
+    .from('fabric_requirements')
     .update({
       total_lines: lines.length,
       generated_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
-    .eq("id", requirementId)
-    .eq("user_id", userId);
+    .eq('id', requirementId)
+    .eq('user_id', userId);
 
   if (headerError) throw headerError;
 
   return getFabricRequirement(requirementId);
 }
 
-export async function getFabricRequirements({ search = "", status = "all", limit = 200, } = {}) {
+export async function getFabricRequirements({
+  search = '',
+  status = 'all',
+  limit = 200,
+} = {}) {
   const userId = await getCurrentUserId();
   if (!userId) return [];
 
   let query = supabase
-    .from("fabric_requirements")
-    .select(
-      `
+    .from('fabric_requirements')
+    .select(`
       *,
       fabric_requirement_lines(*)
-    `
-    )
-    .eq("user_id", userId)
-    .order("generated_at", { ascending: false })
+    `)
+    .eq('user_id', userId)
+    .order('generated_at', { ascending: false })
     .limit(limit);
 
-  if (status && status !== "all") query = query.eq("status", status);
+  if (status && status !== 'all') query = query.eq('status', status);
 
   if (search) {
     query = query.or(
@@ -1997,18 +1952,16 @@ export async function getFabricRequirements({ search = "", status = "all", limit
 
 export async function getFabricRequirement(id) {
   const userId = await getCurrentUserId();
-  if (!userId) throw new Error("Not logged in");
+  if (!userId) throw new Error('Not logged in');
 
   const { data, error } = await supabase
-    .from("fabric_requirements")
-    .select(
-      `
+    .from('fabric_requirements')
+    .select(`
       *,
       fabric_requirement_lines(*)
-    `
-    )
-    .eq("user_id", userId)
-    .eq("id", id)
+    `)
+    .eq('user_id', userId)
+    .eq('id', id)
     .single();
 
   if (error) throw error;
@@ -2020,11 +1973,11 @@ export async function getCombinedFabricRequirements() {
   if (!userId) return [];
 
   const { data, error } = await supabase
-    .from("fabric_requirement_lines")
-    .select("*")
-    .eq("user_id", userId)
-    .in("status", ["Generated", "Reviewed", "Reserved"])
-    .order("required_date", { ascending: true });
+    .from('fabric_requirement_lines')
+    .select('*')
+    .eq('user_id', userId)
+    .in('status', ['Generated', 'Reviewed', 'Reserved'])
+    .order('required_date', { ascending: true });
 
   if (error) throw error;
 
@@ -2032,14 +1985,12 @@ export async function getCombinedFabricRequirements() {
 
   for (const line of data || []) {
     const key = [
-      line.fabric_id || "",
-      line.fabric_code || "",
-      line.fabric_name || "",
-      line.color_code || line.color_name || "",
-      line.uom || "",
-    ]
-      .join("|")
-      .toLowerCase();
+      line.fabric_id || '',
+      line.fabric_code || '',
+      line.fabric_name || '',
+      line.color_code || line.color_name || '',
+      line.uom || '',
+    ].join('|').toLowerCase();
 
     if (!grouped.has(key)) {
       grouped.set(key, {
@@ -2080,20 +2031,21 @@ export async function getCombinedFabricRequirements() {
   }
 
   return [...grouped.values()].sort((a, b) =>
-    String(a.required_date || "").localeCompare(String(b.required_date || ""))
+    String(a.required_date || '').localeCompare(String(b.required_date || ''))
   );
 }
 
+
 export async function syncApprovedFabricRequirements() {
   const userId = await getCurrentUserId();
-  if (!userId) throw new Error("Not logged in");
+  if (!userId) throw new Error('Not logged in');
 
   const { data: orders, error } = await supabase
-    .from("export_orders")
-    .select("id, order_number, status")
-    .eq("user_id", userId)
-    .eq("status", "Approved")
-    .order("approved_at", { ascending: true });
+    .from('export_orders')
+    .select('id, order_number, status')
+    .eq('user_id', userId)
+    .eq('status', 'Approved')
+    .order('approved_at', { ascending: true });
 
   if (error) throw error;
 
@@ -2113,7 +2065,7 @@ export async function syncApprovedFabricRequirements() {
       result.errors.push({
         order_id: order.id,
         order_number: order.order_number,
-        message: generationError?.message || "Generation failed",
+        message: generationError?.message || 'Generation failed',
       });
     }
   }
@@ -2121,26 +2073,29 @@ export async function syncApprovedFabricRequirements() {
   return result;
 }
 
-export async function getSavedFabricConsumptionLibrary({ search = "", limit = 300, } = {}) {
+export async function getSavedFabricConsumptionLibrary({
+  search = '',
+  limit = 300,
+} = {}) {
   const userId = await getCurrentUserId();
   if (!userId) return [];
 
   let query = supabase
-    .from("reports")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("type", "FABRIC")
-    .order("created_at", { ascending: false })
+    .from('reports')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('type', 'FABRIC')
+    .order('created_at', { ascending: false })
     .limit(limit);
 
   if (search) {
-    query = query.ilike("title", `%${search}%`);
+    query = query.ilike('title', `%${search}%`);
   }
 
   const { data, error } = await query;
   if (error) throw error;
 
-  return (data || []).map((report) => {
+  return (data || []).map(report => {
     const inputs = report.inputs || {};
     const results = report.results || {};
     const bomData =
@@ -2157,15 +2112,497 @@ export async function getSavedFabricConsumptionLibrary({ search = "", limit = 30
         inputs.articleNumber ||
         inputs.artNo ||
         bomData.artNo ||
-        "",
+        '',
       style_name:
-        inputs.style_name || inputs.styleName || bomData.styleName || "",
-      buyer: inputs.buyer || inputs.customer || bomData.customer || "",
+        inputs.style_name ||
+        inputs.styleName ||
+        bomData.styleName ||
+        '',
+      buyer:
+        inputs.buyer ||
+        inputs.customer ||
+        bomData.customer ||
+        '',
       color_name:
-        inputs.color_name || inputs.colorName || bomData.colorName || "",
-      base_size: inputs.base_size || inputs.baseSize || bomData.baseSize || "",
+        inputs.color_name ||
+        inputs.colorName ||
+        bomData.colorName ||
+        '',
+      base_size:
+        inputs.base_size ||
+        inputs.baseSize ||
+        bomData.baseSize ||
+        '',
       components:
-        bomData.components || inputs.components || results.components || [],
+        bomData.components ||
+        inputs.components ||
+        results.components ||
+        [],
     };
   });
+}
+
+
+// ============================================================
+// AUTOMATIC THREAD REQUIREMENT - PHASE 2B
+// Formula: saved thread consumption per garment x total PO quantity
+// ============================================================
+
+function normalizedThreadIdentity(thread) {
+  if (!thread) return null;
+
+  return {
+    thread_id: thread.id || null,
+    thread_code: String(thread.thread_code || thread.code || '').trim(),
+    thread_name: String(thread.thread_name || thread.name || '').trim(),
+    brand: String(thread.brand || '').trim(),
+    supplier: String(thread.supplier || '').trim(),
+    ticket_no: String(
+      thread.ticket_no ||
+      thread.ticket_number ||
+      thread.ticket ||
+      thread.count ||
+      ''
+    ).trim(),
+    color_name: String(
+      thread.color_name ||
+      thread.color ||
+      thread.shade ||
+      ''
+    ).trim(),
+    color_code: String(
+      thread.color_code ||
+      thread.shade_code ||
+      ''
+    ).trim(),
+    cone_length_m: Number(
+      thread.cone_length_m ||
+      thread.cone_length ||
+      thread.meters_per_cone ||
+      0
+    ),
+    uom: 'M',
+  };
+}
+
+function addThreadConsumption(grouped, thread, meters, source) {
+  const normalized = normalizedThreadIdentity(thread);
+  const consumption = Number(meters || 0);
+
+  if (!normalized || !normalized.thread_code || consumption <= 0) return;
+
+  const key = [
+    normalized.thread_id || '',
+    normalized.thread_code,
+    normalized.color_code || normalized.color_name || '',
+  ].join('|').toLowerCase();
+
+  if (!grouped.has(key)) {
+    grouped.set(key, {
+      key,
+      ...normalized,
+      consumption_per_garment: 0,
+      sources: [],
+    });
+  }
+
+  const row = grouped.get(key);
+  row.consumption_per_garment += consumption;
+  row.sources.push({
+    operation_name: source.operation_name || '',
+    source_type: source.source_type || '',
+    meters: consumption,
+  });
+}
+
+function extractThreadConsumptionByCode(threadModule) {
+  const grouped = new Map();
+  const data = threadModule?.data || {};
+  const operations = Array.isArray(data.operations)
+    ? data.operations
+    : Array.isArray(threadModule?.summary?.operations)
+      ? threadModule.summary.operations
+      : [];
+
+  for (const operation of operations) {
+    const calculation = operation.calculation || operation.calculations || {};
+
+    addThreadConsumption(
+      grouped,
+      operation.needleThread || operation.needle_thread,
+      calculation.needleMeters ??
+        operation.needleMeters ??
+        operation.needle_meters,
+      {
+        operation_name: operation.operationName || operation.operation_name,
+        source_type: 'Needle',
+      }
+    );
+
+    addThreadConsumption(
+      grouped,
+      operation.looperThread || operation.looper_thread,
+      calculation.looperMeters ??
+        operation.looperMeters ??
+        operation.looper_meters,
+      {
+        operation_name: operation.operationName || operation.operation_name,
+        source_type: 'Looper',
+      }
+    );
+
+    addThreadConsumption(
+      grouped,
+      operation.coverThread || operation.cover_thread,
+      calculation.coverMeters ??
+        operation.coverMeters ??
+        operation.cover_meters,
+      {
+        operation_name: operation.operationName || operation.operation_name,
+        source_type: 'Cover',
+      }
+    );
+  }
+
+  return [...grouped.values()];
+}
+
+export async function generateThreadRequirementsForExportOrder(exportOrderId) {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error('Not logged in');
+
+  const order = await getExportOrder(exportOrderId);
+  if (!order) throw new Error('Export Order not found');
+
+  const { data: existing, error: existingError } = await supabase
+    .from('thread_requirements')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('export_order_id', exportOrderId)
+    .maybeSingle();
+
+  if (existingError) throw existingError;
+
+  let requirementId = existing?.id || null;
+
+  if (!requirementId) {
+    const { data: created, error } = await supabase
+      .from('thread_requirements')
+      .insert({
+        user_id: userId,
+        company_id: order.company_id || null,
+        export_order_id: exportOrderId,
+        requirement_number: `TR-${order.order_number}`,
+        order_number: order.order_number,
+        buyer: order.buyer || '',
+        factory_name: order.factory_name || '',
+        shipment_date: order.shipment_date || null,
+        status: 'Generated',
+        total_lines: 0,
+        total_meters: 0,
+        generated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    requirementId = created.id;
+  } else {
+    const { error } = await supabase
+      .from('thread_requirements')
+      .update({
+        order_number: order.order_number,
+        buyer: order.buyer || '',
+        factory_name: order.factory_name || '',
+        shipment_date: order.shipment_date || null,
+        status: 'Generated',
+        generated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', requirementId)
+      .eq('user_id', userId);
+
+    if (error) throw error;
+
+    const { error: deleteError } = await supabase
+      .from('thread_requirement_lines')
+      .delete()
+      .eq('thread_requirement_id', requirementId)
+      .eq('user_id', userId);
+
+    if (deleteError) throw deleteError;
+  }
+
+  const lines = [];
+
+  for (const po of order.export_order_pos || []) {
+    const moduleSummary = await getStyleCostSummary({
+      style_id: po.style_id,
+      color_id: null,
+    });
+
+    const threadModule = moduleSummary?.thread;
+
+    if (!threadModule) {
+      throw new Error(
+        `Thread Engineering is missing for Article ${po.article_number || po.style_name || '-'}`
+      );
+    }
+
+    const threadConsumptions = extractThreadConsumptionByCode(threadModule);
+
+    if (!threadConsumptions.length) {
+      throw new Error(
+        `No thread-code consumption was found in Thread Engineering for Article ${po.article_number || '-'}`
+      );
+    }
+
+    for (const color of po.export_order_po_colors || []) {
+      const poColorQuantity = (color.export_order_sizes || []).reduce(
+        (sum, size) => sum + Number(size.quantity || 0),
+        0
+      );
+
+      if (poColorQuantity <= 0) continue;
+
+      for (const thread of threadConsumptions) {
+        const totalMeters =
+          Number(thread.consumption_per_garment || 0) * poColorQuantity;
+
+        const coneLength = Number(thread.cone_length_m || 0);
+        const requiredCones =
+          coneLength > 0 ? Math.ceil(totalMeters / coneLength) : 0;
+
+        lines.push({
+          user_id: userId,
+          company_id: order.company_id || null,
+          thread_requirement_id: requirementId,
+          export_order_id: order.id,
+          export_order_po_id: po.id,
+          export_order_po_color_id: color.id,
+          po_number: po.po_number,
+          style_id: po.style_id,
+          article_number: po.article_number || '',
+          style_name: po.style_name || '',
+          order_color_id: color.color_id || null,
+          order_color_code: color.color_code || '',
+          order_color_name: color.color_name || '',
+          thread_id: thread.thread_id || null,
+          thread_code: thread.thread_code,
+          thread_name: thread.thread_name || '',
+          thread_brand: thread.brand || '',
+          ticket_no: thread.ticket_no || '',
+          thread_color_code: thread.color_code || '',
+          thread_color_name: thread.color_name || color.color_name || '',
+          supplier: thread.supplier || '',
+          po_quantity: poColorQuantity,
+          consumption_per_garment: Number(
+            thread.consumption_per_garment || 0
+          ),
+          total_meters: totalMeters,
+          cone_length_m: coneLength,
+          required_cones: requiredCones,
+          uom: 'M',
+          source_breakdown: thread.sources || [],
+          required_date: order.shipment_date || order.delivery_date || null,
+          source_module_updated_at: threadModule.updated_at || null,
+          status: 'Generated',
+        });
+      }
+    }
+  }
+
+  if (lines.length) {
+    const { error: lineError } = await supabase
+      .from('thread_requirement_lines')
+      .insert(lines);
+
+    if (lineError) throw lineError;
+  }
+
+  const totalMeters = lines.reduce(
+    (sum, line) => sum + Number(line.total_meters || 0),
+    0
+  );
+
+  const { error: headerError } = await supabase
+    .from('thread_requirements')
+    .update({
+      total_lines: lines.length,
+      total_meters: totalMeters,
+      generated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', requirementId)
+    .eq('user_id', userId);
+
+  if (headerError) throw headerError;
+
+  return getThreadRequirement(requirementId);
+}
+
+export async function getThreadRequirements({
+  search = '',
+  status = 'all',
+  limit = 200,
+} = {}) {
+  const userId = await getCurrentUserId();
+  if (!userId) return [];
+
+  let query = supabase
+    .from('thread_requirements')
+    .select(`
+      *,
+      thread_requirement_lines(*)
+    `)
+    .eq('user_id', userId)
+    .order('generated_at', { ascending: false })
+    .limit(limit);
+
+  if (status && status !== 'all') query = query.eq('status', status);
+
+  if (search) {
+    query = query.or(
+      `requirement_number.ilike.%${search}%,order_number.ilike.%${search}%,buyer.ilike.%${search}%`
+    );
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getThreadRequirement(id) {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error('Not logged in');
+
+  const { data, error } = await supabase
+    .from('thread_requirements')
+    .select(`
+      *,
+      thread_requirement_lines(*)
+    `)
+    .eq('user_id', userId)
+    .eq('id', id)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function getCombinedThreadRequirements() {
+  const userId = await getCurrentUserId();
+  if (!userId) return [];
+
+  const { data, error } = await supabase
+    .from('thread_requirement_lines')
+    .select('*')
+    .eq('user_id', userId)
+    .in('status', ['Generated', 'Reviewed', 'Reserved'])
+    .order('required_date', { ascending: true });
+
+  if (error) throw error;
+
+  const grouped = new Map();
+
+  for (const line of data || []) {
+    const key = [
+      line.thread_id || '',
+      line.thread_code || '',
+      line.thread_color_code || line.thread_color_name || '',
+    ].join('|').toLowerCase();
+
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        key,
+        thread_id: line.thread_id,
+        thread_code: line.thread_code,
+        thread_name: line.thread_name,
+        thread_brand: line.thread_brand,
+        ticket_no: line.ticket_no,
+        thread_color_code: line.thread_color_code,
+        thread_color_name: line.thread_color_name,
+        supplier: line.supplier,
+        cone_length_m: Number(line.cone_length_m || 0),
+        total_meters: 0,
+        required_cones: 0,
+        required_date: line.required_date,
+        po_details: [],
+      });
+    }
+
+    const group = grouped.get(key);
+    group.total_meters += Number(line.total_meters || 0);
+
+    if (
+      !group.required_date ||
+      (line.required_date && line.required_date < group.required_date)
+    ) {
+      group.required_date = line.required_date;
+    }
+
+    group.po_details.push({
+      export_order_id: line.export_order_id,
+      po_number: line.po_number,
+      article_number: line.article_number,
+      style_name: line.style_name,
+      order_color_code: line.order_color_code,
+      order_color_name: line.order_color_name,
+      po_quantity: Number(line.po_quantity || 0),
+      consumption_per_garment: Number(
+        line.consumption_per_garment || 0
+      ),
+      total_meters: Number(line.total_meters || 0),
+    });
+  }
+
+  for (const group of grouped.values()) {
+    group.required_cones =
+      group.cone_length_m > 0
+        ? Math.ceil(group.total_meters / group.cone_length_m)
+        : 0;
+  }
+
+  return [...grouped.values()].sort((a, b) =>
+    String(a.required_date || '').localeCompare(
+      String(b.required_date || '')
+    )
+  );
+}
+
+export async function syncApprovedThreadRequirements() {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error('Not logged in');
+
+  const { data: orders, error } = await supabase
+    .from('export_orders')
+    .select('id, order_number, status')
+    .eq('user_id', userId)
+    .eq('status', 'Approved')
+    .order('approved_at', { ascending: true });
+
+  if (error) throw error;
+
+  const result = {
+    total: (orders || []).length,
+    generated: 0,
+    failed: 0,
+    errors: [],
+  };
+
+  for (const order of orders || []) {
+    try {
+      await generateThreadRequirementsForExportOrder(order.id);
+      result.generated += 1;
+    } catch (generationError) {
+      result.failed += 1;
+      result.errors.push({
+        order_id: order.id,
+        order_number: order.order_number,
+        message: generationError?.message || 'Generation failed',
+      });
+    }
+  }
+
+  return result;
 }
