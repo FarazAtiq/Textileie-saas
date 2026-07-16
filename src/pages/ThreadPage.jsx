@@ -5,7 +5,7 @@ import { useAuth } from '../hooks/useAuth.jsx';
 import { useToast } from '../hooks/useToast.jsx';
 import {
   AlertTriangle, CheckCircle2, Download, FileSpreadsheet, Info, LockKeyhole,
-  PackageCheck, Plus, Save, Scissors, Trash2, WalletCards
+  PackageCheck, Plus, Save, Scissors, Trash2, WalletCards, ListChecks, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 
@@ -118,6 +118,8 @@ export default function ThreadPage() {
   const [wastePct, setWastePct] = useState(10);
   const [saving, setSaving] = useState(false);
   const [loadingMasters, setLoadingMasters] = useState(true);
+  const [engineeringView, setEngineeringView] = useState('breakdown');
+  const [expandedSummaryRows, setExpandedSummaryRows] = useState({});
 
   useEffect(() => {
     let active = true;
@@ -139,6 +141,95 @@ export default function ThreadPage() {
     () => operations.map(op => ({ ...op, calculation: calculateOperation(op, wastePct, threadMap) })),
     [operations, wastePct, threadMap]
   );
+
+
+  const threadSummary = useMemo(() => {
+    const grouped = new Map();
+
+    const addUsage = (operation, threadId, meters, cost, usagePosition) => {
+      if (!threadId || Number(meters || 0) <= 0) return;
+
+      const threadItem = threadMap.get(String(threadId));
+      if (!threadItem) return;
+
+      const key = String(threadItem.id);
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          key,
+          thread_id: threadItem.id,
+          thread_code: cleanDisplayText(threadItem.thread_code),
+          thread_name: cleanDisplayText(threadItem.thread_name),
+          ticket_no: cleanDisplayText(
+            threadItem.ticket_no ||
+            threadItem.ticket_number ||
+            threadItem.ticket ||
+            ''
+          ),
+          supplier: cleanDisplayText(threadItem.supplier),
+          brand: cleanDisplayText(threadItem.brand),
+          currency: threadItem.currency || 'USD',
+          cone_length: Number(threadItem.cone_length || 0),
+          consumption_per_garment: 0,
+          total_cost: 0,
+          used_in: [],
+          operations: [],
+        });
+      }
+
+      const row = grouped.get(key);
+      row.consumption_per_garment += Number(meters || 0);
+      row.total_cost += Number(cost || 0);
+
+      if (!row.used_in.includes(usagePosition)) {
+        row.used_in.push(usagePosition);
+      }
+
+      row.operations.push({
+        operation_name: operation.operationName || 'Unnamed operation',
+        usage_position: usagePosition,
+        meters: Number(meters || 0),
+        cost: Number(cost || 0),
+      });
+    };
+
+    for (const operation of calculated) {
+      addUsage(
+        operation,
+        operation.needleThreadId,
+        operation.calculation.needleMeters,
+        operation.calculation.needleCost,
+        'Needle'
+      );
+      addUsage(
+        operation,
+        operation.looperThreadId,
+        operation.calculation.looperMeters,
+        operation.calculation.looperCost,
+        'Looper'
+      );
+      addUsage(
+        operation,
+        operation.coverThreadId,
+        operation.calculation.coverMeters,
+        operation.calculation.coverCost,
+        'Cover'
+      );
+    }
+
+    return [...grouped.values()]
+      .map(row => ({
+        ...row,
+        consumption_per_garment: round(row.consumption_per_garment, 4),
+        total_cost: round(row.total_cost, 6),
+        estimated_cones:
+          row.cone_length > 0
+            ? round(row.consumption_per_garment / row.cone_length, 6)
+            : 0,
+      }))
+      .sort((a, b) =>
+        String(a.thread_code).localeCompare(String(b.thread_code))
+      );
+  }, [calculated, threadMap]);
 
   const totals = useMemo(() => calculated.reduce((acc, op) => ({
     needleMeters: acc.needleMeters + op.calculation.needleMeters,
@@ -233,6 +324,8 @@ export default function ThreadPage() {
         currency,
         wastePct: Number(wastePct || 0),
         operationCount: operations.length,
+        threadItems: threadSummary,
+        threadItemCount: threadSummary.length,
       };
 
       await createReport({
@@ -254,7 +347,11 @@ export default function ThreadPage() {
         style_id: selectedStyle.id,
         color_id: selectedColor?.id || null,
         module_type: 'thread',
-        data: { operations: operationPayload, wastePct: Number(wastePct || 0) },
+        data: {
+          operations: operationPayload,
+          wastePct: Number(wastePct || 0),
+          threadSummary,
+        },
         summary,
       });
 
@@ -370,10 +467,31 @@ export default function ThreadPage() {
         <SummaryCard icon={Scissors} label="Operations" value={operations.length} helper={`${stitches.length} active stitches available`} tone="purple" />
       </div>
 
+
+      <div className="card" style={{ padding: 8, marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className={engineeringView === 'breakdown' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+            onClick={() => setEngineeringView('breakdown')}
+          >
+            <Scissors size={14} /> Operation Breakdown
+          </button>
+          <button
+            type="button"
+            className={engineeringView === 'summary' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+            onClick={() => setEngineeringView('summary')}
+          >
+            <ListChecks size={14} /> Thread Summary
+          </button>
+        </div>
+      </div>
+
       {!selectedStyle && (
         <div className="warning-banner"><AlertTriangle size={17} /> Select an article before saving. Calculations can still be prepared first.</div>
       )}
 
+      {engineeringView === 'breakdown' ? (
       <section className="card operations-workspace">
         <div className="section-toolbar">
           <div>
@@ -460,6 +578,134 @@ export default function ThreadPage() {
           })}
         </div>
       </section>
+      ) : (
+        <section className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div className="section-toolbar" style={{ padding: 16 }}>
+            <div>
+              <div className="eyebrow">THREAD SUMMARY</div>
+              <h2>Thread items per garment</h2>
+              <p>
+                Identical Thread Master items are combined across all operations.
+                Needle, Looper and Cover remain visible only as usage traceability.
+              </p>
+            </div>
+            <span className="status-pill status-pill-success">
+              <CheckCircle2 size={13} /> Auto-calculated
+            </span>
+          </div>
+
+          {threadSummary.length ? (
+            <div className="data-table-wrap">
+              <table className="data-table" style={{ minWidth: 980 }}>
+                <thead>
+                  <tr>
+                    <th>Thread Code</th>
+                    <th>Thread</th>
+                    <th>Ticket</th>
+                    <th>Used In</th>
+                    <th>Consumption / Garment</th>
+                    <th>Cost / Garment</th>
+                    <th>Operations</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {threadSummary.map(row => {
+                    const open = Boolean(expandedSummaryRows[row.key]);
+                    return (
+                      <>
+                        <tr key={row.key}>
+                          <td><strong>{row.thread_code || '-'}</strong></td>
+                          <td>
+                            {row.thread_name || '-'}
+                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                              {[row.brand, row.supplier].filter(Boolean).join(' | ')}
+                            </div>
+                          </td>
+                          <td>{row.ticket_no || '-'}</td>
+                          <td>
+                            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                              {row.used_in.map(item => (
+                                <span
+                                  key={item}
+                                  style={{
+                                    padding: '3px 7px',
+                                    borderRadius: 20,
+                                    background: 'var(--teal-light)',
+                                    color: 'var(--teal)',
+                                    fontSize: 10,
+                                    fontWeight: 800,
+                                  }}
+                                >
+                                  {item}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                          <td style={{ fontFamily: 'JetBrains Mono', fontWeight: 800, color: 'var(--teal)' }}>
+                            {row.consumption_per_garment.toFixed(4)} m
+                          </td>
+                          <td style={{ fontFamily: 'JetBrains Mono' }}>
+                            {row.currency} {row.total_cost.toFixed(6)}
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() =>
+                                setExpandedSummaryRows(previous => ({
+                                  ...previous,
+                                  [row.key]: !open,
+                                }))
+                              }
+                            >
+                              {open ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                              {row.operations.length} usage(s)
+                            </button>
+                          </td>
+                        </tr>
+                        {open && (
+                          <tr key={`${row.key}-details`}>
+                            <td colSpan="7" style={{ background: 'var(--bg)' }}>
+                              <div style={{ display: 'grid', gap: 6, padding: 6 }}>
+                                {row.operations.map((usage, index) => (
+                                  <div
+                                    key={`${row.key}-${index}`}
+                                    style={{
+                                      display: 'flex',
+                                      justifyContent: 'space-between',
+                                      gap: 10,
+                                      padding: '7px 9px',
+                                      borderRadius: 8,
+                                      background: 'white',
+                                      border: '1px solid var(--border-light)',
+                                      fontSize: 11,
+                                    }}
+                                  >
+                                    <span>
+                                      <strong>{usage.operation_name}</strong> | {usage.usage_position}
+                                    </span>
+                                    <span style={{ fontFamily: 'JetBrains Mono' }}>
+                                      {usage.meters.toFixed(4)} m
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="empty-state">
+              <p>Select threads in the operation breakdown to generate the summary.</p>
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="card thread-total-panel">
         <div>
