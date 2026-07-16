@@ -140,7 +140,7 @@ export default function ThreadRequirementsPage() {
       lines: lines.length,
       threadCodes: new Set(
         lines.map(line =>
-          `${line.thread_code}|${line.thread_color_code || line.thread_color_name}`
+          `${line.thread_id || ''}|${line.thread_code}|${line.thread_name}|${line.ticket_no}|${line.thread_color_code || line.thread_color_name}`
         )
       ).size,
       meters: lines.reduce(
@@ -160,7 +160,7 @@ export default function ThreadRequirementsPage() {
 
       <PageHeader
         title="Thread Requirements"
-        subtitle="Automatically calculated from saved Thread Engineering consumption per garment and approved PO quantities."
+        subtitle="Thread Master items are summed across all operations, then calculated separately for every approved Export Order color."
         badge={{ text: 'MRP' }}
       />
 
@@ -319,7 +319,7 @@ export default function ThreadRequirementsPage() {
                             <th>Article</th>
                             <th>Order Color</th>
                             <th>Thread Code</th>
-                            <th>Thread Type</th>
+                            <th>Used In</th>
                             <th>Thread</th>
                             <th>Thread Shade</th>
                             <th>PO Qty</th>
@@ -415,7 +415,7 @@ export default function ThreadRequirementsPage() {
             <thead>
               <tr>
                 <th>Thread Code</th>
-                <th>Thread Type</th>
+                <th>Used In</th>
                 <th>Thread</th>
                 <th>Thread Shade</th>
                 <th>Supplier</th>
@@ -440,7 +440,7 @@ export default function ThreadRequirementsPage() {
                       fontSize: 10,
                       fontWeight: 800,
                     }}>
-                      {item.thread_type || 'General'}
+                      {(item.usage_positions || []).join(', ') || 'General'}
                     </span>
                   </td>
                   <td>
@@ -494,7 +494,7 @@ export default function ThreadRequirementsPage() {
                               borderRadius: 7,
                             }}
                           >
-                            {detail.po_number} | Article {detail.article_number} | {item.thread_type || 'General'} | {detail.order_color_name} | {Number(detail.po_quantity || 0).toLocaleString()} pcs x {number(detail.consumption_per_garment, 3)} m = {number(detail.total_meters)} m
+                            {detail.po_number} | Article {detail.article_number} | {(item.usage_positions || []).join(', ') || 'General'} | {detail.order_color_name} | {Number(detail.po_quantity || 0).toLocaleString()} pcs x {number(detail.consumption_per_garment, 3)} m = {number(detail.total_meters)} m
                           </div>
                         ))}
                       </div>
