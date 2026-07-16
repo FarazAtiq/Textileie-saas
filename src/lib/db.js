@@ -1306,7 +1306,10 @@ export async function getExportOrders({ search = "", status = "all", limit = 200
       *,
       export_order_pos(
         *,
-        export_order_sizes(*)
+        export_order_po_colors(
+          *,
+          export_order_sizes(*)
+        )
       )
     `
     )
@@ -1338,7 +1341,10 @@ export async function getExportOrder(id) {
       *,
       export_order_pos(
         *,
-        export_order_sizes(*)
+        export_order_po_colors(
+          *,
+          export_order_sizes(*)
+        )
       )
     `
     )
@@ -1516,6 +1522,16 @@ async function replaceExportOrderPOs(exportOrderId, pos) {
 
   for (let sequence = 0; sequence < pos.length; sequence += 1) {
     const po = pos[sequence];
+    const colors = po.colors || [];
+    const poTotal = colors.reduce(
+      (sum, color) =>
+        sum +
+        (color.sizes || []).reduce(
+          (sizeSum, size) => sizeSum + Number(size.quantity || 0),
+          0
+        ),
+      0
+    );
 
     const { data: poRow, error: poError } = await supabase
       .from("export_order_pos")
@@ -1531,10 +1547,10 @@ async function replaceExportOrderPOs(exportOrderId, pos) {
         style_name: po.style_name || "",
         buyer_style: po.buyer_style || "",
         garment_type: po.garment_type || "",
-        color_id: po.color_id || null,
-        color_code: po.color_code || "",
-        color_name: po.color_name || "",
-        total_quantity: Number(po.total_quantity || 0),
+        color_id: null,
+        color_code: "",
+        color_name: "",
+        total_quantity: poTotal,
         engineering_status: po.engineering_status || "Pending",
         readiness: po.readiness || {},
       })
@@ -1543,24 +1559,56 @@ async function replaceExportOrderPOs(exportOrderId, pos) {
 
     if (poError) throw poError;
 
-    const sizeRows = (po.sizes || [])
-      .filter((size) => String(size.size_name || "").trim())
-      .map((size, index) => ({
-        user_id: userId,
-        export_order_id: exportOrderId,
-        export_order_po_id: poRow.id,
-        size_id: size.size_id || null,
-        size_name: size.size_name,
-        quantity: Number(size.quantity || 0),
-        sort_order: Number(size.sort_order ?? index),
-      }));
+    for (
+      let colorSequence = 0;
+      colorSequence < colors.length;
+      colorSequence += 1
+    ) {
+      const color = colors[colorSequence];
+      const colorTotal = (color.sizes || []).reduce(
+        (sum, size) => sum + Number(size.quantity || 0),
+        0
+      );
 
-    if (sizeRows.length) {
-      const { error: sizeError } = await supabase
-        .from("export_order_sizes")
-        .insert(sizeRows);
+      const { data: colorRow, error: colorError } = await supabase
+        .from("export_order_po_colors")
+        .insert({
+          user_id: userId,
+          export_order_id: exportOrderId,
+          export_order_po_id: poRow.id,
+          sequence_no: colorSequence + 1,
+          color_id: color.color_id || null,
+          color_code: color.color_code || "",
+          color_name: color.color_name || "",
+          total_quantity: colorTotal,
+          readiness: color.readiness || {},
+          engineering_status: color.engineering_status || "Pending",
+        })
+        .select()
+        .single();
 
-      if (sizeError) throw sizeError;
+      if (colorError) throw colorError;
+
+      const sizeRows = (color.sizes || [])
+        .filter((size) => String(size.size_name || "").trim())
+        .map((size, index) => ({
+          user_id: userId,
+          export_order_id: exportOrderId,
+          export_order_po_id: poRow.id,
+          export_order_po_color_id: colorRow.id,
+          size_id: size.size_id || null,
+          size_name: size.size_name,
+          quantity: Number(size.quantity || 0),
+          sort_order: Number(size.sort_order ?? index),
+        }));
+
+      if (sizeRows.length) {
+        const { error: sizeError } = await supabase
+          .from("export_order_sizes")
+          .insert(sizeRows);
+
+        if (sizeError) throw sizeError;
+      }
     }
   }
 }
@@ -1614,11 +1662,15 @@ export async function duplicateExportOrder(id) {
     pos: (source.export_order_pos || []).map((po) => ({
       ...po,
       id: undefined,
-      sizes: (po.export_order_sizes || []).map((size) => ({
-        size_id: size.size_id,
-        size_name: size.size_name,
-        quantity: size.quantity,
-        sort_order: size.sort_order,
+      colors: (po.export_order_po_colors || []).map((color) => ({
+        ...color,
+        id: undefined,
+        sizes: (color.export_order_sizes || []).map((size) => ({
+          size_id: size.size_id,
+          size_name: size.size_name,
+          quantity: size.quantity,
+          sort_order: size.sort_order,
+        })),
       })),
     })),
   });
