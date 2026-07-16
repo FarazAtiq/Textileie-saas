@@ -7,7 +7,7 @@ import {
   Layers3,
   RefreshCw,
   Search,
-  Sync,
+  RotateCw,
 } from 'lucide-react';
 import { PageHeader } from '../components/ResultCard.jsx';
 import { useToast } from '../hooks/useToast.jsx';
@@ -227,7 +227,7 @@ export default function FabricRequirementsPage() {
             onClick={syncApprovedOrders}
             disabled={syncing}
           >
-            <Sync size={13} /> {syncing ? 'Generating...' : 'Generate / Sync'}
+            <RotateCw size={13} /> {syncing ? 'Generating...' : 'Generate / Sync'}
           </button>
 
           <button className="btn btn-secondary btn-sm" onClick={load}>
