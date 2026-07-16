@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { calcFabricYards, calcFabricGSM, formatNum } from '../utils/calculations.js';
 import { calcBomConsumption, defaultRatioForSize } from '../utils/fabricBomCalc.js';
 import { calcKgToMeter, calcMeterToKg, metersToYards, cmToInch } from '../utils/kgMeterCalc.js';
@@ -9,7 +9,7 @@ import { useToast } from '../hooks/useToast.jsx';
 import { exportReportPDF } from '../utils/pdfExport.js';
 import { getFabricRates, fabricCostPerPiece } from '../utils/fabricCosting.js';
 import { exportBomPDF, exportBomExcel } from '../utils/bomExport.js';
-import { Plus, Trash2, Save, Download, FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, Save, Download, FileText, ChevronDown, ChevronUp, ListChecks, Layers3 } from 'lucide-react';
 import { ArticleSelector } from '../components/ArticleSelector.jsx';
 
 function useSave(type, titleFn, inputs, results) {
@@ -180,30 +180,10 @@ function BomSheetTab() {
       return sum + costPerPiece;
     }, 0);
 
-    const representative = sizes[0] ? calcForSize(comp, sizes[0].id) : { consumption: 0 };
-
     return {
       component: comp.usageAt || comp.fabricDescription || `Component ${comp.compNo}`,
-      fabricId: comp.fabric_id || null,
-      fabricCode: comp.fabricCode || '',
-      fabricName: comp.fabricDescription || '',
-      supplier: comp.supplier || '',
-      composition: comp.composition || '',
-      gsm: Number(comp.gsm || 0),
-      width: Number(comp.fabricWidth || 0),
-      widthUnit: comp.widthUnit || 'inch',
-      uom: comp.uom || 'KG',
-      consumptionPerGarment: Number(representative.consumption || 0),
-      unitPrice: Number(
-        String(comp.uom || 'KG').toUpperCase() === 'KG'
-          ? comp.costPerKg || 0
-          : String(comp.uom || '').toUpperCase() === 'YARD'
-            ? comp.costPerYard || 0
-            : comp.costPerMeter || 0
-      ),
       currency: comp.currency || 'USD',
       costPerGarment: Number(totalCost.toFixed(4)),
-      source: 'fabric_bom',
     };
   });
 
@@ -230,6 +210,8 @@ useEffect(() => {
   const [consumptionNo, setConsumptionNo] = useState('');
   const [issueDate,     setIssueDate]     = useState(new Date().toISOString().slice(0, 10));
   const [docType,       setDocType]       = useState('costing');
+  const [bomView, setBomView] = useState('breakdown');
+  const [expandedFabricSummary, setExpandedFabricSummary] = useState({});
 
   // Sizes
   const [sizes,      setSizes]      = useState([newSize('S'), newSize('M'), newSize('L'), newSize('XL'), newSize('2XL')]);
@@ -333,6 +315,109 @@ const kgConsumption =
     consumption: +consumption.toFixed(4),
   };
 };
+
+  const fabricSummary = useMemo(() => {
+    const grouped = new Map();
+
+    for (const component of components) {
+      const master = fabricMasters.find(
+        item => String(item.id) === String(component.fabric_id)
+      );
+
+      const fabricCode =
+        component.fabricCode ||
+        component.fabric_code ||
+        master?.fabric_code ||
+        master?.code ||
+        '';
+
+      const fabricName =
+        component.fabricDescription ||
+        component.fabric_name ||
+        master?.fabric_name ||
+        master?.description ||
+        component.fabricType ||
+        '';
+
+      const uom = String(component.uom || 'KG').toUpperCase();
+      const key = [
+        component.fabric_id || '',
+        fabricCode,
+        fabricName,
+        uom,
+      ].join('|').toLowerCase();
+
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          key,
+          fabric_id: component.fabric_id || null,
+          fabric_code: fabricCode,
+          fabric_name: fabricName,
+          composition: component.composition || master?.composition || '',
+          gsm: Number(component.gsm || master?.gsm || 0),
+          width: Number(component.fabricWidth || master?.width || 0),
+          width_unit: component.widthUnit || master?.width_unit || 'inch',
+          supplier: component.supplier || master?.supplier || '',
+          uom,
+          used_in: [],
+          components: [],
+          size_totals: Object.fromEntries(
+            sizes.map(size => [size.id, 0])
+          ),
+          cost_per_piece: 0,
+        });
+      }
+
+      const row = grouped.get(key);
+      const usage = component.usageAt || `Component ${component.compNo || ''}`;
+      if (usage && !row.used_in.includes(usage)) {
+        row.used_in.push(usage);
+      }
+
+      const sizeBreakdown = sizes.map(size => {
+        const calc = calcForSize(component, size.id);
+        row.size_totals[size.id] =
+          Number(row.size_totals[size.id] || 0) +
+          Number(calc.consumption || 0);
+
+        return {
+          size_id: size.id,
+          size_name: size.label,
+          consumption: Number(calc.consumption || 0),
+        };
+      });
+
+      const currentCostSummary = getFabricCostSummary();
+      const componentCost = currentCostSummary?.components?.find(
+        costRow => String(costRow.id) === String(component.id)
+      );
+
+      row.cost_per_piece += Number(
+        componentCost?.costPerPiece ||
+        componentCost?.cost_per_piece ||
+        0
+      );
+
+      row.components.push({
+        component_id: component.id,
+        component_name: usage,
+        allowance_pct: Number(component.allowancePct || 0),
+        size_breakdown: sizeBreakdown,
+      });
+    }
+
+    return [...grouped.values()].map(row => ({
+      ...row,
+      size_totals: Object.fromEntries(
+        Object.entries(row.size_totals).map(([sizeId, value]) => [
+          sizeId,
+          Number(value.toFixed(4)),
+        ])
+      ),
+      cost_per_piece: Number(row.cost_per_piece.toFixed(6)),
+    }));
+  }, [components, sizes, fabricMasters]);
+
   // ── PDF export — using shared utility ──
   const handleExportPDF = async () => {
     try {
@@ -420,11 +505,34 @@ const kgConsumption =
           style_id: selectedStyle.id,
           color_id: selectedColor?.id || null,
           module_type: 'fabric_bom',
-          data: { artNo, styleName, customer, techPackRef, consumptionNo, issueDate, docType, sizes, baseSizeId, components: calculatedComponents,fabricCostSummary, signOff },
-          summary: { results, fabricCostSummary, components: calculatedComponents, sizes: sizes.map(s => s.label), article_number: artNo, style_name: styleName, buyer: customer }
+          data: {
+            artNo,
+            styleName,
+            customer,
+            techPackRef,
+            consumptionNo,
+            issueDate,
+            docType,
+            sizes,
+            baseSizeId,
+            components: calculatedComponents,
+            fabricCostSummary,
+            fabricSummary,
+            signOff
+          },
+          summary: {
+            results,
+            fabricCostSummary,
+            components: calculatedComponents,
+            fabricSummary,
+            sizes: sizes.map(s => s.label),
+            article_number: artNo,
+            style_name: styleName,
+            buyer: customer
+          }
         });
       }
-      toast('Fabric BOM saved and automatically linked to Costing');
+      toast('Fabric BOM saved and linked to Style Master');
     } catch (err) { toast('Failed: ' + err.message, 'error'); }
     finally { setSaving(false); }
   };
@@ -455,6 +563,28 @@ const kgConsumption =
         <input type="hidden" value={docType} />
       </div>
 
+
+      <div className="card" style={{ padding: 8, marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className={bomView === 'breakdown' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+            onClick={() => setBomView('breakdown')}
+          >
+            <Layers3 size={14} /> Fabric Breakdown
+          </button>
+          <button
+            type="button"
+            className={bomView === 'summary' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+            onClick={() => setBomView('summary')}
+          >
+            <ListChecks size={14} /> Fabric Summary
+          </button>
+        </div>
+      </div>
+
+      {bomView === 'breakdown' ? (
+        <>
       {/* Sizes */}
       <div className="card" style={{marginBottom:16,padding:'14px 18px'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
@@ -540,6 +670,168 @@ const kgConsumption =
     </div>
   );
 })()}
+
+        </>
+      ) : (
+        <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 16 }}>
+          <div style={{
+            padding: 16,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 12,
+            borderBottom: '1px solid var(--border-light)',
+          }}>
+            <div>
+              <div style={{
+                fontSize: 10,
+                fontWeight: 800,
+                letterSpacing: '0.08em',
+                color: 'var(--text-muted)',
+              }}>
+                FABRIC SUMMARY
+              </div>
+              <h3 style={{ marginTop: 4 }}>Fabric items per garment</h3>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>
+                Identical fabric items used in multiple components are combined automatically.
+              </p>
+            </div>
+            <span style={{
+              padding: '5px 9px',
+              borderRadius: 20,
+              background: 'var(--green-light)',
+              color: 'var(--green)',
+              fontSize: 11,
+              fontWeight: 800,
+            }}>
+              Auto-calculated
+            </span>
+          </div>
+
+          {fabricSummary.length ? (
+            <div className="data-table-wrap">
+              <table className="data-table" style={{ minWidth: 1080 }}>
+                <thead>
+                  <tr>
+                    <th>Fabric Code</th>
+                    <th>Fabric</th>
+                    <th>Used In</th>
+                    <th>GSM</th>
+                    <th>Width</th>
+                    <th>UOM</th>
+                    {sizes.map(size => <th key={size.id}>{size.label}</th>)}
+                    <th>Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {fabricSummary.map(row => {
+                    const open = Boolean(expandedFabricSummary[row.key]);
+                    return (
+                      <>
+                        <tr key={row.key}>
+                          <td><strong>{row.fabric_code || '-'}</strong></td>
+                          <td>
+                            {row.fabric_name || '-'}
+                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                              {[row.composition, row.supplier].filter(Boolean).join(' | ')}
+                            </div>
+                          </td>
+                          <td>{row.used_in.join(', ') || '-'}</td>
+                          <td>{row.gsm || '-'}</td>
+                          <td>
+                            {row.width
+                              ? `${row.width} ${row.width_unit}`
+                              : '-'}
+                          </td>
+                          <td>{row.uom}</td>
+                          {sizes.map(size => (
+                            <td
+                              key={size.id}
+                              style={{
+                                fontFamily: 'JetBrains Mono',
+                                fontWeight: 700,
+                                color: 'var(--teal)',
+                              }}
+                            >
+                              {Number(row.size_totals[size.id] || 0).toFixed(4)}
+                            </td>
+                          ))}
+                          <td>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() =>
+                                setExpandedFabricSummary(previous => ({
+                                  ...previous,
+                                  [row.key]: !open,
+                                }))
+                              }
+                            >
+                              {open ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                              {row.components.length} component(s)
+                            </button>
+                          </td>
+                        </tr>
+                        {open && (
+                          <tr key={`${row.key}-details`}>
+                            <td colSpan={7 + sizes.length} style={{ background: 'var(--bg)' }}>
+                              <div style={{ display: 'grid', gap: 6, padding: 6 }}>
+                                {row.components.map(component => (
+                                  <div
+                                    key={component.component_id}
+                                    style={{
+                                      padding: '8px 10px',
+                                      borderRadius: 8,
+                                      background: 'white',
+                                      border: '1px solid var(--border-light)',
+                                    }}
+                                  >
+                                    <div style={{
+                                      display: 'flex',
+                                      justifyContent: 'space-between',
+                                      gap: 10,
+                                      fontSize: 11,
+                                      marginBottom: 6,
+                                    }}>
+                                      <strong>{component.component_name}</strong>
+                                      <span>Allowance: {component.allowance_pct}%</span>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                      {component.size_breakdown.map(sizeRow => (
+                                        <span
+                                          key={sizeRow.size_id}
+                                          style={{
+                                            padding: '4px 7px',
+                                            borderRadius: 6,
+                                            background: 'var(--teal-light)',
+                                            color: 'var(--teal)',
+                                            fontSize: 10,
+                                            fontWeight: 700,
+                                          }}
+                                        >
+                                          {sizeRow.size_name}: {sizeRow.consumption.toFixed(4)} {row.uom}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="empty-state">
+              <p>Add fabric components to generate the summary.</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Actions */}
       <div style={{display:'flex',flexDirection:'column',gap:10,marginTop:20}}>
