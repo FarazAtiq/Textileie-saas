@@ -1023,6 +1023,7 @@ export const MODULE_KEYS = [
   "costing",
   "reports",
   "administration",
+  "export_orders",
   "inventory",
 ];
 
@@ -1288,4 +1289,337 @@ export async function getCompanyFactoriesAndDepartments() {
   if (dError) throw dError;
 
   return { factories: factories || [], departments: departments || [] };
+}
+
+// ============================================================
+// EXPORT ORDER PHASE 1
+// ============================================================
+
+export async function getExportOrders({ search = "", status = "all", limit = 200, } = {}) {
+  const userId = await getCurrentUserId();
+  if (!userId) return [];
+
+  let query = supabase
+    .from("export_orders")
+    .select(
+      `
+      *,
+      export_order_pos(
+        *,
+        export_order_sizes(*)
+      )
+    `
+    )
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (status && status !== "all") query = query.eq("status", status);
+
+  if (search) {
+    query = query.or(
+      `order_number.ilike.%${search}%,buyer.ilike.%${search}%,brand.ilike.%${search}%,season.ilike.%${search}%`
+    );
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getExportOrder(id) {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error("Not logged in");
+
+  const { data, error } = await supabase
+    .from("export_orders")
+    .select(
+      `
+      *,
+      export_order_pos(
+        *,
+        export_order_sizes(*)
+      )
+    `
+    )
+    .eq("user_id", userId)
+    .eq("id", id)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function generateExportOrderNumber() {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error("Not logged in");
+
+  const year = new Date().getFullYear();
+  const prefix = `EO-${year}-`;
+
+  const { data, error } = await supabase
+    .from("export_orders")
+    .select("order_number")
+    .eq("user_id", userId)
+    .ilike("order_number", `${prefix}%`)
+    .order("order_number", { ascending: false })
+    .limit(1);
+
+  if (error) throw error;
+
+  const latest = data?.[0]?.order_number || "";
+  const currentSequence = Number(latest.split("-").pop() || 0);
+  return prefix + String(currentSequence + 1).padStart(5, "0");
+}
+
+export async function checkDuplicateExportOrderNumber( orderNumber, excludeId = null ) {
+  const userId = await getCurrentUserId();
+  if (!userId || !orderNumber) return null;
+
+  let query = supabase
+    .from("export_orders")
+    .select("id, order_number, buyer, status, created_at")
+    .eq("user_id", userId)
+    .ilike("order_number", String(orderNumber).trim())
+    .limit(1);
+
+  if (excludeId) query = query.neq("id", excludeId);
+
+  const { data, error } = await query.maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
+export async function checkDuplicatePONumbers( poNumbers, excludeOrderId = null ) {
+  const userId = await getCurrentUserId();
+  if (!userId) return [];
+
+  const normalized = [
+    ...new Set(
+      (poNumbers || [])
+        .map((value) =>
+          String(value || "")
+            .trim()
+            .toUpperCase()
+        )
+        .filter(Boolean)
+    ),
+  ];
+
+  if (!normalized.length) return [];
+
+  let query = supabase
+    .from("export_order_pos")
+    .select(
+      "id, export_order_id, po_number, article_number, color_name, export_orders!inner(user_id, order_number)"
+    )
+    .eq("export_orders.user_id", userId)
+    .in("po_number", normalized);
+
+  if (excludeOrderId) query = query.neq("export_order_id", excludeOrderId);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+}
+
+export async function createExportOrder(payload) {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error("Not logged in");
+
+  const pos = payload.pos || [];
+
+  const { data: order, error: orderError } = await supabase
+    .from("export_orders")
+    .insert({
+      user_id: userId,
+      order_number: payload.order_number,
+      buyer: payload.buyer || "",
+      brand: payload.brand || "",
+      season: payload.season || "",
+      factory_name: payload.factory_name || "",
+      merchandiser: payload.merchandiser || "",
+      order_date: payload.order_date || null,
+      shipment_date: payload.shipment_date || null,
+      delivery_date: payload.delivery_date || null,
+      currency: payload.currency || "USD",
+      status: payload.status || "Draft",
+      remarks: payload.remarks || "",
+      total_quantity: pos.reduce(
+        (sum, po) => sum + Number(po.total_quantity || 0),
+        0
+      ),
+      po_count: pos.length,
+    })
+    .select()
+    .single();
+
+  if (orderError) throw orderError;
+
+  try {
+    await replaceExportOrderPOs(order.id, pos);
+    return await getExportOrder(order.id);
+  } catch (error) {
+    await supabase.from("export_orders").delete().eq("id", order.id);
+    throw error;
+  }
+}
+
+export async function updateExportOrder(id, payload) {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error("Not logged in");
+
+  const pos = payload.pos || [];
+
+  const { error } = await supabase
+    .from("export_orders")
+    .update({
+      order_number: payload.order_number,
+      buyer: payload.buyer || "",
+      brand: payload.brand || "",
+      season: payload.season || "",
+      factory_name: payload.factory_name || "",
+      merchandiser: payload.merchandiser || "",
+      order_date: payload.order_date || null,
+      shipment_date: payload.shipment_date || null,
+      delivery_date: payload.delivery_date || null,
+      currency: payload.currency || "USD",
+      status: payload.status || "Draft",
+      remarks: payload.remarks || "",
+      total_quantity: pos.reduce(
+        (sum, po) => sum + Number(po.total_quantity || 0),
+        0
+      ),
+      po_count: pos.length,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId)
+    .eq("id", id);
+
+  if (error) throw error;
+
+  await replaceExportOrderPOs(id, pos);
+  return getExportOrder(id);
+}
+
+async function replaceExportOrderPOs(exportOrderId, pos) {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error("Not logged in");
+
+  const { error: deleteError } = await supabase
+    .from("export_order_pos")
+    .delete()
+    .eq("export_order_id", exportOrderId)
+    .eq("user_id", userId);
+
+  if (deleteError) throw deleteError;
+
+  for (let sequence = 0; sequence < pos.length; sequence += 1) {
+    const po = pos[sequence];
+
+    const { data: poRow, error: poError } = await supabase
+      .from("export_order_pos")
+      .insert({
+        user_id: userId,
+        export_order_id: exportOrderId,
+        sequence_no: sequence + 1,
+        po_number: String(po.po_number || "")
+          .trim()
+          .toUpperCase(),
+        style_id: po.style_id || null,
+        article_number: po.article_number || "",
+        style_name: po.style_name || "",
+        buyer_style: po.buyer_style || "",
+        garment_type: po.garment_type || "",
+        color_id: po.color_id || null,
+        color_code: po.color_code || "",
+        color_name: po.color_name || "",
+        total_quantity: Number(po.total_quantity || 0),
+        engineering_status: po.engineering_status || "Pending",
+        readiness: po.readiness || {},
+      })
+      .select()
+      .single();
+
+    if (poError) throw poError;
+
+    const sizeRows = (po.sizes || [])
+      .filter((size) => String(size.size_name || "").trim())
+      .map((size, index) => ({
+        user_id: userId,
+        export_order_id: exportOrderId,
+        export_order_po_id: poRow.id,
+        size_id: size.size_id || null,
+        size_name: size.size_name,
+        quantity: Number(size.quantity || 0),
+        sort_order: Number(size.sort_order ?? index),
+      }));
+
+    if (sizeRows.length) {
+      const { error: sizeError } = await supabase
+        .from("export_order_sizes")
+        .insert(sizeRows);
+
+      if (sizeError) throw sizeError;
+    }
+  }
+}
+
+export async function updateExportOrderStatus(id, status) {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error("Not logged in");
+
+  const { data, error } = await supabase
+    .from("export_orders")
+    .update({
+      status,
+      approved_at: status === "Approved" ? new Date().toISOString() : null,
+      approved_by: status === "Approved" ? userId : null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteExportOrder(id) {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error("Not logged in");
+
+  const { error } = await supabase
+    .from("export_orders")
+    .delete()
+    .eq("user_id", userId)
+    .eq("id", id)
+    .eq("status", "Draft");
+
+  if (error) throw error;
+}
+
+export async function duplicateExportOrder(id) {
+  const source = await getExportOrder(id);
+  const orderNumber = await generateExportOrderNumber();
+
+  return createExportOrder({
+    ...source,
+    order_number: orderNumber,
+    status: "Draft",
+    remarks: source.remarks
+      ? `${source.remarks} | Copied from ${source.order_number}`
+      : `Copied from ${source.order_number}`,
+    pos: (source.export_order_pos || []).map((po) => ({
+      ...po,
+      id: undefined,
+      sizes: (po.export_order_sizes || []).map((size) => ({
+        size_id: size.size_id,
+        size_name: size.size_name,
+        quantity: size.quantity,
+        sort_order: size.sort_order,
+      })),
+    })),
+  });
 }
