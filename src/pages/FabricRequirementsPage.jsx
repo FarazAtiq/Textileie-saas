@@ -3,15 +3,19 @@ import {
   ChevronDown,
   ChevronUp,
   ClipboardList,
+  Database,
   Layers3,
   RefreshCw,
   Search,
+  Sync,
 } from 'lucide-react';
 import { PageHeader } from '../components/ResultCard.jsx';
 import { useToast } from '../hooks/useToast.jsx';
 import {
   getCombinedFabricRequirements,
   getFabricRequirements,
+  getSavedFabricConsumptionLibrary,
+  syncApprovedFabricRequirements,
 } from '../lib/db.js';
 
 function number(value, digits = 3) {
@@ -56,19 +60,23 @@ export default function FabricRequirementsPage() {
   const [tab, setTab] = useState('order');
   const [requirements, setRequirements] = useState([]);
   const [combined, setCombined] = useState([]);
+  const [library, setLibrary] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [expanded, setExpanded] = useState({});
 
   const load = async () => {
     setLoading(true);
     try {
-      const [orderRows, combinedRows] = await Promise.all([
+      const [orderRows, combinedRows, libraryRows] = await Promise.all([
         getFabricRequirements({ limit: 300 }),
         getCombinedFabricRequirements(),
+        getSavedFabricConsumptionLibrary({ limit: 300 }),
       ]);
       setRequirements(orderRows);
       setCombined(combinedRows);
+      setLibrary(libraryRows);
     } catch (error) {
       toast('Failed to load Fabric Requirements: ' + error.message, 'error');
     } finally {
@@ -79,6 +87,28 @@ export default function FabricRequirementsPage() {
   useEffect(() => {
     load();
   }, []);
+
+  const syncApprovedOrders = async () => {
+    setSyncing(true);
+    try {
+      const result = await syncApprovedFabricRequirements();
+      await load();
+
+      if (result.failed > 0) {
+        const firstError = result.errors?.[0];
+        toast(
+          `${result.generated} requirement sheet(s) generated. ${result.failed} failed. ${firstError?.order_number || ''}: ${firstError?.message || ''}`,
+          'error'
+        );
+      } else {
+        toast(`${result.generated} approved Export Order requirement sheet(s) synchronized`);
+      }
+    } catch (error) {
+      toast('Fabric requirement synchronization failed: ' + error.message, 'error');
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -164,6 +194,13 @@ export default function FabricRequirementsPage() {
             <Layers3 size={13} /> Combined Requirement
           </button>
 
+          <button
+            className={tab === 'library' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+            onClick={() => setTab('library')}
+          >
+            <Database size={13} /> Consumption Library
+          </button>
+
           <div style={{ flex: 1 }} />
 
           <div style={{ position: 'relative', minWidth: 220 }}>
@@ -184,6 +221,14 @@ export default function FabricRequirementsPage() {
               style={{ paddingLeft: 32, width: '100%' }}
             />
           </div>
+
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={syncApprovedOrders}
+            disabled={syncing}
+          >
+            <Sync size={13} /> {syncing ? 'Generating...' : 'Generate / Sync'}
+          </button>
 
           <button className="btn btn-secondary btn-sm" onClick={load}>
             <RefreshCw size={13} /> Refresh
@@ -302,7 +347,7 @@ export default function FabricRequirementsPage() {
             <p>No Fabric Requirement Sheets found. Approve an Export Order to generate one.</p>
           </div>
         )
-      ) : (
+      ) : tab === 'combined' ? (
         combined.length ? (
           <div className="data-table-wrap card" style={{ padding: 0 }}>
             <table className="data-table" style={{ minWidth: 1050 }}>
@@ -364,6 +409,56 @@ export default function FabricRequirementsPage() {
           <div className="empty-state">
             <Layers3 size={34} color="var(--border)" />
             <p>No combined fabric requirement is available yet.</p>
+          </div>
+        )
+      ) : (
+        library.length ? (
+          <div className="data-table-wrap card" style={{ padding: 0 }}>
+            <table className="data-table" style={{ minWidth: 980 }}>
+              <thead>
+                <tr>
+                  <th>Saved Fabric BOM</th>
+                  <th>Article</th>
+                  <th>Style</th>
+                  <th>Buyer</th>
+                  <th>Color</th>
+                  <th>Base Size</th>
+                  <th>Components</th>
+                  <th>Saved Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {library
+                  .filter(item => {
+                    const q = search.trim().toLowerCase();
+                    if (!q) return true;
+                    return [
+                      item.title,
+                      item.article_number,
+                      item.style_name,
+                      item.buyer,
+                      item.color_name,
+                    ].join(' ').toLowerCase().includes(q);
+                  })
+                  .map(item => (
+                    <tr key={item.id}>
+                      <td><strong>{item.title || 'Fabric BOM'}</strong></td>
+                      <td>{item.article_number || '-'}</td>
+                      <td>{item.style_name || '-'}</td>
+                      <td>{item.buyer || '-'}</td>
+                      <td>{item.color_name || 'All colors'}</td>
+                      <td>{item.base_size || '-'}</td>
+                      <td>{item.components?.length || 0}</td>
+                      <td>{item.created_at ? new Date(item.created_at).toLocaleDateString() : '-'}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="empty-state">
+            <Database size={34} color="var(--border)" />
+            <p>No saved Fabric BOM consumption records found.</p>
           </div>
         )
       )}
