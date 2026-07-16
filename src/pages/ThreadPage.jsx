@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { createReport, getStitches, getThreads, getStyleCostSummary, upsertStyleCostModule } from '../lib/db.js';
+import { createReport, getStitches, getThreads, upsertStyleCostModule } from '../lib/db.js';
 import { ArticleSelector } from '../components/ArticleSelector.jsx';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useToast } from '../hooks/useToast.jsx';
@@ -7,6 +7,22 @@ import {
   AlertTriangle, CheckCircle2, Download, FileSpreadsheet, Info, LockKeyhole,
   PackageCheck, Plus, Save, Scissors, Trash2, WalletCards
 } from 'lucide-react';
+
+
+function cleanDisplayText(value) {
+  return String(value || '')
+    .replace(/鈥[^\s]*/g, '')
+    .replace(/針|路|锟|�/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function threadOptionLabel(thread) {
+  const code = cleanDisplayText(thread?.thread_code);
+  const name = cleanDisplayText(thread?.thread_name);
+  const use = cleanDisplayText(thread?.thread_use);
+  return [code, name, use].filter(Boolean).join(' | ');
+}
 
 const makeOperation = () => ({
   id: crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`,
@@ -96,8 +112,6 @@ export default function ThreadPage() {
 
   const [selectedStyle, setSelectedStyle] = useState(null);
   const [selectedColor, setSelectedColor] = useState(null);
-  const [syncingOperations, setSyncingOperations] = useState(false);
-  const [operationSource, setOperationSource] = useState('manual');
   const [threads, setThreads] = useState([]);
   const [stitches, setStitches] = useState([]);
   const [operations, setOperations] = useState([makeOperation()]);
@@ -179,79 +193,9 @@ export default function ThreadPage() {
   const addOperation = () => setOperations(prev => [...prev, makeOperation()]);
   const removeOperation = id => setOperations(prev => prev.length === 1 ? prev : prev.filter(op => op.id !== id));
 
-  const buildOperationsFromSmv = (smvOperations = [], existingOperations = []) => {
-    const sewingOps = smvOperations.filter(op => (op.processType || 'sewing') === 'sewing');
-    const existingBySource = new Map(
-      existingOperations
-        .filter(op => op.sourceOperationId)
-        .map(op => [String(op.sourceOperationId), op])
-    );
-
-    return sewingOps.map((smvOp, index) => {
-      const sourceId = String(smvOp.id || `${smvOp.name || 'operation'}-${index}`);
-      const existing = existingBySource.get(sourceId);
-      return {
-        ...makeOperation(),
-        ...existing,
-        id: existing?.id || (crypto.randomUUID?.() || `${Date.now()}-${index}-${Math.random()}`),
-        sourceOperationId: sourceId,
-        operationName: smvOp.name || existing?.operationName || `Operation ${index + 1}`,
-        processType: smvOp.processType || 'sewing',
-        machine: smvOp.machine || '',
-        basicTime: Number(smvOp.basicTime || 0),
-        allowancePct: Number(smvOp.allowancePct || 0),
-      };
-    });
-  };
-
-  const syncStyleOperations = async (style, color, preserveExisting = true) => {
-    if (!style?.id) return;
-    setSyncingOperations(true);
-    try {
-      const summary = await getStyleCostSummary({
-        style_id: style.id,
-        color_id: color?.id || null,
-      });
-
-      const savedThreadOps = summary?.thread?.data?.operations || [];
-      const smvOperations = summary?.smv?.data?.operations || [];
-
-      if (savedThreadOps.length) {
-        setOperations(savedThreadOps.map(op => ({
-          ...makeOperation(),
-          ...op,
-          stitchId: op.stitchId || op.stitch?.id || '',
-          needleThreadId: op.needleThreadId || op.needleThread?.id || '',
-          looperThreadId: op.looperThreadId || op.looperThread?.id || '',
-          coverThreadId: op.coverThreadId || op.coverThread?.id || '',
-        })));
-        setWastePct(summary?.thread?.summary?.wastePct ?? summary?.thread?.data?.wastePct ?? 10);
-        setOperationSource('saved-thread');
-        return;
-      }
-
-      if (smvOperations.length) {
-        setOperations(prev => buildOperationsFromSmv(smvOperations, preserveExisting ? prev : []));
-        setOperationSource('smv');
-        toast('Sewing operations loaded from SMV Operational Breakdown');
-        return;
-      }
-
-      setOperations([makeOperation()]);
-      setOperationSource('manual');
-      toast('No sewing operations found in SMV. Add operations manually.', 'error');
-    } catch (err) {
-      setOperationSource('manual');
-      toast(`Could not load operational breakdown: ${err.message}`, 'error');
-    } finally {
-      setSyncingOperations(false);
-    }
-  };
-
-  const handleStyleSelect = async ({ style, color }) => {
+  const handleStyleSelect = ({ style, color }) => {
     setSelectedStyle(style);
     setSelectedColor(color || null);
-    if (style?.id) await syncStyleOperations(style, color, false);
   };
 
   const validate = () => {
@@ -293,7 +237,7 @@ export default function ThreadPage() {
 
       await createReport({
         type: 'thread',
-        title: `Thread Engineering 鈥� Art#${articleNo}${colorName ? ` 路 ${colorName}` : ''}`,
+        title: `Thread Engineering - Art#${articleNo}${colorName ? ` | ${colorName}` : ''}`,
         inputs: {
           style_id: selectedStyle.id,
           color_id: selectedColor?.id || null,
@@ -353,19 +297,19 @@ export default function ThreadPage() {
       doc.rect(0, 0, 297, 24, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(15);
-      doc.text('TextileIE 鈥� Thread Engineering Report', 14, 15);
+      doc.text('TextileIE - Thread Engineering Report', 14, 15);
       doc.setFontSize(8);
       doc.text(`${profile?.company_name || ''} | ${new Date().toLocaleDateString('en-PK')}`, 215, 15);
       doc.setTextColor(15, 41, 66);
       doc.setFontSize(9);
-      doc.text(`Article: ${selectedStyle?.article_number || '鈥�'}   Style: ${selectedStyle?.style_name || selectedStyle?.garment_type || '鈥�'}   Buyer: ${selectedStyle?.buyer || '鈥�'}   Color: ${selectedColor?.color_name || 'Common'}`, 14, 33);
+      doc.text(`Article: ${selectedStyle?.article_number || '-'}   Style: ${selectedStyle?.style_name || selectedStyle?.garment_type || '-'}   Buyer: ${selectedStyle?.buyer || '-'}   Color: ${selectedColor?.color_name || 'Common'}`, 14, 33);
       doc.text(`Waste: ${wastePct}%   Total thread: ${round(totals.totalMeters, 2)} m   Cost: ${currency} ${round(totals.totalCost, 4)}`, 14, 40);
       autoTable(doc, {
         startY: 48,
         head: [['#', 'Operation', 'Seam cm', 'Stitch', 'SPI', 'N Ratio', 'L Ratio', 'C Ratio', 'Needle m', 'Looper m', 'Cover m', 'Total m', 'Cost']],
         body: calculated.map((op, index) => {
           const stitch = stitchMap.get(String(op.stitchId));
-          return [index + 1, op.operationName, op.seamLengthCm, stitch?.stitch_code || '鈥�', op.spi, op.needleRatio, op.looperRatio, op.coverRatio, op.calculation.needleMeters, op.calculation.looperMeters, op.calculation.coverMeters, op.calculation.totalMeters, `${currency} ${op.calculation.totalCost}`];
+          return [index + 1, op.operationName, op.seamLengthCm, stitch?.stitch_code || '-', op.spi, op.needleRatio, op.looperRatio, op.coverRatio, op.calculation.needleMeters, op.calculation.looperMeters, op.calculation.coverMeters, op.calculation.totalMeters, `${currency} ${op.calculation.totalCost}`];
         }),
         theme: 'striped',
         headStyles: { fillColor: [15, 41, 66] },
@@ -393,14 +337,7 @@ export default function ThreadPage() {
           <span className="status-pill status-pill-success"><CheckCircle2 size={13} /> Costing connected</span>
           <button className="btn btn-secondary" onClick={exportCsv}><FileSpreadsheet size={15} /> Excel</button>
           <button className="btn btn-secondary" onClick={exportPdf}><Download size={15} /> PDF</button>
-          <button
-            className="btn btn-secondary"
-            onClick={() => syncStyleOperations(selectedStyle, selectedColor, true)}
-            disabled={!selectedStyle || syncingOperations}
-          >
-            <Scissors size={15} /> {syncingOperations ? 'Syncing...' : 'Sync SMV operations'}
-          </button>
-          <button className="btn btn-primary" onClick={handleSave} disabled={saving || loadingMasters || syncingOperations}>
+          <button className="btn btn-primary" onClick={handleSave} disabled={saving || loadingMasters}>
             <Save size={15} /> {saving ? 'Saving...' : 'Save engineering'}
           </button>
         </div>
@@ -425,17 +362,6 @@ export default function ThreadPage() {
           <div className="info-banner"><LockKeyhole size={15} /> Stitch ratios and SPI are locked here and maintained only in Stitch Master.</div>
         </div>
       </div>
-
-      {selectedStyle && (
-        <div className="info-banner" style={{ marginBottom: 16 }}>
-          <Info size={15} />
-          {operationSource === 'saved-thread'
-            ? 'Loaded saved Thread Engineering data for this article. Use Sync SMV operations to add newly created sewing operations without losing existing thread selections.'
-            : operationSource === 'smv'
-              ? 'Operations are synchronized from the saved SMV Operational Breakdown. Enter seam lengths and select thread types.'
-              : 'No saved operational breakdown was found. Operations are being managed manually.'}
-        </div>
-      )}
 
       <div className="thread-kpi-grid">
         <SummaryCard icon={Scissors} label="Total thread" value={`${round(totals.totalMeters, 2)} m`} helper="Per garment / selected color" tone="teal" />
@@ -467,7 +393,7 @@ export default function ThreadPage() {
                   <div className="operation-number">{String(index + 1).padStart(2, '0')}</div>
                   <div>
                     <strong>{op.operationName || `Operation ${index + 1}`}</strong>
-                    <span>{stitch ? `${stitch.stitch_code} 路 ${stitch.stitch_name}` : 'Stitch not selected'}</span>
+                    <span>{stitch ? `${stitch.stitch_code} | ${stitch.stitch_name}` : 'Stitch not selected'}</span>
                   </div>
                   <div className="operation-result">
                     <span>Total</span><strong>{op.calculation.totalMeters} m</strong>
@@ -491,7 +417,7 @@ export default function ThreadPage() {
                     <label>Stitch type *</label>
                     <select value={op.stitchId} onChange={e => applyStitch(op.id, e.target.value)} disabled={loadingMasters}>
                       <option value="">{loadingMasters ? 'Loading Stitch Master...' : 'Select stitch'}</option>
-                      {stitches.map(s => <option key={s.id} value={s.id}>{s.stitch_code} 鈥� {s.stitch_name}</option>)}
+                      {stitches.map(s => <option key={s.id} value={s.id}>{s.stitch_code} - {s.stitch_name}</option>)}
                     </select>
                   </div>
                 </div>
@@ -508,25 +434,25 @@ export default function ThreadPage() {
                     <label>Needle thread</label>
                     <select value={op.needleThreadId} onChange={e => setOperation(op.id, 'needleThreadId', e.target.value)}>
                       <option value="">Not required / select thread</option>
-                      {threads.map(t => <option key={t.id} value={t.id}>{t.thread_code} 鈥� {t.thread_name}{t.thread_use ? ` 路 ${t.thread_use}` : ''}</option>)}
+                      {threads.filter(t => ['Needle', 'General'].includes(t.thread_use)).map(t => <option key={t.id} value={t.id}>{threadOptionLabel(t)}</option>)}
                     </select>
-                    <small>{op.calculation.needleMeters} m 路 {currency} {op.calculation.needleCost}</small>
+                    <small>{op.calculation.needleMeters} m | {currency} {op.calculation.needleCost}</small>
                   </div>
                   <div className="field">
                     <label>Looper thread</label>
                     <select value={op.looperThreadId} onChange={e => setOperation(op.id, 'looperThreadId', e.target.value)}>
                       <option value="">Not required / select thread</option>
-                      {threads.map(t => <option key={t.id} value={t.id}>{t.thread_code} 鈥� {t.thread_name}{t.thread_use ? ` 路 ${t.thread_use}` : ''}</option>)}
+                      {threads.filter(t => ['Looper', 'General'].includes(t.thread_use)).map(t => <option key={t.id} value={t.id}>{threadOptionLabel(t)}</option>)}
                     </select>
-                    <small>{op.calculation.looperMeters} m 路 {currency} {op.calculation.looperCost}</small>
+                    <small>{op.calculation.looperMeters} m | {currency} {op.calculation.looperCost}</small>
                   </div>
                   <div className="field">
                     <label>Cover thread</label>
                     <select value={op.coverThreadId} onChange={e => setOperation(op.id, 'coverThreadId', e.target.value)}>
                       <option value="">Not required / select thread</option>
-                      {threads.map(t => <option key={t.id} value={t.id}>{t.thread_code} 鈥� {t.thread_name}{t.thread_use ? ` 路 ${t.thread_use}` : ''}</option>)}
+                      {threads.filter(t => ['Cover', 'General'].includes(t.thread_use)).map(t => <option key={t.id} value={t.id}>{threadOptionLabel(t)}</option>)}
                     </select>
-                    <small>{op.calculation.coverMeters} m 路 {currency} {op.calculation.coverCost}</small>
+                    <small>{op.calculation.coverMeters} m | {currency} {op.calculation.coverCost}</small>
                   </div>
                 </div>
               </article>
