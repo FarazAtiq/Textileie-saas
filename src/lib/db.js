@@ -2083,3 +2083,89 @@ export async function getCombinedFabricRequirements() {
     String(a.required_date || "").localeCompare(String(b.required_date || ""))
   );
 }
+
+export async function syncApprovedFabricRequirements() {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error("Not logged in");
+
+  const { data: orders, error } = await supabase
+    .from("export_orders")
+    .select("id, order_number, status")
+    .eq("user_id", userId)
+    .eq("status", "Approved")
+    .order("approved_at", { ascending: true });
+
+  if (error) throw error;
+
+  const result = {
+    total: (orders || []).length,
+    generated: 0,
+    failed: 0,
+    errors: [],
+  };
+
+  for (const order of orders || []) {
+    try {
+      await generateFabricRequirementsForExportOrder(order.id);
+      result.generated += 1;
+    } catch (generationError) {
+      result.failed += 1;
+      result.errors.push({
+        order_id: order.id,
+        order_number: order.order_number,
+        message: generationError?.message || "Generation failed",
+      });
+    }
+  }
+
+  return result;
+}
+
+export async function getSavedFabricConsumptionLibrary({ search = "", limit = 300, } = {}) {
+  const userId = await getCurrentUserId();
+  if (!userId) return [];
+
+  let query = supabase
+    .from("reports")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("type", "FABRIC")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (search) {
+    query = query.ilike("title", `%${search}%`);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  return (data || []).map((report) => {
+    const inputs = report.inputs || {};
+    const results = report.results || {};
+    const bomData =
+      inputs._bomData ||
+      inputs.bomData ||
+      results._bomData ||
+      results.bomData ||
+      {};
+
+    return {
+      ...report,
+      article_number:
+        inputs.article_number ||
+        inputs.articleNumber ||
+        inputs.artNo ||
+        bomData.artNo ||
+        "",
+      style_name:
+        inputs.style_name || inputs.styleName || bomData.styleName || "",
+      buyer: inputs.buyer || inputs.customer || bomData.customer || "",
+      color_name:
+        inputs.color_name || inputs.colorName || bomData.colorName || "",
+      base_size: inputs.base_size || inputs.baseSize || bomData.baseSize || "",
+      components:
+        bomData.components || inputs.components || results.components || [],
+    };
+  });
+}
