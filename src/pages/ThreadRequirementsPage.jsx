@@ -7,7 +7,7 @@ import {
   RefreshCw,
   RotateCw,
   Search,
-  Spool,
+  Scissors,
 } from 'lucide-react';
 import { PageHeader } from '../components/ResultCard.jsx';
 import { useToast } from '../hooks/useToast.jsx';
@@ -391,7 +391,7 @@ export default function ThreadRequirementsPage() {
           </div>
         ) : (
           <div className="empty-state">
-            <Spool size={34} color="var(--border)" />
+            <Scissors size={34} color="var(--border)" />
             <p>No Thread Requirement Sheets found. Approve an Export Order or click Generate / Sync.</p>
           </div>
         )
