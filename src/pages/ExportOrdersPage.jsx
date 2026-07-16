@@ -7,9 +7,9 @@ import {
   Copy,
   Edit3,
   Eye,
-  FileText,
   Filter,
   PackageCheck,
+  Palette,
   Plus,
   RefreshCw,
   Save,
@@ -59,6 +59,16 @@ const blankHeader = () => ({
   remarks: '',
 });
 
+const makeColor = (sizeTemplate = []) => ({
+  local_id: crypto.randomUUID(),
+  color_id: '',
+  color_code: '',
+  color_name: '',
+  sizes: sizeTemplate.map(size => ({ ...size, quantity: 0 })),
+  readiness: { smv: false, fabric: false, thread: false, accessories: false },
+  engineering_status: 'Pending',
+});
+
 const makePO = () => ({
   local_id: crypto.randomUUID(),
   po_number: '',
@@ -67,17 +77,10 @@ const makePO = () => ({
   style_name: '',
   buyer_style: '',
   garment_type: '',
-  color_id: '',
-  color_code: '',
-  color_name: '',
-  sizes: [],
+  size_template: [],
+  colors: [],
   total_quantity: 0,
-  readiness: {
-    smv: false,
-    fabric: false,
-    thread: false,
-    accessories: false,
-  },
+  readiness: { smv: false, fabric: false, thread: false, accessories: false },
   engineering_status: 'Pending',
   expanded: true,
 });
@@ -86,9 +89,16 @@ function normalized(value) {
   return String(value || '').trim().toUpperCase();
 }
 
-function calculatePOTotal(sizes) {
-  return (sizes || []).reduce(
+function colorTotal(color) {
+  return (color?.sizes || []).reduce(
     (sum, size) => sum + Number(size.quantity || 0),
+    0
+  );
+}
+
+function poTotal(po) {
+  return (po?.colors || []).reduce(
+    (sum, color) => sum + colorTotal(color),
     0
   );
 }
@@ -103,11 +113,20 @@ function readinessFromModules(modules) {
 }
 
 function isEngineeringReady(readiness) {
-  return Boolean(
-    readiness?.smv &&
-    readiness?.fabric &&
-    readiness?.thread
-  );
+  return Boolean(readiness?.smv && readiness?.fabric && readiness?.thread);
+}
+
+function aggregateReadiness(colors) {
+  const valid = (colors || []).filter(color => color.color_id);
+  if (!valid.length) {
+    return { smv: false, fabric: false, thread: false, accessories: false };
+  }
+  return {
+    smv: valid.every(color => color.readiness?.smv),
+    fabric: valid.every(color => color.readiness?.fabric),
+    thread: valid.every(color => color.readiness?.thread),
+    accessories: valid.every(color => color.readiness?.accessories),
+  };
 }
 
 function StatusBadge({ status }) {
@@ -121,19 +140,11 @@ function StatusBadge({ status }) {
     Cancelled: ['#FEF2F2', '#DC2626'],
   };
   const [background, color] = tones[status] || tones.Draft;
-
   return (
     <span style={{
-      background,
-      color,
-      borderRadius: 20,
-      padding: '4px 9px',
-      fontSize: 11,
-      fontWeight: 700,
-      whiteSpace: 'nowrap',
-    }}>
-      {status}
-    </span>
+      background, color, borderRadius: 20, padding: '4px 9px',
+      fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
+    }}>{status}</span>
   );
 }
 
@@ -141,11 +152,8 @@ function ReadinessBadge({ readiness }) {
   const ready = isEngineeringReady(readiness);
   return (
     <span style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 5,
-      fontSize: 11,
-      fontWeight: 700,
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      fontSize: 11, fontWeight: 700,
       color: ready ? 'var(--green)' : 'var(--amber)',
     }}>
       {ready ? <CheckCircle2 size={13} /> : <AlertTriangle size={13} />}
@@ -157,9 +165,19 @@ function ReadinessBadge({ readiness }) {
 function SummaryCard({ label, value, sublabel }) {
   return (
     <div className="card" style={{ padding: '14px 16px' }}>
-      <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--navy)', marginTop: 4, fontFamily: 'JetBrains Mono' }}>{value}</div>
-      {sublabel && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>{sublabel}</div>}
+      <div style={{
+        fontSize: 10, color: 'var(--text-muted)', fontWeight: 700,
+        textTransform: 'uppercase', letterSpacing: '0.06em',
+      }}>{label}</div>
+      <div style={{
+        fontSize: 24, fontWeight: 800, color: 'var(--navy)',
+        marginTop: 4, fontFamily: 'JetBrains Mono',
+      }}>{value}</div>
+      {sublabel && (
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
+          {sublabel}
+        </div>
+      )}
     </div>
   );
 }
@@ -196,16 +214,13 @@ export default function ExportOrdersPage() {
     }
   };
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, []);
 
   useEffect(() => {
     if (!header.order_number.trim()) {
       setDuplicateOrderNumber(null);
       return;
     }
-
     let cancelled = false;
     const timer = setTimeout(async () => {
       setCheckingOrderNumber(true);
@@ -235,51 +250,56 @@ export default function ExportOrdersPage() {
         statusFilter === 'all' || order.status === statusFilter;
 
       const poSearch = (order.export_order_pos || [])
-        .map(po => `${po.po_number} ${po.article_number} ${po.color_name}`)
+        .map(po => {
+          const colors = (po.export_order_po_colors || [])
+            .map(color => `${color.color_name} ${color.color_code}`)
+            .join(' ');
+          return `${po.po_number} ${po.article_number} ${colors}`;
+        })
         .join(' ');
 
-      const matchesSearch =
+      return matchesStatus && (
         !query ||
-        [
-          order.order_number,
-          order.buyer,
-          order.brand,
-          order.season,
-          poSearch,
-        ]
+        [order.order_number, order.buyer, order.brand, order.season, poSearch]
           .join(' ')
           .toLowerCase()
-          .includes(query);
-
-      return matchesStatus && matchesSearch;
+          .includes(query)
+      );
     });
   }, [orders, search, statusFilter]);
 
-  const stats = useMemo(() => {
-    const totalQty = orders.reduce(
+  const stats = useMemo(() => ({
+    total: orders.length,
+    approved: orders.filter(order => order.status === 'Approved').length,
+    draft: orders.filter(order => order.status === 'Draft').length,
+    quantity: orders.reduce(
       (sum, order) => sum + Number(order.total_quantity || 0),
       0
-    );
-    return {
-      total: orders.length,
-      approved: orders.filter(order => order.status === 'Approved').length,
-      draft: orders.filter(order => order.status === 'Draft').length,
-      quantity: totalQty,
-    };
-  }, [orders]);
+    ),
+  }), [orders]);
 
   const totalOrderQuantity = useMemo(
-    () => pos.reduce((sum, po) => sum + calculatePOTotal(po.sizes), 0),
+    () => pos.reduce((sum, po) => sum + poTotal(po), 0),
     [pos]
   );
 
-  const allPOsReady = pos.length > 0 && pos.every(po => isEngineeringReady(po.readiness));
-  const allPOsValid = pos.length > 0 && pos.every(po =>
-    normalized(po.po_number) &&
-    po.style_id &&
-    po.color_id &&
-    calculatePOTotal(po.sizes) > 0
+  const totalColors = useMemo(
+    () => pos.reduce((sum, po) => sum + (po.colors || []).length, 0),
+    [pos]
   );
+
+  const allPOsReady =
+    pos.length > 0 &&
+    pos.every(po => isEngineeringReady(aggregateReadiness(po.colors)));
+
+  const allPOsValid =
+    pos.length > 0 &&
+    pos.every(po =>
+      normalized(po.po_number) &&
+      po.style_id &&
+      po.colors.length > 0 &&
+      po.colors.every(color => color.color_id && colorTotal(color) > 0)
+    );
 
   const resetForm = async () => {
     const number = await generateExportOrderNumber();
@@ -317,44 +337,57 @@ export default function ExportOrdersPage() {
     setPos(
       (order.export_order_pos || [])
         .sort((a, b) => Number(a.sequence_no || 0) - Number(b.sequence_no || 0))
-        .map(po => ({
-          local_id: po.id || crypto.randomUUID(),
-          po_number: po.po_number || '',
-          style_id: po.style_id || '',
-          article_number: po.article_number || '',
-          style_name: po.style_name || '',
-          buyer_style: po.buyer_style || '',
-          garment_type: po.garment_type || '',
-          color_id: po.color_id || '',
-          color_code: po.color_code || '',
-          color_name: po.color_name || '',
-          sizes: (po.export_order_sizes || [])
-            .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0))
-            .map(size => ({
-              size_id: size.size_id || '',
-              size_name: size.size_name,
-              quantity: Number(size.quantity || 0),
-              sort_order: size.sort_order,
-            })),
-          total_quantity: Number(po.total_quantity || 0),
-          readiness: po.readiness || {
-            smv: false,
-            fabric: false,
-            thread: false,
-            accessories: false,
-          },
-          engineering_status: po.engineering_status || 'Pending',
-          expanded: true,
-        }))
+        .map(po => {
+          const savedColors = (po.export_order_po_colors || [])
+            .sort((a, b) => Number(a.sequence_no || 0) - Number(b.sequence_no || 0))
+            .map(color => ({
+              local_id: color.id || crypto.randomUUID(),
+              color_id: color.color_id || '',
+              color_code: color.color_code || '',
+              color_name: color.color_name || '',
+              sizes: (color.export_order_sizes || [])
+                .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0))
+                .map(size => ({
+                  size_id: size.size_id || '',
+                  size_name: size.size_name,
+                  quantity: Number(size.quantity || 0),
+                  sort_order: size.sort_order,
+                })),
+              readiness: color.readiness || {
+                smv: false, fabric: false, thread: false, accessories: false,
+              },
+              engineering_status: color.engineering_status || 'Pending',
+            }));
+
+          const sizeTemplate = savedColors[0]?.sizes.map(size => ({
+            size_id: size.size_id,
+            size_name: size.size_name,
+            sort_order: size.sort_order,
+          })) || [];
+
+          return {
+            local_id: po.id || crypto.randomUUID(),
+            po_number: po.po_number || '',
+            style_id: po.style_id || '',
+            article_number: po.article_number || '',
+            style_name: po.style_name || '',
+            buyer_style: po.buyer_style || '',
+            garment_type: po.garment_type || '',
+            size_template: sizeTemplate,
+            colors: savedColors,
+            total_quantity: Number(po.total_quantity || 0),
+            readiness: aggregateReadiness(savedColors),
+            engineering_status: po.engineering_status || 'Pending',
+            expanded: true,
+          };
+        })
     );
     setMode('form');
   };
 
   const updatePO = (localId, patch) => {
     setPos(previous =>
-      previous.map(po =>
-        po.local_id === localId ? { ...po, ...patch } : po
-      )
+      previous.map(po => po.local_id === localId ? { ...po, ...patch } : po)
     );
   };
 
@@ -362,33 +395,19 @@ export default function ExportOrdersPage() {
     const style = styles.find(item => String(item.id) === String(styleId));
     if (!style) {
       updatePO(localId, {
-        style_id: '',
-        article_number: '',
-        style_name: '',
-        garment_type: '',
-        color_id: '',
-        color_code: '',
-        color_name: '',
-        sizes: [],
+        style_id: '', article_number: '', style_name: '',
+        garment_type: '', size_template: [], colors: [],
       });
       return;
     }
 
-    const sizes = (style.style_sizes || [])
+    const sizeTemplate = (style.style_sizes || [])
       .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0))
       .map((size, index) => ({
         size_id: size.id,
         size_name: size.size_name,
-        quantity: 0,
         sort_order: Number(size.sort_order ?? index),
       }));
-
-    const modules = await getStyleCostSummary({
-      style_id: style.id,
-      color_id: null,
-    });
-
-    const readiness = readinessFromModules(modules);
 
     setHeader(previous => ({
       ...previous,
@@ -402,89 +421,126 @@ export default function ExportOrdersPage() {
       article_number: style.article_number || '',
       style_name: style.style_name || '',
       garment_type: style.garment_type || '',
-      color_id: '',
-      color_code: '',
-      color_name: '',
-      sizes,
+      size_template: sizeTemplate,
+      colors: [makeColor(sizeTemplate)],
       total_quantity: 0,
-      readiness,
-      engineering_status: isEngineeringReady(readiness)
-        ? 'Ready'
-        : 'Incomplete',
+      readiness: { smv: false, fabric: false, thread: false, accessories: false },
+      engineering_status: 'Pending',
     });
   };
 
-  const selectColor = async (localId, colorId) => {
+  const addColor = localId => {
     const po = pos.find(item => item.local_id === localId);
+    if (!po?.style_id) {
+      toast('Select a style before adding colors', 'error');
+      return;
+    }
+    updatePO(localId, {
+      colors: [...po.colors, makeColor(po.size_template)],
+    });
+  };
+
+  const removeColor = (poLocalId, colorLocalId) => {
+    const po = pos.find(item => item.local_id === poLocalId);
+    const colors = po.colors.filter(color => color.local_id !== colorLocalId);
+    updatePO(poLocalId, {
+      colors,
+      readiness: aggregateReadiness(colors),
+      total_quantity: colors.reduce((sum, color) => sum + colorTotal(color), 0),
+    });
+  };
+
+  const selectColor = async (poLocalId, colorLocalId, colorId) => {
+    const po = pos.find(item => item.local_id === poLocalId);
     const style = styles.find(item => String(item.id) === String(po?.style_id));
-    const color = (style?.style_colors || []).find(
+    const selected = (style?.style_colors || []).find(
       item => String(item.id) === String(colorId)
     );
 
-    if (!color) {
-      updatePO(localId, {
-        color_id: '',
-        color_code: '',
-        color_name: '',
-      });
+    if (!selected) return;
+
+    const duplicate = po.colors.some(
+      color =>
+        color.local_id !== colorLocalId &&
+        String(color.color_id) === String(colorId)
+    );
+
+    if (duplicate) {
+      toast(`${selected.color_name} is already added to this PO`, 'error');
       return;
     }
 
     const modules = await getStyleCostSummary({
       style_id: style.id,
-      color_id: color.id,
+      color_id: selected.id,
     });
     const readiness = readinessFromModules(modules);
 
-    updatePO(localId, {
-      color_id: color.id,
-      color_code:
-        color.buyer_color_code ||
-        color.color_code ||
-        color.pantone ||
-        '',
-      color_name: color.color_name || '',
-      readiness,
-      engineering_status: isEngineeringReady(readiness)
+    const colors = po.colors.map(color =>
+      color.local_id === colorLocalId
+        ? {
+            ...color,
+            color_id: selected.id,
+            color_code:
+              selected.buyer_color_code ||
+              selected.color_code ||
+              selected.pantone ||
+              '',
+            color_name: selected.color_name || '',
+            readiness,
+            engineering_status: isEngineeringReady(readiness)
+              ? 'Ready'
+              : 'Incomplete',
+          }
+        : color
+    );
+
+    updatePO(poLocalId, {
+      colors,
+      readiness: aggregateReadiness(colors),
+      engineering_status: isEngineeringReady(aggregateReadiness(colors))
         ? 'Ready'
         : 'Incomplete',
     });
   };
 
-  const setSizeQuantity = (localId, sizeId, value) => {
+  const setSizeQuantity = (poLocalId, colorLocalId, sizeKey, value) => {
     setPos(previous =>
       previous.map(po => {
-        if (po.local_id !== localId) return po;
+        if (po.local_id !== poLocalId) return po;
 
-        const sizes = po.sizes.map(size =>
-          String(size.size_id || size.size_name) === String(sizeId)
-            ? { ...size, quantity: Math.max(0, Number(value || 0)) }
-            : size
-        );
+        const colors = po.colors.map(color => {
+          if (color.local_id !== colorLocalId) return color;
+          return {
+            ...color,
+            sizes: color.sizes.map(size =>
+              String(size.size_id || size.size_name) === String(sizeKey)
+                ? { ...size, quantity: Math.max(0, Number(value || 0)) }
+                : size
+            ),
+          };
+        });
 
         return {
           ...po,
-          sizes,
-          total_quantity: calculatePOTotal(sizes),
+          colors,
+          total_quantity: colors.reduce(
+            (sum, color) => sum + colorTotal(color),
+            0
+          ),
         };
       })
     );
   };
 
-  const validateForm = async (targetStatus = header.status) => {
+  const validateForm = async targetStatus => {
     if (!header.order_number.trim()) {
       orderNumberRef.current?.focus();
       return 'Export Order number is required';
     }
-
-    if (duplicateOrderNumber) {
-      orderNumberRef.current?.focus();
-      return `Export Order ${header.order_number} already exists`;
-    }
-
+    if (duplicateOrderNumber) return `Export Order ${header.order_number} already exists`;
     if (!header.buyer.trim()) return 'Buyer is required';
     if (!header.order_date) return 'Order date is required';
-
     if (
       header.shipment_date &&
       header.order_date &&
@@ -492,12 +548,10 @@ export default function ExportOrdersPage() {
     ) {
       return 'Shipment date cannot be before the order date';
     }
-
     if (!pos.length) return 'Add at least one PO';
 
     const localNumbers = pos.map(po => normalized(po.po_number));
     if (localNumbers.some(value => !value)) return 'Every PO requires a PO number';
-
     if (new Set(localNumbers).size !== localNumbers.length) {
       return 'The same PO number is entered more than once in this Export Order';
     }
@@ -509,20 +563,22 @@ export default function ExportOrdersPage() {
 
     for (const po of pos) {
       if (!po.style_id) return `Select a style for PO ${po.po_number}`;
-      if (!po.color_id) return `Select a color for PO ${po.po_number}`;
-      if (calculatePOTotal(po.sizes) <= 0) {
-        return `Enter size-wise quantity for PO ${po.po_number}`;
+      if (!po.colors.length) return `Add at least one color for PO ${po.po_number}`;
+      for (const color of po.colors) {
+        if (!color.color_id) return `Select every color for PO ${po.po_number}`;
+        if (colorTotal(color) <= 0) {
+          return `Enter size-wise quantity for ${color.color_name || 'a color'} in PO ${po.po_number}`;
+        }
       }
     }
 
     if (targetStatus === 'Approved' && !allPOsReady) {
-      return 'Cannot approve: one or more styles are missing SMV, Fabric BOM or Thread Engineering';
+      return 'Cannot approve: one or more colors are missing SMV, Fabric BOM or Thread Engineering';
     }
-
     return null;
   };
 
-  const save = async (targetStatus = header.status) => {
+  const save = async targetStatus => {
     setSaving(true);
     try {
       const validationError = await validateForm(targetStatus);
@@ -538,8 +594,9 @@ export default function ExportOrdersPage() {
         pos: pos.map(po => ({
           ...po,
           po_number: normalized(po.po_number),
-          total_quantity: calculatePOTotal(po.sizes),
-          engineering_status: isEngineeringReady(po.readiness)
+          total_quantity: poTotal(po),
+          readiness: aggregateReadiness(po.colors),
+          engineering_status: isEngineeringReady(aggregateReadiness(po.colors))
             ? 'Ready'
             : 'Incomplete',
         })),
@@ -553,11 +610,9 @@ export default function ExportOrdersPage() {
         await updateExportOrderStatus(saved.id, 'Approved');
       }
 
-      toast(
-        targetStatus === 'Approved'
-          ? 'Export Order approved'
-          : 'Export Order saved'
-      );
+      toast(targetStatus === 'Approved'
+        ? 'Export Order approved'
+        : 'Export Order saved');
 
       await load();
       closeForm();
@@ -570,14 +625,12 @@ export default function ExportOrdersPage() {
 
   const approveFromList = async order => {
     const ready = (order.export_order_pos || []).every(po =>
-      isEngineeringReady(po.readiness)
+      isEngineeringReady(aggregateReadiness(po.export_order_po_colors || []))
     );
-
     if (!ready) {
       toast('Cannot approve: engineering data is incomplete', 'error');
       return;
     }
-
     try {
       await updateExportOrderStatus(order.id, 'Approved');
       toast('Export Order approved');
@@ -593,7 +646,6 @@ export default function ExportOrdersPage() {
       return;
     }
     if (!confirm(`Delete ${order.order_number}?`)) return;
-
     try {
       await deleteExportOrder(order.id);
       toast('Export Order deleted');
@@ -619,24 +671,31 @@ export default function ExportOrdersPage() {
         <ToastContainer />
         <PageHeader
           title={editingId ? 'Edit Export Order' : 'Create Export Order'}
-          subtitle="Enter PO details once. Material requirements will be generated after approval."
+          subtitle="One PO can contain multiple colors with independent size-wise quantities."
           badge={{ text: header.status }}
         />
 
-        <div style={{
+        <div className="export-summary-grid" style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(4,minmax(0,1fr))',
           gap: 12,
           marginBottom: 16,
-        }} className="export-summary-grid">
+        }}>
           <SummaryCard label="Export Order" value={header.order_number || '-'} />
           <SummaryCard label="POs" value={pos.length} />
-          <SummaryCard label="Total Quantity" value={totalOrderQuantity.toLocaleString()} sublabel="pieces" />
-          <SummaryCard label="Engineering" value={allPOsReady ? 'Ready' : 'Incomplete'} />
+          <SummaryCard label="Colors" value={totalColors} />
+          <SummaryCard
+            label="Total Quantity"
+            value={totalOrderQuantity.toLocaleString()}
+            sublabel="pieces"
+          />
         </div>
 
         <div className="card" style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 16 }}>
+          <div style={{
+            display: 'flex', justifyContent: 'space-between',
+            gap: 12, alignItems: 'center', marginBottom: 16,
+          }}>
             <div>
               <h3>Export Order Header</h3>
               <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>
@@ -658,12 +717,10 @@ export default function ExportOrdersPage() {
               <input
                 ref={orderNumberRef}
                 value={header.order_number}
-                onChange={event =>
-                  setHeader(previous => ({
-                    ...previous,
-                    order_number: event.target.value.toUpperCase(),
-                  }))
-                }
+                onChange={event => setHeader(previous => ({
+                  ...previous,
+                  order_number: event.target.value.toUpperCase(),
+                }))}
               />
               {checkingOrderNumber && (
                 <small style={{ color: 'var(--text-muted)' }}>Checking...</small>
@@ -682,141 +739,79 @@ export default function ExportOrdersPage() {
               )}
             </div>
 
-            <div className="field">
-              <label>Buyer *</label>
-              <input
-                value={header.buyer}
-                onChange={event =>
-                  setHeader(previous => ({
+            {[
+              ['Buyer *', 'buyer'],
+              ['Brand', 'brand'],
+              ['Season', 'season'],
+              ['Factory', 'factory_name'],
+              ['Merchandiser', 'merchandiser'],
+            ].map(([label, key]) => (
+              <div className="field" key={key}>
+                <label>{label}</label>
+                <input
+                  value={header[key]}
+                  onChange={event => setHeader(previous => ({
                     ...previous,
-                    buyer: event.target.value,
-                  }))
-                }
-              />
-            </div>
-
-            <div className="field">
-              <label>Brand</label>
-              <input
-                value={header.brand}
-                onChange={event =>
-                  setHeader(previous => ({
-                    ...previous,
-                    brand: event.target.value,
-                  }))
-                }
-              />
-            </div>
-
-            <div className="field">
-              <label>Season</label>
-              <input
-                value={header.season}
-                onChange={event =>
-                  setHeader(previous => ({
-                    ...previous,
-                    season: event.target.value,
-                  }))
-                }
-              />
-            </div>
-
-            <div className="field">
-              <label>Factory</label>
-              <input
-                value={header.factory_name}
-                onChange={event =>
-                  setHeader(previous => ({
-                    ...previous,
-                    factory_name: event.target.value,
-                  }))
-                }
-              />
-            </div>
-
-            <div className="field">
-              <label>Merchandiser</label>
-              <input
-                value={header.merchandiser}
-                onChange={event =>
-                  setHeader(previous => ({
-                    ...previous,
-                    merchandiser: event.target.value,
-                  }))
-                }
-              />
-            </div>
+                    [key]: event.target.value,
+                  }))}
+                />
+              </div>
+            ))}
 
             <div className="field">
               <label>Order Date *</label>
               <input
                 type="date"
                 value={header.order_date}
-                onChange={event =>
-                  setHeader(previous => ({
-                    ...previous,
-                    order_date: event.target.value,
-                  }))
-                }
+                onChange={event => setHeader(previous => ({
+                  ...previous,
+                  order_date: event.target.value,
+                }))}
               />
             </div>
-
             <div className="field">
               <label>Shipment Date</label>
               <input
                 type="date"
                 value={header.shipment_date}
-                onChange={event =>
-                  setHeader(previous => ({
-                    ...previous,
-                    shipment_date: event.target.value,
-                  }))
-                }
+                onChange={event => setHeader(previous => ({
+                  ...previous,
+                  shipment_date: event.target.value,
+                }))}
               />
             </div>
-
             <div className="field">
               <label>Delivery Date</label>
               <input
                 type="date"
                 value={header.delivery_date}
-                onChange={event =>
-                  setHeader(previous => ({
-                    ...previous,
-                    delivery_date: event.target.value,
-                  }))
-                }
+                onChange={event => setHeader(previous => ({
+                  ...previous,
+                  delivery_date: event.target.value,
+                }))}
               />
             </div>
-
             <div className="field">
               <label>Currency</label>
               <select
                 value={header.currency}
-                onChange={event =>
-                  setHeader(previous => ({
-                    ...previous,
-                    currency: event.target.value,
-                  }))
-                }
+                onChange={event => setHeader(previous => ({
+                  ...previous,
+                  currency: event.target.value,
+                }))}
               >
-                <option>USD</option>
-                <option>EUR</option>
-                <option>GBP</option>
-                <option>PKR</option>
+                <option>USD</option><option>EUR</option>
+                <option>GBP</option><option>PKR</option>
               </select>
             </div>
-
             <div className="field">
               <label>Status</label>
               <select
                 value={header.status}
-                onChange={event =>
-                  setHeader(previous => ({
-                    ...previous,
-                    status: event.target.value,
-                  }))
-                }
+                onChange={event => setHeader(previous => ({
+                  ...previous,
+                  status: event.target.value,
+                }))}
                 disabled={header.status === 'Approved'}
               >
                 {ORDER_STATUSES.map(status => (
@@ -824,28 +819,28 @@ export default function ExportOrdersPage() {
                 ))}
               </select>
             </div>
-
             <div className="field" style={{ gridColumn: '1 / -1' }}>
               <label>Remarks</label>
               <textarea
                 rows={2}
                 value={header.remarks}
-                onChange={event =>
-                  setHeader(previous => ({
-                    ...previous,
-                    remarks: event.target.value,
-                  }))
-                }
+                onChange={event => setHeader(previous => ({
+                  ...previous,
+                  remarks: event.target.value,
+                }))}
               />
             </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 12 }}>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between',
+          gap: 12, alignItems: 'center', marginBottom: 12,
+        }}>
           <div>
             <h3>PO Details</h3>
             <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-              Select a style and color, then enter size-wise quantities
+              Add multiple colors and enter size-wise quantity for each color
             </p>
           </div>
           <button
@@ -857,54 +852,46 @@ export default function ExportOrdersPage() {
         </div>
 
         {pos.map((po, poIndex) => {
-          const style = styles.find(
-            item => String(item.id) === String(po.style_id)
-          );
-          const colors = style?.style_colors || [];
+          const style = styles.find(item => String(item.id) === String(po.style_id));
+          const styleColors = style?.style_colors || [];
+          const poReadiness = aggregateReadiness(po.colors);
 
           return (
-            <div className="card" key={po.local_id} style={{ marginBottom: 14, padding: 0, overflow: 'hidden' }}>
+            <div
+              className="card"
+              key={po.local_id}
+              style={{ marginBottom: 14, padding: 0, overflow: 'hidden' }}
+            >
               <div
-                onClick={() =>
-                  updatePO(po.local_id, { expanded: !po.expanded })
-                }
+                onClick={() => updatePO(po.local_id, { expanded: !po.expanded })}
                 style={{
-                  background: 'var(--navy)',
-                  color: 'white',
-                  padding: '12px 15px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                  alignItems: 'center',
-                  cursor: 'pointer',
+                  background: 'var(--navy)', color: 'white',
+                  padding: '12px 15px', display: 'flex',
+                  justifyContent: 'space-between', gap: 12,
+                  alignItems: 'center', cursor: 'pointer',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{
-                    width: 27,
-                    height: 27,
-                    borderRadius: '50%',
-                    background: 'var(--teal)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 800,
-                    fontSize: 12,
-                  }}>
-                    {poIndex + 1}
-                  </span>
+                    width: 27, height: 27, borderRadius: '50%',
+                    background: 'var(--teal)', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center',
+                    fontWeight: 800, fontSize: 12,
+                  }}>{poIndex + 1}</span>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 700 }}>
                       {po.po_number || `PO ${poIndex + 1}`}
                     </div>
-                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>
-                      {po.article_number || 'Select style'} | {calculatePOTotal(po.sizes).toLocaleString()} pcs
+                    <div style={{
+                      fontSize: 10, color: 'rgba(255,255,255,0.55)', marginTop: 2,
+                    }}>
+                      {po.article_number || 'Select style'} | {po.colors.length} colors | {poTotal(po).toLocaleString()} pcs
                     </div>
                   </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <ReadinessBadge readiness={po.readiness} />
+                  <ReadinessBadge readiness={poReadiness} />
                   {pos.length > 1 && (
                     <button
                       onClick={event => {
@@ -914,12 +901,9 @@ export default function ExportOrdersPage() {
                         );
                       }}
                       style={{
-                        border: 'none',
-                        borderRadius: 7,
+                        border: 'none', borderRadius: 7,
                         background: 'rgba(255,255,255,0.14)',
-                        color: 'white',
-                        padding: 6,
-                        cursor: 'pointer',
+                        color: 'white', padding: 6, cursor: 'pointer',
                       }}
                     >
                       <Trash2 size={13} />
@@ -941,21 +925,16 @@ export default function ExportOrdersPage() {
                       <label>PO Number *</label>
                       <input
                         value={po.po_number}
-                        onChange={event =>
-                          updatePO(po.local_id, {
-                            po_number: event.target.value.toUpperCase(),
-                          })
-                        }
+                        onChange={event => updatePO(po.local_id, {
+                          po_number: event.target.value.toUpperCase(),
+                        })}
                       />
                     </div>
-
                     <div className="field">
                       <label>Style / Article *</label>
                       <select
                         value={po.style_id}
-                        onChange={event =>
-                          selectStyle(po.local_id, event.target.value)
-                        }
+                        onChange={event => selectStyle(po.local_id, event.target.value)}
                       >
                         <option value="">Select style</option>
                         {styles.map(item => (
@@ -965,49 +944,23 @@ export default function ExportOrdersPage() {
                         ))}
                       </select>
                     </div>
-
                     <div className="field">
                       <label>Buyer Style</label>
                       <input
                         value={po.buyer_style}
-                        onChange={event =>
-                          updatePO(po.local_id, {
-                            buyer_style: event.target.value,
-                          })
-                        }
+                        onChange={event => updatePO(po.local_id, {
+                          buyer_style: event.target.value,
+                        })}
                       />
                     </div>
-
                     <div className="field">
-                      <label>Color *</label>
-                      <select
-                        value={po.color_id}
-                        disabled={!po.style_id}
-                        onChange={event =>
-                          selectColor(po.local_id, event.target.value)
-                        }
-                      >
-                        <option value="">Select color</option>
-                        {colors.map(color => (
-                          <option key={color.id} value={color.id}>
-                            {color.color_name}
-                            {color.buyer_color_code
-                              ? ` - ${color.buyer_color_code}`
-                              : ''}
-                          </option>
-                        ))}
-                      </select>
+                      <label>Total Colors</label>
+                      <input value={po.colors.length} disabled />
                     </div>
-
-                    <div className="field">
-                      <label>Color Code</label>
-                      <input value={po.color_code} disabled />
-                    </div>
-
                     <div className="field">
                       <label>Total PO Quantity</label>
                       <input
-                        value={calculatePOTotal(po.sizes)}
+                        value={poTotal(po)}
                         disabled
                         style={{ fontWeight: 800, color: 'var(--teal)' }}
                       />
@@ -1015,80 +968,144 @@ export default function ExportOrdersPage() {
                   </div>
 
                   <div style={{
-                    padding: '10px 12px',
-                    borderRadius: 10,
-                    background: isEngineeringReady(po.readiness)
-                      ? 'var(--green-light)'
-                      : 'var(--amber-light)',
-                    marginBottom: 14,
+                    display: 'flex', justifyContent: 'space-between',
+                    alignItems: 'center', gap: 10, marginBottom: 10,
                   }}>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-                      {[
-                        ['SMV', po.readiness?.smv],
-                        ['Fabric BOM', po.readiness?.fabric],
-                        ['Thread Engineering', po.readiness?.thread],
-                        ['Accessories', po.readiness?.accessories],
-                      ].map(([label, done]) => (
-                        <span key={label} style={{
-                          fontSize: 11,
-                          fontWeight: 700,
-                          color: done ? 'var(--green)' : 'var(--amber)',
-                        }}>
-                          {done ? 'Ready' : 'Missing'} - {label}
-                        </span>
-                      ))}
+                    <div>
+                      <h4 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Palette size={15} /> Colors & Size Breakdown
+                      </h4>
+                      <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                        Each color has its own size quantities.
+                      </p>
                     </div>
-                    {!po.readiness?.accessories && (
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6 }}>
-                        Accessories is displayed for readiness, but it does not block approval until the Accessories BOM module is completed.
-                      </div>
-                    )}
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => addColor(po.local_id)}
+                      disabled={!po.style_id}
+                    >
+                      <Plus size={13} /> Add Color
+                    </button>
                   </div>
 
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase' }}>
-                    Size-wise PO Quantity
-                  </div>
-
-                  {po.sizes.length ? (
+                  {!po.colors.length ? (
                     <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit,minmax(110px,1fr))',
-                      gap: 8,
+                      padding: 18, textAlign: 'center',
+                      color: 'var(--text-muted)', background: 'var(--bg)',
+                      borderRadius: 10,
                     }}>
-                      {po.sizes.map(size => (
-                        <div key={size.size_id || size.size_name} style={{
-                          padding: 10,
-                          border: '1px solid var(--border-light)',
-                          borderRadius: 9,
-                          background: 'var(--bg)',
-                        }}>
-                          <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 5 }}>
-                            {size.size_name}
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={size.quantity}
-                            onChange={event =>
-                              setSizeQuantity(
-                                po.local_id,
-                                size.size_id || size.size_name,
-                                event.target.value
-                              )
-                            }
-                          />
-                        </div>
-                      ))}
+                      Select a style, then add one or more colors.
                     </div>
                   ) : (
-                    <div style={{
-                      padding: 16,
-                      textAlign: 'center',
-                      color: 'var(--text-muted)',
-                      background: 'var(--bg)',
-                      borderRadius: 9,
-                    }}>
-                      Select a style to load its sizes.
+                    <div style={{ display: 'grid', gap: 10 }}>
+                      {po.colors.map((color, colorIndex) => (
+                        <div
+                          key={color.local_id}
+                          style={{
+                            border: '1px solid var(--border-light)',
+                            borderRadius: 12,
+                            padding: 12,
+                            background: 'white',
+                          }}
+                        >
+                          <div className="color-header-grid" style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'minmax(180px,1.2fr) minmax(120px,.7fr) 110px auto',
+                            gap: 8,
+                            alignItems: 'end',
+                            marginBottom: 12,
+                          }}>
+                            <div className="field" style={{ margin: 0 }}>
+                              <label>Color {colorIndex + 1} *</label>
+                              <select
+                                value={color.color_id}
+                                onChange={event =>
+                                  selectColor(po.local_id, color.local_id, event.target.value)
+                                }
+                              >
+                                <option value="">Select color</option>
+                                {styleColors.map(item => (
+                                  <option key={item.id} value={item.id}>
+                                    {item.color_name}
+                                    {item.buyer_color_code
+                                      ? ` - ${item.buyer_color_code}`
+                                      : ''}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="field" style={{ margin: 0 }}>
+                              <label>Color Code</label>
+                              <input value={color.color_code} disabled />
+                            </div>
+                            <div className="field" style={{ margin: 0 }}>
+                              <label>Total</label>
+                              <input
+                                value={colorTotal(color)}
+                                disabled
+                                style={{ fontWeight: 800, color: 'var(--teal)' }}
+                              />
+                            </div>
+                            <button
+                              className="btn btn-danger btn-sm"
+                              onClick={() => removeColor(po.local_id, color.local_id)}
+                              disabled={po.colors.length === 1}
+                            >
+                              <Trash2 size={13} /> Remove
+                            </button>
+                          </div>
+
+                          <div style={{ marginBottom: 9 }}>
+                            <ReadinessBadge readiness={color.readiness} />
+                          </div>
+
+                          <div className="size-grid" style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit,minmax(92px,1fr))',
+                            gap: 7,
+                          }}>
+                            {color.sizes.map(size => (
+                              <div
+                                key={size.size_id || size.size_name}
+                                style={{
+                                  padding: 8,
+                                  border: '1px solid var(--border-light)',
+                                  borderRadius: 8,
+                                  background: 'var(--bg)',
+                                }}
+                              >
+                                <label style={{
+                                  display: 'block', fontSize: 10,
+                                  fontWeight: 700, marginBottom: 4,
+                                }}>{size.size_name}</label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={size.quantity}
+                                  onChange={event => setSizeQuantity(
+                                    po.local_id,
+                                    color.local_id,
+                                    size.size_id || size.size_name,
+                                    event.target.value
+                                  )}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+
+                      <div style={{
+                        display: 'flex', justifyContent: 'space-between',
+                        gap: 12, padding: '10px 12px',
+                        background: 'var(--teal-light)',
+                        borderRadius: 10, fontWeight: 700,
+                      }}>
+                        <span>PO Total</span>
+                        <span style={{ color: 'var(--teal)' }}>
+                          {poTotal(po).toLocaleString()} pcs
+                        </span>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1098,24 +1115,22 @@ export default function ExportOrdersPage() {
         })}
 
         <div className="card" style={{ marginTop: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{
+            display: 'flex', justifyContent: 'space-between',
+            gap: 12, alignItems: 'center', flexWrap: 'wrap',
+          }}>
             <div>
               <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                {pos.length} PO(s) | {totalOrderQuantity.toLocaleString()} pieces
+                {pos.length} PO(s) | {totalColors} color(s) | {totalOrderQuantity.toLocaleString()} pieces
               </div>
               <div style={{ marginTop: 5 }}>
                 <ReadinessBadge readiness={{
-                  smv: allPOsReady,
-                  fabric: allPOsReady,
-                  thread: allPOsReady,
+                  smv: allPOsReady, fabric: allPOsReady, thread: allPOsReady,
                 }} />
               </div>
             </div>
-
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button className="btn btn-secondary" onClick={closeForm}>
-                Cancel
-              </button>
+              <button className="btn btn-secondary" onClick={closeForm}>Cancel</button>
               <button
                 className="btn btn-secondary"
                 disabled={saving || checkingOrderNumber || Boolean(duplicateOrderNumber)}
@@ -1126,11 +1141,9 @@ export default function ExportOrdersPage() {
               <button
                 className="btn btn-primary"
                 disabled={
-                  saving ||
-                  checkingOrderNumber ||
+                  saving || checkingOrderNumber ||
                   Boolean(duplicateOrderNumber) ||
-                  !allPOsValid ||
-                  !allPOsReady
+                  !allPOsValid || !allPOsReady
                 }
                 onClick={() => save('Approved')}
               >
@@ -1146,10 +1159,19 @@ export default function ExportOrdersPage() {
             .export-summary-grid {
               grid-template-columns: repeat(2,minmax(0,1fr)) !important;
             }
+            .color-header-grid {
+              grid-template-columns: 1fr 1fr !important;
+            }
           }
           @media (max-width: 520px) {
             .export-summary-grid {
               grid-template-columns: 1fr !important;
+            }
+            .color-header-grid {
+              grid-template-columns: 1fr !important;
+            }
+            .size-grid {
+              grid-template-columns: repeat(2,minmax(0,1fr)) !important;
             }
           }
         `}</style>
@@ -1162,26 +1184,35 @@ export default function ExportOrdersPage() {
       <ToastContainer />
       <PageHeader
         title="Export Orders"
-        subtitle="Create customer orders with multiple POs, styles, colors and size-wise quantities"
+        subtitle="Create customer orders with multiple POs, multiple colors and size-wise quantities"
         badge={{ text: 'Planning' }}
       />
 
-      <div style={{
+      <div className="export-stats-grid" style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(4,minmax(0,1fr))',
         gap: 12,
         marginBottom: 18,
-      }} className="export-stats-grid">
+      }}>
         <SummaryCard label="Total Orders" value={stats.total} />
         <SummaryCard label="Approved" value={stats.approved} />
         <SummaryCard label="Draft" value={stats.draft} />
-        <SummaryCard label="Total Quantity" value={stats.quantity.toLocaleString()} sublabel="pieces" />
+        <SummaryCard
+          label="Total Quantity"
+          value={stats.quantity.toLocaleString()}
+          sublabel="pieces"
+        />
       </div>
 
       <div className="card" style={{ padding: 12, marginBottom: 16 }}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{
+          display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap',
+        }}>
           <div style={{ position: 'relative', flex: 1, minWidth: 220 }}>
-            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <Search size={14} style={{
+              position: 'absolute', left: 10, top: '50%',
+              transform: 'translateY(-50%)', color: 'var(--text-muted)',
+            }} />
             <input
               value={search}
               onChange={event => setSearch(event.target.value)}
@@ -1189,9 +1220,11 @@ export default function ExportOrdersPage() {
               style={{ width: '100%', paddingLeft: 32 }}
             />
           </div>
-
           <div style={{ position: 'relative' }}>
-            <Filter size={13} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <Filter size={13} style={{
+              position: 'absolute', left: 9, top: '50%',
+              transform: 'translateY(-50%)', color: 'var(--text-muted)',
+            }} />
             <select
               value={statusFilter}
               onChange={event => setStatusFilter(event.target.value)}
@@ -1203,11 +1236,9 @@ export default function ExportOrdersPage() {
               ))}
             </select>
           </div>
-
           <button className="btn btn-secondary" onClick={load}>
             <RefreshCw size={14} /> Refresh
           </button>
-
           <button className="btn btn-primary" onClick={resetForm}>
             <Plus size={14} /> New Export Order
           </button>
@@ -1226,12 +1257,13 @@ export default function ExportOrdersPage() {
         </div>
       ) : (
         <div className="data-table-wrap card" style={{ padding: 0 }}>
-          <table className="data-table" style={{ minWidth: 1050 }}>
+          <table className="data-table" style={{ minWidth: 1100 }}>
             <thead>
               <tr>
                 <th>Export Order</th>
                 <th>Buyer</th>
                 <th>POs</th>
+                <th>Colors</th>
                 <th>Styles</th>
                 <th>Total Qty</th>
                 <th>Shipment</th>
@@ -1243,46 +1275,72 @@ export default function ExportOrdersPage() {
             <tbody>
               {filteredOrders.map(order => {
                 const poRows = order.export_order_pos || [];
-                const articles = [...new Set(poRows.map(po => po.article_number).filter(Boolean))];
-                const ready = poRows.length > 0 && poRows.every(po => isEngineeringReady(po.readiness));
+                const articles = [
+                  ...new Set(poRows.map(po => po.article_number).filter(Boolean)),
+                ];
+                const colors = poRows.reduce(
+                  (sum, po) => sum + (po.export_order_po_colors || []).length,
+                  0
+                );
+                const ready =
+                  poRows.length > 0 &&
+                  poRows.every(po =>
+                    isEngineeringReady(
+                      aggregateReadiness(po.export_order_po_colors || [])
+                    )
+                  );
 
                 return (
                   <tr key={order.id}>
                     <td>
-                      <strong style={{ color: 'var(--navy)' }}>{order.order_number}</strong>
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>
-                        {order.order_date || '-'}
-                      </div>
+                      <strong style={{ color: 'var(--navy)' }}>
+                        {order.order_number}
+                      </strong>
+                      <div style={{
+                        fontSize: 10, color: 'var(--text-muted)', marginTop: 3,
+                      }}>{order.order_date || '-'}</div>
                     </td>
                     <td>
                       <strong>{order.buyer || '-'}</strong>
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>
-                        {order.brand || order.season || ''}
-                      </div>
+                      <div style={{
+                        fontSize: 10, color: 'var(--text-muted)', marginTop: 3,
+                      }}>{order.brand || order.season || ''}</div>
                     </td>
                     <td>{poRows.length}</td>
+                    <td>{colors}</td>
                     <td>{articles.join(', ') || '-'}</td>
-                    <td style={{ fontFamily: 'JetBrains Mono', fontWeight: 700 }}>
+                    <td style={{
+                      fontFamily: 'JetBrains Mono', fontWeight: 700,
+                    }}>
                       {Number(order.total_quantity || 0).toLocaleString()}
                     </td>
                     <td>{order.shipment_date || '-'}</td>
-                    <td><ReadinessBadge readiness={{
-                      smv: ready,
-                      fabric: ready,
-                      thread: ready,
-                    }} /></td>
+                    <td>
+                      <ReadinessBadge readiness={{
+                        smv: ready, fabric: ready, thread: ready,
+                      }} />
+                    </td>
                     <td><StatusBadge status={order.status} /></td>
                     <td>
                       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                        <button className="btn btn-secondary btn-sm" onClick={() => editOrder(order)}>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => editOrder(order)}
+                        >
                           <Eye size={12} /> View
                         </button>
                         {order.status === 'Draft' && (
-                          <button className="btn btn-secondary btn-sm" onClick={() => editOrder(order)}>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => editOrder(order)}
+                          >
                             <Edit3 size={12} /> Edit
                           </button>
                         )}
-                        <button className="btn btn-secondary btn-sm" onClick={() => duplicate(order)}>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => duplicate(order)}
+                        >
                           <Copy size={12} /> Copy
                         </button>
                         {order.status === 'Draft' && (
@@ -1295,7 +1353,10 @@ export default function ExportOrdersPage() {
                           </button>
                         )}
                         {order.status === 'Draft' && (
-                          <button className="btn btn-danger btn-sm" onClick={() => remove(order)}>
+                          <button
+                            className="btn btn-danger btn-sm"
+                            onClick={() => remove(order)}
+                          >
                             <Trash2 size={12} />
                           </button>
                         )}
