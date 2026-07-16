@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import {
   LayoutDashboard, FolderOpen, TrendingUp, Factory, Clock, Layers,
-  Scissors, DollarSign, FileText, LogOut, Settings, Menu, X
+  Scissors, DollarSign, FileText, LogOut, Settings, Menu, X, ClipboardList
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -21,6 +21,8 @@ const NAV = [
   { to: '/fabric', icon: Layers, label: 'Fabric Engineering', module: 'fabric_engineering' },
   { to: '/thread', icon: Scissors, label: 'Thread Engineering', module: 'thread_engineering' },
   { to: '/costing', icon: DollarSign, label: 'Garment Costing', module: 'costing' },
+  { section: 'Planning' },
+  { to: '/export-orders', icon: ClipboardList, label: 'Export Orders', module: 'export_orders' },
   { section: 'Insights' },
   { to: '/reports', icon: FileText, label: 'Report Studio', module: 'reports' },
   { section: 'Administration' },
