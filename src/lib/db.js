@@ -2191,9 +2191,12 @@ function addThreadConsumption(grouped, thread, meters, source) {
 
   if (!normalized || !normalized.thread_code || consumption <= 0) return;
 
+  const threadType = String(source.source_type || 'General').trim();
+
   const key = [
     normalized.thread_id || '',
     normalized.thread_code,
+    threadType,
     normalized.color_code || normalized.color_name || '',
   ].join('|').toLowerCase();
 
@@ -2201,6 +2204,7 @@ function addThreadConsumption(grouped, thread, meters, source) {
     grouped.set(key, {
       key,
       ...normalized,
+      thread_type: threadType,
       consumption_per_garment: 0,
       sources: [],
     });
@@ -2390,6 +2394,7 @@ export async function generateThreadRequirementsForExportOrder(exportOrderId) {
           thread_id: thread.thread_id || null,
           thread_code: thread.thread_code,
           thread_name: thread.thread_name || '',
+          thread_type: thread.thread_type || 'General',
           thread_brand: thread.brand || '',
           ticket_no: thread.ticket_no || '',
           thread_color_code: thread.color_code || '',
@@ -2509,6 +2514,7 @@ export async function getCombinedThreadRequirements() {
     const key = [
       line.thread_id || '',
       line.thread_code || '',
+      line.thread_type || 'General',
       line.thread_color_code || line.thread_color_name || '',
     ].join('|').toLowerCase();
 
@@ -2518,6 +2524,7 @@ export async function getCombinedThreadRequirements() {
         thread_id: line.thread_id,
         thread_code: line.thread_code,
         thread_name: line.thread_name,
+        thread_type: line.thread_type || 'General',
         thread_brand: line.thread_brand,
         ticket_no: line.ticket_no,
         thread_color_code: line.thread_color_code,
