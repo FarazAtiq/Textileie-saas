@@ -2191,30 +2191,36 @@ function addThreadConsumption(grouped, thread, meters, source) {
 
   if (!normalized || !normalized.thread_code || consumption <= 0) return;
 
-  const threadType = String(source.source_type || 'General').trim();
-
+  // Purchasing identity is the actual Thread Master item.
+  // Needle, Looper and Cover are calculation sources only.
   const key = [
     normalized.thread_id || '',
     normalized.thread_code,
-    threadType,
-    normalized.color_code || normalized.color_name || '',
+    normalized.thread_name || '',
+    normalized.ticket_no || '',
   ].join('|').toLowerCase();
 
   if (!grouped.has(key)) {
     grouped.set(key, {
       key,
       ...normalized,
-      thread_type: threadType,
       consumption_per_garment: 0,
       sources: [],
+      usage_positions: [],
     });
   }
 
   const row = grouped.get(key);
   row.consumption_per_garment += consumption;
+
+  const sourceType = String(source.source_type || 'General').trim();
+  if (sourceType && !row.usage_positions.includes(sourceType)) {
+    row.usage_positions.push(sourceType);
+  }
+
   row.sources.push({
     operation_name: source.operation_name || '',
-    source_type: source.source_type || '',
+    source_type: sourceType,
     meters: consumption,
   });
 }
@@ -2394,11 +2400,13 @@ export async function generateThreadRequirementsForExportOrder(exportOrderId) {
           thread_id: thread.thread_id || null,
           thread_code: thread.thread_code,
           thread_name: thread.thread_name || '',
-          thread_type: thread.thread_type || 'General',
+          thread_type: (thread.usage_positions || []).join(', ') || 'General',
           thread_brand: thread.brand || '',
           ticket_no: thread.ticket_no || '',
-          thread_color_code: thread.color_code || '',
-          thread_color_name: thread.color_name || color.color_name || '',
+          // Requirement shade follows the Export Order garment color.
+          // Style consumption remains common for all colors.
+          thread_color_code: color.color_code || '',
+          thread_color_name: color.color_name || '',
           supplier: thread.supplier || '',
           po_quantity: poColorQuantity,
           consumption_per_garment: Number(
@@ -2514,7 +2522,8 @@ export async function getCombinedThreadRequirements() {
     const key = [
       line.thread_id || '',
       line.thread_code || '',
-      line.thread_type || 'General',
+      line.thread_name || '',
+      line.ticket_no || '',
       line.thread_color_code || line.thread_color_name || '',
     ].join('|').toLowerCase();
 
@@ -2524,7 +2533,7 @@ export async function getCombinedThreadRequirements() {
         thread_id: line.thread_id,
         thread_code: line.thread_code,
         thread_name: line.thread_name,
-        thread_type: line.thread_type || 'General',
+        usage_positions: [],
         thread_brand: line.thread_brand,
         ticket_no: line.ticket_no,
         thread_color_code: line.thread_color_code,
@@ -2540,6 +2549,15 @@ export async function getCombinedThreadRequirements() {
 
     const group = grouped.get(key);
     group.total_meters += Number(line.total_meters || 0);
+
+    for (const usage of String(line.thread_type || '')
+      .split(',')
+      .map(value => value.trim())
+      .filter(Boolean)) {
+      if (!group.usage_positions.includes(usage)) {
+        group.usage_positions.push(usage);
+      }
+    }
 
     if (
       !group.required_date ||
