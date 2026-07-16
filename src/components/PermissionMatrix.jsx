@@ -24,6 +24,7 @@ const MODULE_LABELS = {
   costing: 'Garment Costing',
   reports: 'Report Studio',
   administration: 'Administration',
+  export_orders: 'Export Orders',
   inventory: 'Inventory',
 };
 
