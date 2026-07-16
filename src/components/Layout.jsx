@@ -1,54 +1,143 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import {
-  LayoutDashboard, FolderOpen, TrendingUp, Factory, Clock, Layers,
-  Scissors, DollarSign, FileText, LogOut, Settings, Menu, X, ClipboardList
+  Bell, Building2, ChevronDown, CircleHelp, Clock3, DollarSign,
+  Factory, FileBarChart2, FolderKanban, Gauge, LayoutDashboard,
+  Layers3, LogOut, Menu, PackageSearch, Scissors, Search, Settings,
+  ShieldCheck, Sparkles, TrendingUp, UserRound, X, ClipboardList
 } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
-const NAV = [
-  { section: 'Overview' },
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', module: 'dashboard' },
-  { section: 'Master Data' },
-  { to: '/styles', icon: FolderOpen, label: 'Style Master', module: 'styles' },
-  { to: '/fabric-master', icon: Layers, label: 'Fabric Master', module: 'fabric_master' },
-  { to: '/thread-master', icon: Scissors, label: 'Thread Master', module: 'thread_master' },
-  { to: '/stitch-master', icon: Scissors, label: 'Stitch Master', module: 'stitch_master' },
-  { section: 'Industrial Engineering' },
-  { to: '/smv', icon: Clock, label: 'SMV / SAM', module: 'smv' },
-  { to: '/efficiency', icon: TrendingUp, label: 'Efficiency', module: 'efficiency' },
-  { to: '/capacity', icon: Factory, label: 'Capacity', module: 'capacity' },
-  { to: '/fabric', icon: Layers, label: 'Fabric Engineering', module: 'fabric_engineering' },
-  { to: '/thread', icon: Scissors, label: 'Thread Engineering', module: 'thread_engineering' },
-  { to: '/costing', icon: DollarSign, label: 'Garment Costing', module: 'costing' },
-  { section: 'Planning' },
-  { to: '/export-orders', icon: ClipboardList, label: 'Export Orders', module: 'export_orders' },
-  { section: 'Insights' },
-  { to: '/reports', icon: FileText, label: 'Report Studio', module: 'reports' },
-  { section: 'Administration' },
-  { to: '/settings', icon: Settings, label: 'Administration', module: 'administration' },
+const NAV_GROUPS = [
+  {
+    label: 'Overview',
+    items: [{ to: '/dashboard', icon: LayoutDashboard, label: 'Command Center', module: 'dashboard' }],
+  },
+  {
+    label: 'Product Engineering',
+    items: [
+      { to: '/styles', icon: FolderKanban, label: 'Style Master', module: 'styles' },
+      { to: '/fabric-master', icon: Layers3, label: 'Fabric Master', module: 'fabric_master' },
+      { to: '/stitch-master', icon: Scissors, label: 'Stitch Master', module: 'stitch_master' },
+      { to: '/thread-master', icon: PackageSearch, label: 'Thread Master', module: 'thread_master' },
+    ],
+  },
+  {
+    label: 'Industrial Engineering',
+    items: [
+      { to: '/smv', icon: Clock3, label: 'SMV / SAM', module: 'smv' },
+      { to: '/efficiency', icon: TrendingUp, label: 'Efficiency', module: 'efficiency' },
+      { to: '/capacity', icon: Factory, label: 'Capacity Planning', module: 'capacity' },
+      { to: '/thread', icon: Scissors, label: 'Thread Engineering', module: 'thread_engineering' },
+      { to: '/fabric', icon: Layers3, label: 'Fabric Engineering', module: 'fabric_engineering' },
+    ],
+  },
+  {
+    label: 'Planning',
+    items: [
+      { to: '/export-orders', icon: ClipboardList, label: 'Export Orders', module: 'export_orders' },
+    ],
+  },
+  {
+    label: 'Commercial',
+    items: [
+      { to: '/costing', icon: DollarSign, label: 'Garment Costing', module: 'costing' },
+      { to: '/reports', icon: FileBarChart2, label: 'Reports & Analytics', module: 'reports' },
+    ],
+  },
+  {
+    label: 'Administration',
+    items: [{ to: '/settings', icon: Settings, label: 'Administration', module: 'administration' }],
+  },
 ];
 
-const BOTTOM_NAV = [
-  { to: '/dashboard',  icon: LayoutDashboard, label: 'Home' },
-  { to: '/efficiency', icon: TrendingUp,      label: 'Efficiency' },
-  { to: '/capacity',   icon: Factory,         label: 'Capacity' },
-  { to: '/smv',        icon: Clock,           label: 'SMV' },
-  { to: '/reports',    icon: FileText,        label: 'Reports' },
-];
+const PAGE_TITLES = {
+  '/dashboard': 'Command Center',
+  '/styles': 'Style Master',
+  '/fabric-master': 'Fabric Master',
+  '/stitch-master': 'Stitch Master',
+  '/thread-master': 'Thread Master',
+  '/smv': 'SMV / SAM',
+  '/efficiency': 'Efficiency',
+  '/capacity': 'Capacity Planning',
+  '/thread': 'Thread Engineering',
+  '/fabric': 'Fabric Engineering',
+  '/costing': 'Garment Costing',
+  '/export-orders': 'Export Orders',
+  '/export-order': 'Export Orders',
+  '/reports': 'Reports & Analytics',
+  '/settings': 'Administration',
+};
+
+function SidebarContent({ profile, user, role, can, onNavigate, onLogout }) {
+  return (
+    <>
+      <div className="app-brand">
+        <div className="app-brand-mark">T</div>
+        <div>
+          <div className="app-brand-name">TextileIE</div>
+          <div className="app-brand-subtitle">Engineering Intelligence</div>
+        </div>
+      </div>
+
+      <div className="tenant-card">
+        <div className="tenant-icon"><Building2 size={15} /></div>
+        <div className="tenant-copy">
+          <span>Active company</span>
+          <strong>{profile?.company_name || 'Textile Factory'}</strong>
+        </div>
+        <ChevronDown size={14} className="tenant-chevron" />
+      </div>
+
+      <nav className="app-nav">
+        {NAV_GROUPS.map(group => {
+          const visibleItems = group.items.filter(item => !item.module || can(item.module, 'view'));
+          if (!visibleItems.length) return null;
+          return (
+          <div className="nav-group" key={group.label}>
+            <div className="nav-group-label">{group.label}</div>
+            {visibleItems.map(item => {
+              const Icon = item.icon;
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  onClick={onNavigate}
+                  className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                >
+                  <Icon size={17} />
+                  <span>{item.label}</span>
+                </NavLink>
+              );
+            })}
+          </div>
+        )})}
+      </nav>
+
+      <div className="sidebar-footer">
+        <div className="user-panel">
+          <div className="user-avatar">{(profile?.full_name || user?.email || 'U').slice(0, 1).toUpperCase()}</div>
+          <div className="user-panel-copy">
+            <strong>{profile?.full_name || 'TextileIE User'}</strong>
+            <span>{user?.email || ''}</span>
+            <span>{role?.name || 'Owner'}</span>
+          </div>
+        </div>
+        <button className="sidebar-logout" onClick={onLogout}>
+          <LogOut size={15} /> Sign out
+        </button>
+      </div>
+    </>
+  );
+}
 
 export function Layout({ children }) {
   const { user, profile, role, logout, can } = useAuth();
   const navigate = useNavigate();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const location = useLocation();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  const visibleNav = NAV.filter((item, index, all) => {
-    if (!item.section) return can(item.module, 'view');
-    const nextItems = all.slice(index + 1);
-    const nextSectionIndex = nextItems.findIndex(next => next.section);
-    const sectionItems = nextSectionIndex === -1 ? nextItems : nextItems.slice(0, nextSectionIndex);
-    return sectionItems.some(next => !next.section && can(next.module, 'view'));
-  });
+  const pageTitle = useMemo(() => PAGE_TITLES[location.pathname] || 'TextileIE', [location.pathname]);
 
   const handleLogout = async () => {
     await logout();
@@ -56,208 +145,71 @@ export function Layout({ children }) {
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-
-      {/* ── Desktop Sidebar ─────────────────────────────── */}
-      <aside style={{
-        width: 220, background: 'var(--navy)', color: 'white',
-        display: 'flex', flexDirection: 'column', flexShrink: 0,
-        overflowY: 'auto',
-        // Hide on mobile
-        '@media (max-width: 768px)': { display: 'none' }
-      }}
-        className="desktop-sidebar"
-      >
-        {/* Logo */}
-        <div style={{ padding: '18px 16px 14px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 34, height: 34, background: 'var(--teal)', borderRadius: 9,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 17, flexShrink: 0
-            }}>🧵</div>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 700 }}>TextileIE</div>
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 1 }}>IE Suite v2</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Company */}
-        <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Company</div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', fontWeight: 500 }}>{profile?.company_name || '—'}</div>
-        </div>
-
-        {/* Nav */}
-        <nav style={{ flex: 1, padding: '6px 0' }}>
-          {visibleNav.map((item, i) => {
-            if (item.section) return (
-              <div key={i} style={{ padding: '12px 16px 4px', fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.28)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                {item.section}
-              </div>
-            );
-            const Icon = item.icon;
-            return (
-              <NavLink key={item.to} to={item.to} style={({ isActive }) => ({
-                display: 'flex', alignItems: 'center', gap: 9,
-                padding: '7px 16px', textDecoration: 'none', fontSize: 13,
-                color: isActive ? 'white' : 'rgba(255,255,255,0.52)',
-                background: isActive ? 'rgba(13,122,107,0.32)' : 'transparent',
-                borderLeft: '3px solid ' + (isActive ? 'var(--teal)' : 'transparent'),
-                transition: 'all 0.12s'
-              })}>
-                <Icon size={14} />{item.label}
-              </NavLink>
-            );
-          })}
-        </nav>
-
-        {/* User footer */}
-        <div style={{ padding: '12px 16px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', fontWeight: 500 }}>{profile?.full_name || user?.email}</div>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 1 }}>{user?.email}</div>
-          <div style={{ fontSize: 10, color: 'var(--teal)', marginBottom: 10, marginTop: 3 }}>{role?.name || 'Owner'}</div>
-          <button onClick={handleLogout} className="btn btn-ghost btn-sm" style={{ color: 'rgba(255,255,255,0.4)', width: '100%', justifyContent: 'flex-start' }}>
-            <LogOut size={12} /> Sign out
-          </button>
-        </div>
+    <div className="app-shell">
+      <aside className="app-sidebar">
+        <SidebarContent profile={profile} user={user} role={role} can={can} onLogout={handleLogout} />
       </aside>
 
-      {/* ── Mobile overlay menu ──────────────────────────── */}
-      {mobileMenuOpen && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 1000,
-          display: 'flex'
-        }}>
-          {/* Backdrop */}
-          <div
-            onClick={() => setMobileMenuOpen(false)}
-            style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)' }}
-          />
-          {/* Drawer */}
-          <div style={{
-            position: 'relative', width: 260, background: 'var(--navy)',
-            color: 'white', display: 'flex', flexDirection: 'column',
-            overflowY: 'auto', zIndex: 1001
-          }}>
-            <div style={{ padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 30, height: 30, background: 'var(--teal)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15 }}>🧵</div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700 }}>TextileIE</div>
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{profile?.company_name}</div>
-                </div>
-              </div>
-              <button onClick={() => setMobileMenuOpen(false)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: 4 }}>
-                <X size={20} />
-              </button>
-            </div>
-
-            <nav style={{ flex: 1, padding: '6px 0' }}>
-              {visibleNav.map((item, i) => {
-                if (item.section) return (
-                  <div key={i} style={{ padding: '12px 16px 4px', fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.28)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                    {item.section}
-                  </div>
-                );
-                const Icon = item.icon;
-                return (
-                  <NavLink key={item.to} to={item.to}
-                    onClick={() => setMobileMenuOpen(false)}
-                    style={({ isActive }) => ({
-                      display: 'flex', alignItems: 'center', gap: 10,
-                      padding: '10px 16px', textDecoration: 'none', fontSize: 14,
-                      color: isActive ? 'white' : 'rgba(255,255,255,0.6)',
-                      background: isActive ? 'rgba(13,122,107,0.32)' : 'transparent',
-                      borderLeft: '3px solid ' + (isActive ? 'var(--teal)' : 'transparent'),
-                    })}>
-                    <Icon size={16} />{item.label}
-                  </NavLink>
-                );
-              })}
-            </nav>
-
-            <div style={{ padding: '12px 16px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>{profile?.full_name}</div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 10 }}>{user?.email}</div>
-              <button onClick={handleLogout} className="btn btn-ghost btn-sm" style={{ color: 'rgba(255,255,255,0.5)', width: '100%', justifyContent: 'flex-start' }}>
-                <LogOut size={13} /> Sign out
-              </button>
-            </div>
-          </div>
+      {mobileOpen && (
+        <div className="mobile-drawer-shell">
+          <button className="mobile-drawer-backdrop" onClick={() => setMobileOpen(false)} aria-label="Close menu" />
+          <aside className="mobile-drawer">
+            <button className="mobile-drawer-close" onClick={() => setMobileOpen(false)}><X size={20} /></button>
+            <SidebarContent
+              profile={profile}
+              user={user}
+              role={role}
+              can={can}
+              onNavigate={() => setMobileOpen(false)}
+              onLogout={handleLogout}
+            />
+          </aside>
         </div>
       )}
 
-      {/* ── Main content ─────────────────────────────────── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-
-        {/* Mobile top bar */}
-        <div className="mobile-topbar" style={{
-          display: 'none',
-          background: 'var(--navy)', color: 'white',
-          padding: '12px 16px',
-          alignItems: 'center', justifyContent: 'space-between',
-          flexShrink: 0
-        }}>
-          <button onClick={() => setMobileMenuOpen(true)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: 4 }}>
-            <Menu size={22} />
-          </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 16 }}>🧵</span>
-            <span style={{ fontSize: 14, fontWeight: 700 }}>TextileIE</span>
+      <section className="app-workspace">
+        <header className="topbar">
+          <div className="topbar-left">
+            <button className="icon-button mobile-menu-button" onClick={() => setMobileOpen(true)}>
+              <Menu size={20} />
+            </button>
+            <div>
+              <div className="breadcrumb-row">
+                <span>TextileIE</span><span>/</span><strong>{pageTitle}</strong>
+              </div>
+              <div className="topbar-page-title">{pageTitle}</div>
+            </div>
           </div>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{profile?.company_name?.split(' ')[0]}</div>
-        </div>
 
-        {/* Page content */}
-        <main style={{ flex: 1, overflowY: 'auto', padding: '28px 32px', background: 'var(--bg)' }}
-          className="main-content">
+          <div className="topbar-actions">
+            <div className="global-search">
+              <Search size={16} />
+              <input placeholder="Search styles, reports, modules..." />
+              <kbd>鈱� K</kbd>
+            </div>
+            <button className="icon-button" title="Help"><CircleHelp size={18} /></button>
+            <button className="icon-button notification-button" title="Notifications">
+              <Bell size={18} /><span className="notification-dot" />
+            </button>
+            <div className="topbar-user">
+              <div className="topbar-user-avatar"><UserRound size={16} /></div>
+              <div>
+                <strong>{profile?.full_name || 'User'}</strong>
+                <span>Factory workspace</span>
+              </div>
+              <ChevronDown size={14} />
+            </div>
+          </div>
+        </header>
+
+        <main className="app-main">
+          <div className="workspace-status">
+            <div><ShieldCheck size={15} /> Enterprise workspace</div>
+            <div><Sparkles size={15} /> Core platform + customizable modules</div>
+          </div>
           {children}
         </main>
-
-        {/* Mobile bottom navigation */}
-        <div className="mobile-bottom-nav" style={{
-          display: 'none',
-          background: 'var(--navy)',
-          borderTop: '1px solid rgba(255,255,255,0.1)',
-          flexShrink: 0
-        }}>
-          <div style={{ display: 'flex' }}>
-            {BOTTOM_NAV.map(item => {
-              const Icon = item.icon;
-              return (
-                <NavLink key={item.to} to={item.to} style={({ isActive }) => ({
-                  flex: 1, display: 'flex', flexDirection: 'column',
-                  alignItems: 'center', justifyContent: 'center',
-                  padding: '10px 4px 8px', textDecoration: 'none',
-                  color: isActive ? 'var(--teal)' : 'rgba(255,255,255,0.45)',
-                  fontSize: 10, gap: 4, fontWeight: isActive ? 600 : 400,
-                  borderTop: isActive ? '2px solid var(--teal)' : '2px solid transparent'
-                })}>
-                  <Icon size={18} />
-                  {item.label}
-                </NavLink>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile CSS */}
-      <style>{`
-        @media (max-width: 768px) {
-          .desktop-sidebar { display: none !important; }
-          .mobile-topbar { display: flex !important; }
-          .mobile-bottom-nav { display: block !important; }
-          .main-content { padding: 16px !important; }
-        }
-        @media (min-width: 769px) {
-          .mobile-topbar { display: none !important; }
-          .mobile-bottom-nav { display: none !important; }
-          .desktop-sidebar { display: flex !important; }
-        }
-      `}</style>
+      </section>
     </div>
   );
 }
