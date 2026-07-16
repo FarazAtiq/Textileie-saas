@@ -37,6 +37,7 @@ const NAV_GROUPS = [
     items: [
       { to: '/export-orders', icon: ClipboardList, label: 'Export Orders', module: 'export_orders' },
       { to: '/fabric-requirements', icon: ListChecks, label: 'Fabric Requirements', module: 'fabric_requirements' },
+      { to: '/thread-requirements', icon: Scissors, label: 'Thread Requirements', module: 'thread_requirements' },
     ],
   },
   {
@@ -66,6 +67,7 @@ const PAGE_TITLES = {
   '/costing': 'Garment Costing',
   '/export-orders': 'Export Orders',
   '/fabric-requirements': 'Fabric Requirements',
+  '/thread-requirements': 'Thread Requirements',
   '/export-order': 'Export Orders',
   '/reports': 'Reports & Analytics',
   '/settings': 'Administration',
@@ -187,7 +189,7 @@ export function Layout({ children }) {
             <div className="global-search">
               <Search size={16} />
               <input placeholder="Search styles, reports, modules..." />
-              <kbd>鈱� K</kbd>
+              <kbd>⌘ K</kbd>
             </div>
             <button className="icon-button" title="Help"><CircleHelp size={18} /></button>
             <button className="icon-button notification-button" title="Notifications">
