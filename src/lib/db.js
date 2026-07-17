@@ -2719,7 +2719,10 @@ export async function getCompanyModuleLicenses() {
 
 export async function getCompanySubscriptionSummary() {
   const access = await getMyAccessContext();
-  console.log('Access context:', access);
+  console.log('Access membership:', access?.membership);
+console.log('Access company:', access?.company);
+console.log('Access subscription:', access?.subscription);
+console.log('Configured access:', access?.hasConfiguredAccess);
   if (!access?.company) return null;
 
   return {
