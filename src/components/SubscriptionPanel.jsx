@@ -34,6 +34,8 @@ export default function SubscriptionPanel() {
   useEffect(() => { load(); }, []);
 
   if (loading) return <div className="empty-state"><p>Loading subscription...</p></div>;
+   
+  console.log('Subscription summary:', summary); 
   if (!summary) return <div className="empty-state"><p>Company subscription is not configured.</p></div>;
 
   const { subscription, seats } = summary;
