@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { MailPlus, Save, UserCheck, UserX } from 'lucide-react';
+import { MailPlus, UserCheck, UserX } from 'lucide-react';
 import {
   createUserInvitation,
   getCompanyFactoriesAndDepartments,
+  getCompanySubscriptionSummary,
   getCompanyRoles,
   getCompanyUsers,
   updateCompanyUserAccess,
@@ -18,19 +19,22 @@ export default function UserManagement() {
   const [invite, setInvite] = useState({ email: '', role_id: '', factory_id: '', department_id: '' });
   const [loading, setLoading] = useState(true);
   const [inviting, setInviting] = useState(false);
+  const [seatSummary, setSeatSummary] = useState(null);
 
   const load = async () => {
     setLoading(true);
     try {
-      const [userRows, roleRows, masters] = await Promise.all([
+      const [userRows, roleRows, masters, subscriptionSummary] = await Promise.all([
         getCompanyUsers(),
         getCompanyRoles(),
         getCompanyFactoriesAndDepartments(),
+        getCompanySubscriptionSummary(),
       ]);
       setUsers(userRows);
       setRoles(roleRows);
       setFactories(masters.factories);
       setDepartments(masters.departments);
+      setSeatSummary(subscriptionSummary?.seats || null);
       if (!invite.role_id && roleRows[0]?.id) setInvite(previous => ({ ...previous, role_id: roleRows[0].id }));
     } catch (error) {
       toast('Failed to load users: ' + error.message, 'error');
@@ -50,6 +54,7 @@ export default function UserManagement() {
       await createUserInvitation(invite);
       setInvite(previous => ({ ...previous, email: '' }));
       toast('Invitation record created');
+      await load();
     } catch (error) {
       toast('Failed: ' + error.message, 'error');
     } finally {
@@ -75,6 +80,15 @@ export default function UserManagement() {
         Assign roles, departments and factories. Invitation email delivery requires the included Supabase Edge Function or your preferred email provider.
       </p>
 
+      {seatSummary && (
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 14, fontSize: 12 }}>
+          <strong>Licensed: {seatSummary.licensed_users}</strong>
+          <span>Active: {seatSummary.active_users}</span>
+          <span>Pending: {seatSummary.pending_invitations}</span>
+          <span>Available: {seatSummary.available_seats}</span>
+        </div>
+      )}
+
       <div className="card" style={{ padding: 14, background: 'var(--bg)', marginBottom: 16 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px,1.4fr) repeat(3,minmax(130px,1fr)) auto', gap: 8 }}>
           <input type="email" value={invite.email} onChange={event => setInvite(previous => ({ ...previous, email: event.target.value }))} placeholder="user@factory.com" />
@@ -87,7 +101,7 @@ export default function UserManagement() {
           <select value={invite.department_id} onChange={event => setInvite(previous => ({ ...previous, department_id: event.target.value }))}>
             <option value="">All departments</option>{departments.map(department => <option key={department.id} value={department.id}>{department.name}</option>)}
           </select>
-          <button className="btn btn-primary" onClick={sendInvitation} disabled={inviting}><MailPlus size={14} />{inviting ? 'Saving...' : 'Invite'}</button>
+          <button className="btn btn-primary" onClick={sendInvitation} disabled={inviting || Number(seatSummary?.available_seats ?? 1) <= 0}><MailPlus size={14} />{inviting ? 'Saving...' : 'Invite'}</button>
         </div>
       </div>
 
@@ -134,4 +148,3 @@ export default function UserManagement() {
       )}
     </div>
   );
-      }
