@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
+  Activity,
   Bell,
   Building2,
   Check,
@@ -21,6 +22,9 @@ import {
 import { useAuth } from '../hooks/useAuth.jsx';
 import UserManagement from '../components/UserManagement.jsx';
 import PermissionMatrix from '../components/PermissionMatrix.jsx';
+import ActivityTimeline from '../components/ActivityTimeline.jsx';
+import ModuleLicensePanel from '../components/ModuleLicensePanel.jsx';
+import SubscriptionPanel from '../components/SubscriptionPanel.jsx';
 import { updateProfile } from '../lib/db.js';
 import { supabase } from '../lib/supabase.js';
 import { useToast } from '../hooks/useToast.jsx';
@@ -129,6 +133,7 @@ const TABS = [
   { id: 'reports', label: 'Report Settings', icon: FileText },
   { id: 'costing', label: 'Costing Defaults', icon: CreditCard },
   { id: 'security', label: 'Security', icon: Lock },
+  { id: 'activity', label: 'Activity Timeline', icon: Activity },
   { id: 'subscription', label: 'Subscription', icon: CreditCard },
 ];
 
@@ -478,17 +483,9 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {activeTab === 'modules' && (
+                    {activeTab === 'modules' && (
             <div className="card">
-              <SectionTitle icon={Settings2} title="Module Management" subtitle="Enable purchased tools for modular enterprise licensing" />
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(230px,1fr))', gap: 10 }}>
-                {Object.entries(MODULE_LABELS).map(([key, label]) => {
-                  const future = ['inventory', 'ai', 'ghl'].includes(key);
-                  return <Toggle key={key} label={future ? `${label} (Future Add-on)` : label} checked={Boolean(admin.modules[key])}
-                    onChange={e => setAdmin(p => ({ ...p, modules: { ...p.modules, [key]: e.target.checked } }))} />;
-                })}
-              </div>
-              <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => saveAdmin('Module settings saved')}><Save size={14} />Save Modules</button>
+              <ModuleLicensePanel />
             </div>
           )}
 
@@ -552,21 +549,15 @@ export default function SettingsPage() {
             </div>
           )}
 
+                    {activeTab === 'activity' && (
+            <div className="card">
+              <ActivityTimeline />
+            </div>
+          )}
+
           {activeTab === 'subscription' && (
             <div className="card">
-              <SectionTitle icon={CreditCard} title="Subscription" subtitle="30-day trial and modular enterprise licensing" />
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 12 }}>
-                <div style={{ padding: 16, border: '1px solid var(--border-light)', borderRadius: 12 }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Current Plan</div>
-                  <div style={{ fontSize: 20, fontWeight: 800, marginTop: 5 }}>Free Trial</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 5 }}>Subscription billing will be connected before public launch.</div>
-                </div>
-                <div style={{ padding: 16, border: '1px solid var(--border-light)', borderRadius: 12 }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Licensing Model</div>
-                  <div style={{ fontSize: 20, fontWeight: 800, marginTop: 5 }}>Modular</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 5 }}>Factories can purchase only the tools they need.</div>
-                </div>
-              </div>
+              <SubscriptionPanel />
             </div>
           )}
         </div>
