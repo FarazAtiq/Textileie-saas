@@ -101,8 +101,17 @@ export function AuthProvider({ children }) {
 
     // Existing single-user installations remain fully usable until
     // enterprise access has been configured in Supabase.
-    if (!access || access.isOwner || !access.hasConfiguredAccess) return true;
+    if (!access || !access.hasConfiguredAccess) return true;
 
+    // TextileIE platform admins are not blocked by factory role permissions.
+    if (access.isPlatformAdmin) return true;
+
+    // Subscription/module license is checked before role permission.
+    const subscriptionStatus = String(access.subscription?.status || 'Active').toLowerCase();
+    if (['suspended', 'expired', 'cancelled'].includes(subscriptionStatus)) return false;
+    if (access.enabledModules && access.enabledModules[moduleKey] === false) return false;
+
+    if (access.isOwner) return true;
     return Boolean(access.permissions?.[moduleKey]?.[actionKey]);
   }, [access, user]);
 
