@@ -1,207 +1,71 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase.js';
-import { signUp, signIn, signOut, getProfile } from '../lib/db.js';
+import {
+  signUp,
+  signIn,
+  signOut,
+  getProfile,
+  getMyAccessContext,
+} from '../lib/db.js';
 
 const AuthContext = createContext(null);
 
-function normalizeStatus(value) {
-  return String(value || '').trim().toLowerCase();
-}
+const FULL_ACCESS_ACTIONS = {
+  view: true,
+  create: true,
+  edit: true,
+  delete: true,
+  approve: true,
+  export: true,
+  view_cost: true,
+  design_reports: true,
+};
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
-  const [companyUser, setCompanyUser] = useState(null);
-  const [company, setCompany] = useState(null);
-  const [factory, setFactory] = useState(null);
-  const [department, setDepartment] = useState(null);
-  const [role, setRole] = useState(null);
-  const [permissions, setPermissions] = useState([]);
+  const [access, setAccess] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [authError, setAuthError] = useState('');
 
-  const clearCompanyContext = () => {
-    setCompanyUser(null);
-    setCompany(null);
-    setFactory(null);
-    setDepartment(null);
-    setRole(null);
-    setPermissions([]);
-  };
-
-  const loadCompanyContext = async (userId) => {
-    const { data: membership, error: membershipError } = await supabase
-      .from('company_users')
-      .select(`
-        id,
-        company_id,
-        user_id,
-        invited_email,
-        role_id,
-        factory_id,
-        department_id,
-        status,
-        full_name,
-        employee_id,
-        phone,
-        designation,
-        is_factory_owner,
-        last_login_at,
-        created_at,
-        updated_at,
-        company:companies(
-          id,
-          owner_user_id,
-          name,
-          code,
-          status,
-          subscription_plan,
-          subscription_status,
-          licensed_users,
-          subscription_starts_at,
-          subscription_expires_at,
-          logo_url,
-          address,
-          city,
-          country,
-          currency,
-          timezone,
-          created_at,
-          updated_at
-        ),
-        factory:factories(
-          id,
-          company_id,
-          name,
-          code,
-          status
-        ),
-        department:departments(
-          id,
-          company_id,
-          factory_id,
-          name,
-          code,
-          status
-        ),
-        role:roles(
-          id,
-          company_id,
-          name,
-          code,
-          description,
-          status,
-          is_system
-        )
-      `)
-      .eq('user_id', userId)
-      .eq('status', 'Active')
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .maybeSingle();
-
-    if (membershipError) throw membershipError;
-
-    if (!membership) {
-      clearCompanyContext();
-      return null;
-    }
-
-    const { data: rolePermissions, error: permissionError } = await supabase
-      .from('role_permissions')
-      .select('module_key, action_key, allowed')
-      .eq('role_id', membership.role_id)
-      .eq('allowed', true);
-
-    if (permissionError) throw permissionError;
-
-    setCompanyUser(membership);
-    setCompany(membership.company || null);
-    setFactory(membership.factory || null);
-    setDepartment(membership.department || null);
-    setRole(membership.role || null);
-    setPermissions(rolePermissions || []);
-
-    return membership;
-  };
-
-  const loadProfile = async (userId) => {
-    setAuthError('');
-
-    try {
-      const [personalProfile] = await Promise.all([
-        getProfile(userId),
-        loadCompanyContext(userId),
-      ]);
-
-      setProfile(personalProfile || null);
-    } catch (error) {
-      console.error('Failed to load TextileIE user context:', error);
+  const loadUserContext = useCallback(async (authUser) => {
+    if (!authUser?.id) {
       setProfile(null);
-      clearCompanyContext();
-      setAuthError(error?.message || 'Failed to load user access.');
+      setAccess(null);
+      return;
     }
-  };
+
+    const [profileResult, accessResult] = await Promise.allSettled([
+      getProfile(authUser.id),
+      getMyAccessContext(),
+    ]);
+
+    setProfile(profileResult.status === 'fulfilled' ? profileResult.value : null);
+    setAccess(accessResult.status === 'fulfilled' ? accessResult.value : null);
+  }, []);
 
   useEffect(() => {
-    let active = true;
+    let mounted = true;
 
-    const initialize = async () => {
-      setLoading(true);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!mounted) return;
+      const nextUser = session?.user ?? null;
+      setUser(nextUser);
+      await loadUserContext(nextUser);
+      if (mounted) setLoading(false);
+    });
 
-      try {
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession();
-
-        if (error) throw error;
-        if (!active) return;
-
-        const sessionUser = session?.user ?? null;
-        setUser(sessionUser);
-
-        if (sessionUser) {
-          await loadProfile(sessionUser.id);
-        } else {
-          setProfile(null);
-          clearCompanyContext();
-        }
-      } catch (error) {
-        console.error('Authentication initialization failed:', error);
-        if (active) setAuthError(error?.message || 'Authentication failed.');
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-
-    initialize();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const sessionUser = session?.user ?? null;
-
-      setUser(sessionUser);
-      setLoading(true);
-
-      try {
-        if (sessionUser) {
-          await loadProfile(sessionUser.id);
-        } else {
-          setProfile(null);
-          clearCompanyContext();
-        }
-      } finally {
-        setLoading(false);
-      }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const nextUser = session?.user ?? null;
+      setUser(nextUser);
+      await loadUserContext(nextUser);
+      setLoading(false);
     });
 
     return () => {
-      active = false;
+      mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [loadUserContext]);
 
   const register = async (data) => {
     await signUp(data);
@@ -216,81 +80,61 @@ export function AuthProvider({ children }) {
     await signOut();
     setUser(null);
     setProfile(null);
-    clearCompanyContext();
+    setAccess(null);
   };
 
   const refreshProfile = async () => {
-    if (!user?.id) return;
-    setLoading(true);
+    if (user) await loadUserContext(user);
+  };
 
-    try {
-      await loadProfile(user.id);
-    } finally {
-      setLoading(false);
+  const refreshAccess = async () => {
+    if (user) {
+      const nextAccess = await getMyAccessContext();
+      setAccess(nextAccess);
+      return nextAccess;
     }
+    return null;
   };
 
-  const isOwner = useMemo(() => {
-    if (!user || !company) return false;
+  const can = useCallback((moduleKey, actionKey = 'view') => {
+    if (!user) return false;
 
-    return Boolean(
-      companyUser?.is_factory_owner ||
-      company.owner_user_id === user.id
-    );
-  }, [company, companyUser, user]);
+    // Existing single-user installations remain fully usable until
+    // enterprise access has been configured in Supabase.
+    if (!access || access.isOwner || !access.hasConfiguredAccess) return true;
 
-  const isCompanyAdmin = useMemo(() => {
-    const roleCode = String(role?.code || '').trim().toLowerCase();
-    const roleName = String(role?.name || '').trim().toLowerCase();
+    return Boolean(access.permissions?.[moduleKey]?.[actionKey]);
+  }, [access, user]);
 
-    return (
-      isOwner ||
-      ['owner', 'factory_owner', 'factory_admin', 'admin'].includes(roleCode) ||
-      ['owner', 'factory owner', 'factory admin', 'admin'].includes(roleName)
-    );
-  }, [isOwner, role]);
+  const getModulePermissions = useCallback((moduleKey) => {
+    if (!access || access.isOwner || !access.hasConfiguredAccess) {
+      return { ...FULL_ACCESS_ACTIONS };
+    }
+    return { ...(access.permissions?.[moduleKey] || {}) };
+  }, [access]);
 
-  const can = (moduleKey, actionKey = 'view') => {
-    if (!user || normalizeStatus(companyUser?.status) !== 'active') return false;
-    if (isOwner) return true;
-
-    return permissions.some(
-      permission =>
-        permission.allowed === true &&
-        permission.module_key === moduleKey &&
-        permission.action_key === actionKey
-    );
-  };
-
-  const value = {
-    user,
-    profile,
-    companyUser,
-    company,
-    factory,
-    department,
-    role,
-    permissions,
-    loading,
-    authError,
-    isOwner,
-    isCompanyAdmin,
-    can,
-    register,
-    login,
-    logout,
-    refreshProfile,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        access,
+        role: access?.role || null,
+        membership: access?.membership || null,
+        permissions: access?.permissions || {},
+        loading,
+        register,
+        login,
+        logout,
+        refreshProfile,
+        refreshAccess,
+        can,
+        getModulePermissions,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-
-  if (!context) {
-    throw new Error('useAuth must be used inside AuthProvider.');
-  }
-
-  return context;
-};
+export const useAuth = () => useContext(AuthContext);
