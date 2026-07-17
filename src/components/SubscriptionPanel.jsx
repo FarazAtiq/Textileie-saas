@@ -35,7 +35,7 @@ export default function SubscriptionPanel() {
 
   if (loading) return <div className="empty-state"><p>Loading subscription...</p></div>;
    
-  console.log('Subscription summary:', summary); 
+  console.log('Subscription summary:', JSON.stringify(summary, null, 2));
   if (!summary) return <div className="empty-state"><p>Company subscription is not configured.</p></div>;
 
   const { subscription, seats } = summary;
