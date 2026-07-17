@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { createReport, getStitches, getThreads, upsertStyleCostModule } from '../lib/db.js';
+import { createReport, getStitches, getThreads, getStyleCostSummary, upsertStyleCostModule } from '../lib/db.js';
 import { ArticleSelector } from '../components/ArticleSelector.jsx';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useToast } from '../hooks/useToast.jsx';
@@ -118,6 +118,7 @@ export default function ThreadPage() {
   const [wastePct, setWastePct] = useState(10);
   const [saving, setSaving] = useState(false);
   const [loadingMasters, setLoadingMasters] = useState(true);
+  const [loadingSavedEngineering, setLoadingSavedEngineering] = useState(false);
   const [engineeringView, setEngineeringView] = useState('breakdown');
   const [expandedSummaryRows, setExpandedSummaryRows] = useState({});
 
@@ -284,9 +285,55 @@ export default function ThreadPage() {
   const addOperation = () => setOperations(prev => [...prev, makeOperation()]);
   const removeOperation = id => setOperations(prev => prev.length === 1 ? prev : prev.filter(op => op.id !== id));
 
-  const handleStyleSelect = ({ style, color }) => {
-    setSelectedStyle(style);
+  const handleStyleSelect = async ({ style, color }) => {
+    setSelectedStyle(style || null);
     setSelectedColor(color || null);
+    setEngineeringView('breakdown');
+
+    if (!style?.id) {
+      setOperations([makeOperation()]);
+      return;
+    }
+
+    setLoadingSavedEngineering(true);
+    try {
+      const modules = await getStyleCostSummary({
+        style_id: style.id,
+        color_id: null,
+      });
+
+      const savedThread = modules?.thread;
+      const savedData = savedThread?.data || {};
+      const savedOperations = savedData.operations || [];
+
+      if (Array.isArray(savedOperations) && savedOperations.length) {
+        setOperations(savedOperations.map(operation => ({
+          ...makeOperation(),
+          id: operation.id || crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`,
+          operationName: operation.operationName || operation.operation_name || '',
+          seamLengthCm: Number(operation.seamLengthCm || operation.seam_length_cm || 0),
+          stitchId: String(operation.stitchId || operation.stitch_id || operation.stitch?.id || ''),
+          spi: Number(operation.spi || operation.stitch?.spi || 0),
+          needleRatio: Number(operation.needleRatio ?? operation.needle_ratio ?? operation.stitch?.needle_ratio ?? 0),
+          looperRatio: Number(operation.looperRatio ?? operation.looper_ratio ?? operation.stitch?.looper_ratio ?? 0),
+          coverRatio: Number(operation.coverRatio ?? operation.cover_ratio ?? operation.stitch?.cover_ratio ?? 0),
+          needleThreadId: String(operation.needleThreadId || operation.needle_thread_id || operation.needleThread?.id || operation.needle_thread?.id || ''),
+          looperThreadId: String(operation.looperThreadId || operation.looper_thread_id || operation.looperThread?.id || operation.looper_thread?.id || ''),
+          coverThreadId: String(operation.coverThreadId || operation.cover_thread_id || operation.coverThread?.id || operation.cover_thread?.id || ''),
+        })));
+        setWastePct(Number(savedData.wastePct ?? savedThread?.summary?.wastePct ?? 10));
+        toast(`${savedOperations.length} saved sewing operation(s) loaded`);
+      } else {
+        setOperations([makeOperation()]);
+        setWastePct(10);
+        toast('No saved Thread Engineering found for this style', 'info');
+      }
+    } catch (error) {
+      setOperations([makeOperation()]);
+      toast(`Could not load saved Thread Engineering: ${error.message}`, 'error');
+    } finally {
+      setLoadingSavedEngineering(false);
+    }
   };
 
   const validate = () => {
@@ -486,6 +533,12 @@ export default function ThreadPage() {
           </button>
         </div>
       </div>
+
+      {loadingSavedEngineering && (
+        <div className="card" style={{ padding: 12, marginBottom: 14, color: 'var(--text-muted)', fontSize: 12 }}>
+          Loading saved sewing operations and Thread Summary...
+        </div>
+      )}
 
       {!selectedStyle && (
         <div className="warning-banner"><AlertTriangle size={17} /> Select an article before saving. Calculations can still be prepared first.</div>
