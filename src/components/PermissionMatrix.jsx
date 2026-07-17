@@ -6,6 +6,7 @@ import {
   createCompanyRole,
   getCompanyRoles,
   getRolePermissions,
+  getCompanyModuleLicenses,
   saveRolePermissions,
 } from '../lib/db.js';
 import { useToast } from '../hooks/useToast.jsx';
@@ -25,7 +26,12 @@ const MODULE_LABELS = {
   reports: 'Report Studio',
   administration: 'Administration',
   export_orders: 'Export Orders',
+  fabric_requirements: 'Fabric Requirements',
+  thread_requirements: 'Thread Requirements',
   inventory: 'Inventory',
+  purchase_requisition: 'Purchase Requisition',
+  ai: 'AI Advisor',
+  ghl: 'GHL Automation',
 };
 
 const ACTION_LABELS = {
@@ -47,12 +53,17 @@ export default function PermissionMatrix() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newRoleName, setNewRoleName] = useState('');
+  const [enabledModules, setEnabledModules] = useState({});
 
   const loadRoles = async () => {
     setLoading(true);
     try {
-      const data = await getCompanyRoles();
+      const [data, licenses] = await Promise.all([
+        getCompanyRoles(),
+        getCompanyModuleLicenses(),
+      ]);
       setRoles(data);
+      setEnabledModules(Object.fromEntries((licenses || []).map(row => [row.module_key, Boolean(row.enabled)])));
       if (!selectedRoleId && data[0]?.id) setSelectedRoleId(data[0].id);
     } catch (error) {
       toast('Failed to load roles: ' + error.message, 'error');
@@ -166,7 +177,7 @@ export default function PermissionMatrix() {
                         type="checkbox"
                         checked={Boolean(matrix[moduleKey]?.[actionKey])}
                         onChange={event => setPermission(moduleKey, actionKey, event.target.checked)}
-                        disabled={!selectedRoleId || selectedRole?.code === 'OWNER'}
+                        disabled={!selectedRoleId || selectedRole?.code === 'OWNER' || enabledModules[moduleKey] === false}
                       />
                     </td>
                   ))}
