@@ -1056,6 +1056,9 @@ export const MODULE_KEYS = [
   'fabric_requirements',
   'thread_requirements',
   'inventory',
+  'purchase_requisition',
+  'ai',
+  'ghl',
 ];
 
 export const PERMISSION_ACTIONS = [
@@ -1073,16 +1076,29 @@ export async function getMyAccessContext() {
   const userId = await getCurrentUserId();
   if (!userId) return null;
 
+  const { data: platformAdmin } = await supabase
+    .from('platform_admins')
+    .select('user_id, status')
+    .eq('user_id', userId)
+    .eq('status', 'Active')
+    .maybeSingle();
+
   const { data: membership, error } = await supabase
     .from('company_users')
     .select(`
       id,
+      user_id,
       company_id,
       factory_id,
       department_id,
       status,
       role_id,
-      companies(id, name, code),
+      is_factory_owner,
+      companies(
+        id, name, code, subscription_plan, subscription_status,
+        licensed_users, subscription_starts_at, subscription_expires_at,
+        trial_ends_at, address, city, country, currency, timezone
+      ),
       factories(id, name, code),
       departments(id, name, code),
       roles(id, name, code, is_system)
@@ -1099,36 +1115,85 @@ export async function getMyAccessContext() {
   if (!membership) {
     return {
       membership: null,
+      company: null,
+      factory: null,
+      department: null,
       role: null,
       permissions: {},
+      enabledModules: {},
+      subscription: null,
+      seatSummary: null,
       isOwner: true,
+      isPlatformAdmin: Boolean(platformAdmin),
       hasConfiguredAccess: false,
     };
   }
 
-  const { data: rows, error: permissionsError } = await supabase
-    .from('role_permissions')
-    .select('module_key, action_key, allowed')
-    .eq('role_id', membership.role_id);
+  const [permissionResult, moduleResult, seatResult] = await Promise.all([
+    supabase
+      .from('role_permissions')
+      .select('module_key, action_key, allowed')
+      .eq('role_id', membership.role_id),
+    supabase
+      .from('company_modules')
+      .select('module_key, enabled')
+      .eq('company_id', membership.company_id),
+    supabase.rpc('company_seat_summary', { target_company_id: membership.company_id }),
+  ]);
 
-  if (permissionsError) {
-    console.error('getMyAccessContext permissions error:', permissionsError);
+  if (permissionResult.error) {
+    console.error('getMyAccessContext permissions error:', permissionResult.error);
+  }
+  if (moduleResult.error) {
+    console.error('getMyAccessContext modules error:', moduleResult.error);
+  }
+  if (seatResult.error) {
+    console.error('getMyAccessContext seat summary error:', seatResult.error);
   }
 
   const permissions = {};
-  (rows || []).forEach(row => {
+  (permissionResult.data || []).forEach(row => {
     if (!permissions[row.module_key]) permissions[row.module_key] = {};
     permissions[row.module_key][row.action_key] = Boolean(row.allowed);
   });
 
+  const enabledModules = {};
+  (moduleResult.data || []).forEach(row => {
+    enabledModules[row.module_key] = Boolean(row.enabled);
+  });
+
+  // Backward compatibility: if module rows have not been seeded yet,
+  // do not hide the existing working application.
+  const hasModuleConfiguration = (moduleResult.data || []).length > 0;
+  if (!hasModuleConfiguration) {
+    MODULE_KEYS.forEach(key => { enabledModules[key] = true; });
+  }
+
+  const company = membership.companies || null;
   const roleCode = membership.roles?.code || '';
-  const isOwner = roleCode === 'OWNER';
+  const isOwner =
+    Boolean(membership.is_factory_owner) ||
+    roleCode === 'OWNER';
 
   return {
     membership,
+    company,
+    factory: membership.factories || null,
+    department: membership.departments || null,
     role: membership.roles || null,
     permissions,
+    enabledModules,
+    subscription: company ? {
+      plan: company.subscription_plan,
+      status: company.subscription_status,
+      licensedUsers: Number(company.licensed_users || 1),
+      startsAt: company.subscription_starts_at,
+      expiresAt: company.subscription_expires_at,
+      trialEndsAt: company.trial_ends_at,
+    } : null,
+    seatSummary: seatResult.data?.[0] || null,
     isOwner,
+    isPlatformAdmin: Boolean(platformAdmin),
     hasConfiguredAccess: true,
   };
 }
@@ -2630,4 +2695,307 @@ export async function syncApprovedThreadRequirements() {
   }
 
   return result;
+}
+
+
+// ════════════════════════════════════════════════════════════
+// MODULE 1 COMPLETION: LICENSING, ORGANIZATION & AUDIT
+// ════════════════════════════════════════════════════════════
+
+export async function getCompanyModuleLicenses() {
+  const access = await getMyAccessContext();
+  const companyId = access?.membership?.company_id;
+  if (!companyId) return [];
+
+  const { data, error } = await supabase
+    .from('company_modules')
+    .select('*')
+    .eq('company_id', companyId)
+    .order('module_key');
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getCompanySubscriptionSummary() {
+  const access = await getMyAccessContext();
+  if (!access?.company) return null;
+
+  return {
+    company: access.company,
+    subscription: access.subscription,
+    seats: access.seatSummary || {
+      licensed_users: Number(access.company.licensed_users || 1),
+      active_users: 0,
+      pending_invitations: 0,
+      available_seats: Number(access.company.licensed_users || 1),
+    },
+  };
+}
+
+export async function getActivityLogs({ limit = 100, module_key = '' } = {}) {
+  const access = await getMyAccessContext();
+  const companyId = access?.membership?.company_id;
+  if (!companyId) return [];
+
+  let query = supabase
+    .from('activity_logs')
+    .select('*')
+    .eq('company_id', companyId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (module_key) query = query.eq('module_key', module_key);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+}
+
+export async function logActivity({
+  module_key,
+  entity_type,
+  entity_id = null,
+  action_key,
+  old_values = null,
+  new_values = null,
+  reason = null,
+}) {
+  const access = await getMyAccessContext();
+  const companyId = access?.membership?.company_id;
+  const actorUserId = await getCurrentUserId();
+  if (!companyId || !actorUserId) return null;
+
+  const { data, error } = await supabase
+    .from('activity_logs')
+    .insert({
+      company_id: companyId,
+      actor_user_id: actorUserId,
+      module_key,
+      entity_type,
+      entity_id: entity_id ? String(entity_id) : null,
+      action_key,
+      old_values,
+      new_values,
+      reason,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('logActivity error:', error);
+    return null;
+  }
+  return data;
+}
+
+export async function getProductionLines() {
+  const access = await getMyAccessContext();
+  const companyId = access?.membership?.company_id;
+  if (!companyId) return [];
+
+  const { data, error } = await supabase
+    .from('production_lines')
+    .select('*, factories(id,name,code), departments(id,name,code)')
+    .eq('company_id', companyId)
+    .order('name');
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function createProductionLine(payload) {
+  const access = await getMyAccessContext();
+  const companyId = access?.membership?.company_id;
+  if (!companyId) throw new Error('Company access is not configured');
+
+  const { data, error } = await supabase
+    .from('production_lines')
+    .insert({
+      company_id: companyId,
+      factory_id: payload.factory_id || null,
+      department_id: payload.department_id || null,
+      name: String(payload.name || '').trim(),
+      code: String(payload.code || '').trim().toUpperCase(),
+      status: payload.status || 'Active',
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  await logActivity({
+    module_key: 'administration',
+    entity_type: 'production_line',
+    entity_id: data.id,
+    action_key: 'create',
+    new_values: data,
+  });
+  return data;
+}
+
+export async function updateProductionLine(id, updates) {
+  const { data, error } = await supabase
+    .from('production_lines')
+    .update({
+      name: updates.name,
+      code: String(updates.code || '').trim().toUpperCase(),
+      factory_id: updates.factory_id || null,
+      department_id: updates.department_id || null,
+      status: updates.status || 'Active',
+    })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  await logActivity({
+    module_key: 'administration',
+    entity_type: 'production_line',
+    entity_id: data.id,
+    action_key: 'edit',
+    new_values: data,
+  });
+  return data;
+}
+
+export async function deleteProductionLine(id) {
+  const { data: existing } = await supabase
+    .from('production_lines')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+
+  const { error } = await supabase
+    .from('production_lines')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+  await logActivity({
+    module_key: 'administration',
+    entity_type: 'production_line',
+    entity_id: id,
+    action_key: 'delete',
+    old_values: existing,
+  });
+}
+
+export async function getCompanyDepartments() {
+  const access = await getMyAccessContext();
+  const companyId = access?.membership?.company_id;
+  if (!companyId) return [];
+
+  const { data, error } = await supabase
+    .from('departments')
+    .select('*')
+    .eq('company_id', companyId)
+    .order('name');
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function createCompanyDepartment({ name, code, factory_id = null }) {
+  const access = await getMyAccessContext();
+  const companyId = access?.membership?.company_id;
+  if (!companyId) throw new Error('Company access is not configured');
+
+  const payload = {
+    company_id: companyId,
+    name: String(name || '').trim(),
+    code: String(code || '').trim().toUpperCase(),
+    status: 'Active',
+  };
+  if (factory_id) payload.factory_id = factory_id;
+
+  const { data, error } = await supabase
+    .from('departments')
+    .insert(payload)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateCompanyDepartment(id, updates) {
+  const { data, error } = await supabase
+    .from('departments')
+    .update({
+      name: updates.name,
+      code: String(updates.code || '').trim().toUpperCase(),
+      status: updates.status || 'Active',
+    })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function getPlatformCompanies() {
+  const access = await getMyAccessContext();
+  if (!access?.isPlatformAdmin) throw new Error('TextileIE platform administrator access required');
+
+  const { data, error } = await supabase
+    .from('companies')
+    .select(`
+      id, name, code, subscription_plan, subscription_status,
+      licensed_users, subscription_starts_at, subscription_expires_at,
+      trial_ends_at, city, country, created_at,
+      company_users(id, status),
+      company_modules(id, module_key, enabled)
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function updatePlatformCompanySubscription(companyId, updates) {
+  const access = await getMyAccessContext();
+  if (!access?.isPlatformAdmin) throw new Error('TextileIE platform administrator access required');
+
+  const { data, error } = await supabase
+    .from('companies')
+    .update({
+      subscription_plan: updates.subscription_plan,
+      subscription_status: updates.subscription_status,
+      licensed_users: Number(updates.licensed_users || 1),
+      subscription_starts_at: updates.subscription_starts_at || null,
+      subscription_expires_at: updates.subscription_expires_at || null,
+      trial_ends_at: updates.trial_ends_at || null,
+      suspended_at: updates.subscription_status === 'Suspended'
+        ? new Date().toISOString()
+        : null,
+      suspension_reason: updates.suspension_reason || null,
+    })
+    .eq('id', companyId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function setPlatformCompanyModule(companyId, moduleKey, enabled) {
+  const access = await getMyAccessContext();
+  if (!access?.isPlatformAdmin) throw new Error('TextileIE platform administrator access required');
+
+  const userId = await getCurrentUserId();
+  const { data, error } = await supabase
+    .from('company_modules')
+    .upsert({
+      company_id: companyId,
+      module_key: moduleKey,
+      enabled: Boolean(enabled),
+      enabled_at: enabled ? new Date().toISOString() : null,
+      enabled_by: enabled ? userId : null,
+    }, { onConflict: 'company_id,module_key' })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
 }
