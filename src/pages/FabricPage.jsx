@@ -3,7 +3,7 @@ import { calcFabricYards, calcFabricGSM, formatNum } from '../utils/calculations
 import { calcBomConsumption, defaultRatioForSize } from '../utils/fabricBomCalc.js';
 import { calcKgToMeter, calcMeterToKg, metersToYards, cmToInch } from '../utils/kgMeterCalc.js';
 import { PageHeader, CalcGrid } from '../components/ResultCard.jsx';
-import { createReport, upsertStyleCostModule, getFabrics } from '../lib/db.js';
+import { createReport, upsertStyleCostModule, getFabrics, getStyleCostSummary } from '../lib/db.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useToast } from '../hooks/useToast.jsx';
 import { exportReportPDF } from '../utils/pdfExport.js';
@@ -212,6 +212,7 @@ useEffect(() => {
   const [docType,       setDocType]       = useState('costing');
   const [bomView, setBomView] = useState('breakdown');
   const [expandedFabricSummary, setExpandedFabricSummary] = useState({});
+  const [loadingSavedBom, setLoadingSavedBom] = useState(false);
 
   // Sizes
   const [sizes,      setSizes]      = useState([newSize('S'), newSize('M'), newSize('L'), newSize('XL'), newSize('2XL')]);
@@ -225,18 +226,93 @@ useEffect(() => {
   // Sign-off
   const [signOff, setSignOff] = useState({ providedBy: '', approvedBy: '', receivedBy: '' });
 
-  const handleStyleSelect = ({ style, color }) => {
+  const handleStyleSelect = async ({ style, color }) => {
     setSelectedStyle(style || null);
     setSelectedColor(color || null);
+    setBomView('breakdown');
+
     if (style?.article_number) setArtNo(style.article_number);
     if (style?.style_name) setStyleName(style.style_name);
     if (style?.buyer) setCustomer(style.buyer);
+
     const styleSizes = style?.style_sizes || [];
-    if (styleSizes.length) {
-      const nextSizes = styleSizes.map(ss => ({ id: ss.id, label: ss.size_name || ss.label || 'Size' }));
+    let nextSizes = styleSizes.map(ss => ({
+      id: ss.id,
+      label: ss.size_name || ss.label || 'Size',
+    }));
+
+    if (nextSizes.length) {
       setSizes(nextSizes);
-      const base = nextSizes.find(x => x.label === style.base_size) || nextSizes[0];
+      const base = nextSizes.find(item => item.label === style.base_size) || nextSizes[0];
       setBaseSizeId(base?.id || null);
+    }
+
+    if (!style?.id) return;
+
+    setLoadingSavedBom(true);
+    try {
+      const modules = await getStyleCostSummary({
+        style_id: style.id,
+        color_id: null,
+      });
+
+      const savedFabric = modules?.fabric_bom;
+      const savedData = savedFabric?.data || {};
+      const savedComponents = savedData.components || savedFabric?.summary?.components || [];
+      const savedSizes = savedData.sizes || [];
+
+      if (Array.isArray(savedSizes) && savedSizes.length) {
+        nextSizes = savedSizes.map(size => ({
+          id: size.id || crypto.randomUUID?.(),
+          label: size.label || size.size_name || 'Size',
+        }));
+        setSizes(nextSizes);
+      }
+
+      if (Array.isArray(savedComponents) && savedComponents.length) {
+        const activeSizes = nextSizes.length ? nextSizes : sizes;
+        setComponents(savedComponents.map((component, index) => {
+          const sourceSizeData = component.sizeData || {};
+          const normalizedSizeData = {};
+          for (const size of activeSizes) {
+            const direct = sourceSizeData[size.id] || Object.values(sourceSizeData).find(row =>
+              String(row?.size_name || row?.sizeName || row?.label || '').trim().toLowerCase() === String(size.label).trim().toLowerCase()
+            ) || {};
+            normalizedSizeData[size.id] = {
+              mode: direct.mode || 'manual',
+              layLength: Number(direct.layLength || 0),
+              noOfPcs: Number(direct.noOfPcs || 4),
+              efficiency: Number(direct.efficiency || 70),
+              ratio: Number(direct.ratio || 1),
+              meterConsumption: Number(direct.meterConsumption || direct.consumption || 0),
+              kgConsumption: Number(direct.kgConsumption || direct.consumption || 0),
+              yardConsumption: Number(direct.yardConsumption || direct.consumption || 0),
+            };
+          }
+          return {
+            ...newComponent(index + 1),
+            ...component,
+            id: component.id || crypto.randomUUID?.() || `${Date.now()}-${index}`,
+            compNo: index + 1,
+            fabric_id: component.fabric_id || '',
+            usageAt: component.usageAt || component.component_name || `Component ${index + 1}`,
+            uom: component.uom || 'KG',
+            sizeData: normalizedSizeData,
+          };
+        }));
+        if (savedData.baseSizeId) setBaseSizeId(savedData.baseSizeId);
+        setTechPackRef(savedData.techPackRef || '');
+        setConsumptionNo(savedData.consumptionNo || '');
+        setIssueDate(savedData.issueDate || new Date().toISOString().slice(0,10));
+        setSignOff(savedData.signOff || { providedBy: '', approvedBy: '', receivedBy: '' });
+        toast(`${savedComponents.length} saved fabric component(s) loaded`);
+      } else {
+        toast('No saved Fabric BOM found for this style', 'info');
+      }
+    } catch (error) {
+      toast(`Could not load saved Fabric BOM: ${error.message}`, 'error');
+    } finally {
+      setLoadingSavedBom(false);
     }
   };
 
@@ -351,8 +427,8 @@ const kgConsumption =
         grouped.set(key, {
           key,
           fabric_id: component.fabric_id || null,
-          fabric_code: fabricCode,
-          fabric_name: fabricName,
+          fabric_code: fabricCode || component.fabricType || `FAB-${component.compNo || 1}`,
+          fabric_name: fabricName || component.fabricType || component.usageAt || 'Fabric',
           composition: component.composition || master?.composition || '',
           gsm: Number(component.gsm || master?.gsm || 0),
           width: Number(component.fabricWidth || master?.width || 0),
@@ -563,6 +639,12 @@ const kgConsumption =
         <input type="hidden" value={docType} />
       </div>
 
+
+      {loadingSavedBom && (
+        <div className="card" style={{ padding: 12, marginBottom: 14, color: 'var(--text-muted)', fontSize: 12 }}>
+          Loading saved Fabric BOM and Fabric Summary...
+        </div>
+      )}
 
       <div className="card" style={{ padding: 8, marginBottom: 16 }}>
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
