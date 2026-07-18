@@ -266,7 +266,6 @@ export async function getStyle(id) {
 export async function createStyle(payload) {
   const userId = await getCurrentUserId();
   if (!userId) throw new Error('Not logged in');
-
   const { data: style, error: styleError } = await supabase
     .from('styles')
     .insert({
@@ -1073,8 +1072,11 @@ export const PERMISSION_ACTIONS = [
 ];
 
 export async function getMyAccessContext() {
-  const userId = await getCurrentUserId();
-  if (!userId) return null;
+ const userId = await getCurrentUserId();
+
+console.log('Authenticated user ID:', userId);
+
+if (!userId) return null;
 
   const { data: platformAdmin } = await supabase
     .from('platform_admins')
@@ -1082,6 +1084,26 @@ export async function getMyAccessContext() {
     .eq('user_id', userId)
     .eq('status', 'Active')
     .maybeSingle();
+  const {
+  data: basicMembership,
+  error: basicMembershipError,
+} = await supabase
+  .from('company_users')
+  .select(`
+    id,
+    user_id,
+    company_id,
+    factory_id,
+    department_id,
+    status,
+    role_id,
+    is_factory_owner
+  `)
+  .eq('user_id', userId)
+  .maybeSingle();
+
+console.log('Basic membership:', basicMembership);
+console.log('Basic membership error:', basicMembershipError);
 
   const { data: membership, error } = await supabase
     .from('company_users')
@@ -1106,7 +1128,8 @@ export async function getMyAccessContext() {
     .eq('user_id', userId)
     .eq('status', 'Active')
     .maybeSingle();
-
+console.log('Complete membership:', membership);
+console.log('Complete membership error:', error);
   if (error) {
     console.error('getMyAccessContext membership error:', error);
     return null;
@@ -1123,7 +1146,7 @@ export async function getMyAccessContext() {
       enabledModules: {},
       subscription: null,
       seatSummary: null,
-      isOwner: true,
+      isOwner: false,
       isPlatformAdmin: Boolean(platformAdmin),
       hasConfiguredAccess: false,
     };
