@@ -9,6 +9,7 @@ import SMVPage from './pages/SMVPage.jsx';
 import ReportsPage from './pages/ReportsPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 import PlatformAdminPage from './pages/PlatformAdminPage.jsx';
+import PlatformDashboardPage from './pages/PlatformDashboardPage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
 import ExportOrdersPage from './pages/ExportOrdersPage.jsx';
 import FabricRequirementsPage from './pages/FabricRequirementsPage.jsx';
@@ -83,6 +84,7 @@ function AppRoutes() {
       <Route path="/exportorders" element={<Navigate to="/export-orders" replace />} />
       <Route path="/reports" element={<ProtectedModule module="reports"><ReportsPage /></ProtectedModule>} />
       <Route path="/settings" element={<ProtectedModule module="administration"><SettingsPage /></ProtectedModule>} />
+      <Route path="/platform" element={<PrivateRoute><PlatformDashboardPage /></PrivateRoute>} />
       <Route path="/platform-admin" element={<PrivateRoute><PlatformAdminPage /></PrivateRoute>} />
 
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
