@@ -1,3 +1,9 @@
+/*
+BUILD 1 START
+This file was extracted successfully from your project.
+Next revision will replace this prototype with the enterprise onboarding wizard.
+*/
+
 import { useState } from "react";
 
 export default function CustomerOnboardingPage() {
