@@ -363,7 +363,7 @@ export default function PlatformDashboardPage() {
                 </div>
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 650 }}>
-                    {item.action_key || 'Activity'} {item.entity_type ? `· ${item.entity_type}` : ''}
+                    {item.action_key || 'Activity'} {item.entity_type ? `路 ${item.entity_type}` : ''}
                   </div>
                   <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>
                     {item.created_at ? new Date(item.created_at).toLocaleString() : 'Date unavailable'}
@@ -381,4 +381,4 @@ export default function PlatformDashboardPage() {
       </div>
     </div>
   );
-}
+        }
