@@ -5,9 +5,11 @@ import {
 
 import OwnerStep from "../components/customer-onboarding/steps/OwnerStep.jsx";
 import SubscriptionStep from "../components/customer-onboarding/steps/SubscriptionStep.jsx";
+import ModuleStep from "../components/customer-onboarding/steps/ModuleStep.jsx";
 export default function CustomerOnboardingPage() {
   const [step, setStep] = useState(1);
   const [subscription, setSubscription] = useState(null);
+  const [modules, setModules] = useState(null);
   const [company,setCompany]=useState({
     companyName:"",
     companyCode:"AUTO",
@@ -82,15 +84,40 @@ if (step === 2) {
       </div>
 
       <SubscriptionStep
-        initialPlan={subscription?.planId || "professional"}
-        initialBillingCycle={
-          subscription?.billingCycle || "monthly"
-        }
-        onPrevious={() => setStep(2)}
-        onNext={(selectedSubscription) => {
-          setSubscription(selectedSubscription);
+  initialPlan={subscription?.planId || "professional"}
+  initialBillingCycle={
+    subscription?.billingCycle || "monthly"
+  }
+  onPrevious={() => setStep(2)}
+  onNext={(selectedSubscription) => {
+    setSubscription(selectedSubscription);
+    setStep(4);
+  }}
+/>
+    </div>
+  );
+}
+  if (step === 4) {
+  return (
+    <div className="app-main">
+      <div className="module-hero">
+        <div>
+          <div className="eyebrow">Platform</div>
+          <h1>Customer Onboarding</h1>
+          <p>
+            Select the TextileIE modules for this workspace.
+          </p>
+        </div>
+      </div>
+
+      <ModuleStep
+        initialModules={modules?.moduleIds}
+        onPrevious={() => setStep(3)}
+        onNext={(selectedModules) => {
+          setModules(selectedModules);
+
           alert(
-            "Subscription saved. Module Selection will be added in Build 4B."
+            "Modules saved. Workspace Features will be added in Build 4C."
           );
         }}
       />
