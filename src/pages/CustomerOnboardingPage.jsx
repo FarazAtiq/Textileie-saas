@@ -1,42 +1,52 @@
-
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
-  Building2,
-  User,
-  CreditCard,
-  Package,
-  Factory,
-  ClipboardCheck,
-  Save,
-  ArrowRight,
-  X,
+  Building2, Save, ArrowRight, X, Upload
 } from "lucide-react";
 
 export default function CustomerOnboardingPage() {
-  const [step, setStep] = useState(1);
-  const [company, setCompany] = useState({
-    companyName: "",
-    companyCode: "AUTO",
-    businessType: "Manufacturer",
-    industry: "Garments",
-    country: "Pakistan",
-    province: "",
-    city: "",
-    currency: "PKR",
-    timezone: "Asia/Karachi",
-    website: "",
+  const [company,setCompany]=useState({
+    companyName:"",
+    companyCode:"AUTO",
+    legalName:"",
+    businessType:"Manufacturer",
+    industry:"Garments",
+    registrationNo:"",
+    taxNo:"",
+    website:"",
+    email:"",
+    phone:"",
+    country:"Pakistan",
+    province:"",
+    city:"",
+    postalCode:"",
+    address:"",
+    currency:"PKR",
+    timezone:"Asia/Karachi",
+    language:"English",
+    dateFormat:"DD/MM/YYYY",
+    fiscalYear:"January"
   });
 
-  const update=(k,v)=>setCompany({...company,[k]:v});
+  const update=(k,v)=>{
+    const next={...company,[k]:v};
+    if(k==="companyName"){
+      const parts=v.trim().split(/\s+/).filter(Boolean);
+      const code=(parts.map(p=>p[0]).join("").toUpperCase()||"CMP")+"001";
+      next.companyCode=code;
+    }
+    setCompany(next);
+  };
 
-  const steps=[
-    {title:"Company",icon:Building2},
-    {title:"Owner",icon:User},
-    {title:"Subscription",icon:CreditCard},
-    {title:"Modules",icon:Package},
-    {title:"Factory",icon:Factory},
-    {title:"Review",icon:ClipboardCheck},
-  ];
+  const required=["companyName","businessType","country","currency","timezone"];
+  const missing=useMemo(()=>required.filter(k=>!company[k]),[company]);
+
+  const field=(label,key,type="text")=>(
+    <div className="field" key={key}>
+      <label>{label}</label>
+      <input type={type} value={company[key]} onChange={e=>update(key,e.target.value)}/>
+      {required.includes(key)&&!company[key] && <small style={{color:"var(--red)"}}>Required</small>}
+    </div>
+  );
 
   return (
     <div className="app-main">
@@ -46,104 +56,76 @@ export default function CustomerOnboardingPage() {
           <h1>Customer Onboarding</h1>
           <p>Create a new TextileIE customer workspace.</p>
         </div>
-
         <div className="module-hero-actions">
-          <button className="btn btn-secondary">
-            <Save size={16}/> Save Draft
-          </button>
-          <button className="btn btn-primary">
-            Continue <ArrowRight size={16}/>
-          </button>
-        </div>
-      </div>
-
-      <div className="card" style={{marginBottom:20}}>
-        <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
-          {steps.map((s,i)=>{
-            const I=s.icon;
-            const active=i+1===step;
-            return (
-              <div key={s.title}
-                style={{
-                  flex:1,
-                  margin:"0 4px",
-                  padding:12,
-                  borderRadius:10,
-                  textAlign:"center",
-                  background:active?"var(--teal)":"var(--bg)",
-                  color:active?"white":"var(--text-primary)"
-                }}>
-                <I size={18}/>
-                <div style={{marginTop:6,fontSize:12,fontWeight:600}}>{s.title}</div>
-              </div>
-            )
-          })}
+          <button className="btn btn-secondary"><Save size={15}/>Save Draft</button>
+          <button className="btn btn-primary">Continue <ArrowRight size={15}/></button>
         </div>
       </div>
 
       <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:20}}>
         <div className="card">
-          <h2>Company Information</h2>
+          <h2 style={{marginBottom:16}}>Company Profile</h2>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+            {field("Company Name *","companyName")}
+            {field("Company Code","companyCode")}
+            {field("Legal Company Name","legalName")}
+            {field("Business Type *","businessType")}
+            {field("Industry","industry")}
+            {field("Registration No.","registrationNo")}
+            {field("Tax / NTN / VAT","taxNo")}
+            {field("Website","website")}
+            {field("Company Email","email","email")}
+            {field("Phone","phone")}
+          </div>
 
-          {[
-            ["Company Name","companyName"],
-            ["Business Type","businessType"],
-            ["Industry","industry"],
-            ["Country","country"],
-            ["Province","province"],
-            ["City","city"],
-            ["Currency","currency"],
-            ["Timezone","timezone"],
-            ["Website","website"],
-          ].map(([label,key])=>(
-            <div className="field" key={key}>
-              <label>{label}</label>
-              <input
-                value={company[key]}
-                onChange={e=>update(key,e.target.value)}
-              />
-            </div>
-          ))}
+          <div className="divider"></div>
+          <h2 style={{marginBottom:16}}>Address</h2>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+            {field("Country *","country")}
+            {field("Province","province")}
+            {field("City","city")}
+            {field("Postal Code","postalCode")}
+          </div>
+          <div className="field">
+            <label>Complete Address</label>
+            <textarea value={company.address} onChange={e=>update("address",e.target.value)} rows={3}/>
+          </div>
+
+          <div className="divider"></div>
+          <h2 style={{marginBottom:16}}>Regional Settings</h2>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+            {field("Currency *","currency")}
+            {field("Timezone *","timezone")}
+            {field("Language","language")}
+            {field("Date Format","dateFormat")}
+            {field("Fiscal Year","fiscalYear")}
+          </div>
+
+          <div className="divider"></div>
+          <button className="btn btn-secondary"><Upload size={15}/>Upload Company Logo</button>
         </div>
 
         <div className="card">
           <h2>Workspace Summary</h2>
           <div className="divider"></div>
-
-          <div className="field">
-            <label>Company</label>
-            <strong>{company.companyName||"-"}</strong>
-          </div>
-
-          <div className="field">
-            <label>Company Code</label>
-            <strong>{company.companyCode}</strong>
-          </div>
-
-          <div className="field">
-            <label>Business</label>
-            <strong>{company.businessType}</strong>
-          </div>
-
-          <div className="field">
-            <label>Country</label>
-            <strong>{company.country}</strong>
-          </div>
-
-          <div className="field">
-            <label>Currency</label>
-            <strong>{company.currency}</strong>
-          </div>
-
+          <p><strong>{company.companyName||"Company Name"}</strong></p>
+          <p>Code: {company.companyCode}</p>
+          <p>Business: {company.businessType}</p>
+          <p>Industry: {company.industry}</p>
+          <p>Country: {company.country}</p>
+          <p>Currency: {company.currency}</p>
+          <p>Timezone: {company.timezone}</p>
           <div className="divider"></div>
-
-          <button className="btn btn-primary btn-full">
-            Continue to Owner
-          </button>
-
-          <button className="btn btn-secondary btn-full" style={{marginTop:8}}>
-            <X size={16}/> Cancel
-          </button>
+          <p>Subscription: <strong>Not Selected</strong></p>
+          <p>Modules: <strong>0 Selected</strong></p>
+          <p>Factories: <strong>0</strong></p>
+          <p>Users: <strong>0</strong></p>
+          <div className="divider"></div>
+          <p style={{color: missing.length?"var(--red)":"var(--green)"}}>
+            {missing.length?`${missing.length} required fields remaining`:"Company information complete"}
+          </p>
+          <button className="btn btn-primary btn-full" style={{marginTop:12}}>Continue to Owner</button>
+          <button className="btn btn-secondary btn-full" style={{marginTop:8}}><X size={15}/>Cancel</button>
         </div>
       </div>
     </div>
