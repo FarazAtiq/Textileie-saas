@@ -4,8 +4,10 @@ import {
 } from "lucide-react";
 
 import OwnerStep from "../components/customer-onboarding/steps/OwnerStep.jsx";
+import SubscriptionStep from "../components/customer-onboarding/steps/SubscriptionStep.jsx";
 export default function CustomerOnboardingPage() {
   const [step, setStep] = useState(1);
+  const [subscription, setSubscription] = useState(null);
   const [company,setCompany]=useState({
     companyName:"",
     companyCode:"AUTO",
@@ -59,13 +61,39 @@ if (step === 2) {
           <p>Configure the workspace owner and administrator account.</p>
         </div>
       </div>
-
-      <OwnerStep
+<OwnerStep
   onPrevious={() => setStep(1)}
-  onNext={() =>
-    alert("Subscription step will be added in Build 4")
-  }
+  onNext={() => setStep(3)}
 />
+    </div>
+  );
+}
+  if (step === 3) {
+  return (
+    <div className="app-main">
+      <div className="module-hero">
+        <div>
+          <div className="eyebrow">Platform</div>
+          <h1>Customer Onboarding</h1>
+          <p>
+            Select the subscription plan and workspace limits.
+          </p>
+        </div>
+      </div>
+
+      <SubscriptionStep
+        initialPlan={subscription?.planId || "professional"}
+        initialBillingCycle={
+          subscription?.billingCycle || "monthly"
+        }
+        onPrevious={() => setStep(2)}
+        onNext={(selectedSubscription) => {
+          setSubscription(selectedSubscription);
+          alert(
+            "Subscription saved. Module Selection will be added in Build 4B."
+          );
+        }}
+      />
     </div>
   );
 }
