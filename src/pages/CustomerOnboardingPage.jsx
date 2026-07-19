@@ -3,7 +3,9 @@ import {
   Building2, Save, ArrowRight, X, Upload
 } from "lucide-react";
 
+import OwnerStep from "../components/customer-onboarding/steps/OwnerStep.jsx";
 export default function CustomerOnboardingPage() {
+  const [step, setStep] = useState(1);
   const [company,setCompany]=useState({
     companyName:"",
     companyCode:"AUTO",
@@ -47,7 +49,21 @@ export default function CustomerOnboardingPage() {
       {required.includes(key)&&!company[key] && <small style={{color:"var(--red)"}}>Required</small>}
     </div>
   );
+if (step === 2) {
+  return (
+    <div className="app-main">
+      <div className="module-hero">
+        <div>
+          <div className="eyebrow">Platform</div>
+          <h1>Customer Onboarding</h1>
+          <p>Configure the workspace owner and administrator account.</p>
+        </div>
+      </div>
 
+      <OwnerStep />
+    </div>
+  );
+}
   return (
     <div className="app-main">
       <div className="module-hero">
@@ -124,7 +140,15 @@ export default function CustomerOnboardingPage() {
           <p style={{color: missing.length?"var(--red)":"var(--green)"}}>
             {missing.length?`${missing.length} required fields remaining`:"Company information complete"}
           </p>
-          <button className="btn btn-primary btn-full" style={{marginTop:12}}>Continue to Owner</button>
+          <button
+  type="button"
+  className="btn btn-primary btn-full"
+  style={{ marginTop: 12 }}
+  onClick={() => setStep(2)}
+  disabled={missing.length > 0}
+>
+  Continue to Owner
+</button>
           <button className="btn btn-secondary btn-full" style={{marginTop:8}}><X size={15}/>Cancel</button>
         </div>
       </div>
