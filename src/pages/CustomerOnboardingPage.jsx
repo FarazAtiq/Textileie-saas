@@ -60,7 +60,12 @@ if (step === 2) {
         </div>
       </div>
 
-      <OwnerStep />
+      <OwnerStep
+  onPrevious={() => setStep(1)}
+  onNext={() =>
+    alert("Subscription step will be added in Build 4")
+  }
+/>
     </div>
   );
 }
