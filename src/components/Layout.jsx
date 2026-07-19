@@ -11,6 +11,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 const NAV_GROUPS = [
   {
+    label: 'TextileIE Platform',
+    platformOnly: true,
+    items: [
+      { to: '/platform', icon: Gauge, label: 'Control Center' },
+      { to: '/platform-admin', icon: ShieldCheck, label: 'Company Licensing' },
+    ],
+  },
+  {
     label: 'Overview',
     items: [{ to: '/dashboard', icon: LayoutDashboard, label: 'Command Center', module: 'dashboard' }],
   },
@@ -72,9 +80,11 @@ const PAGE_TITLES = {
   '/thread-requirements': 'Thread Requirements',
   '/reports': 'Reports & Analytics',
   '/settings': 'Administration',
+  '/platform': 'TextileIE Control Center',
+  '/platform-admin': 'Company Licensing',
 };
 
-function SidebarContent({ profile, user, role, can, onNavigate, onLogout }) {
+function SidebarContent({ profile, user, role, access, can, onNavigate, onLogout }) {
   return (
     <>
       <div className="app-brand">
@@ -96,6 +106,7 @@ function SidebarContent({ profile, user, role, can, onNavigate, onLogout }) {
 
       <nav className="app-nav">
         {NAV_GROUPS.map(group => {
+          if (group.platformOnly && !access?.isPlatformAdmin) return null;
           const visibleItems = group.items.filter(item => !item.module || can(item.module, 'view'));
           if (!visibleItems.length) return null;
           return (
@@ -158,7 +169,7 @@ function useOutsideClose(ref, onClose) {
 }
 
 export function Layout({ children }) {
-  const { user, profile, role, logout, can } = useAuth();
+  const { user, profile, role, access, logout, can } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -182,6 +193,10 @@ export function Layout({ children }) {
     const query = searchQuery.trim().toLowerCase();
 
     return SEARCH_ITEMS
+      .filter(item => {
+        const group = NAV_GROUPS.find(navGroup => navGroup.label === item.group);
+        return !group?.platformOnly || access?.isPlatformAdmin;
+      })
       .filter(item => !item.module || can(item.module, 'view'))
       .filter(item =>
         !query ||
@@ -190,7 +205,7 @@ export function Layout({ children }) {
           .includes(query)
       )
       .slice(0, 8);
-  }, [searchQuery, can]);
+  }, [searchQuery, can, access?.isPlatformAdmin]);
 
   useOutsideClose(searchRef, () => setSearchOpen(false));
   useOutsideClose(helpRef, () => setHelpOpen(false));
@@ -241,7 +256,7 @@ export function Layout({ children }) {
   return (
     <div className="app-shell">
       <aside className="app-sidebar">
-        <SidebarContent profile={profile} user={user} role={role} can={can} onLogout={handleLogout} />
+        <SidebarContent profile={profile} user={user} role={role} access={access} can={can} onLogout={handleLogout} />
       </aside>
 
       {mobileOpen && (
@@ -253,6 +268,7 @@ export function Layout({ children }) {
               profile={profile}
               user={user}
               role={role}
+              access={access}
               can={can}
               onNavigate={() => setMobileOpen(false)}
               onLogout={handleLogout}
