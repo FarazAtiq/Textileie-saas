@@ -6,10 +6,12 @@ import {
 import OwnerStep from "../components/customer-onboarding/steps/OwnerStep.jsx";
 import SubscriptionStep from "../components/customer-onboarding/steps/SubscriptionStep.jsx";
 import ModuleStep from "../components/customer-onboarding/steps/ModuleStep.jsx";
+import WorkspaceFeaturesStep from "../components/customer-onboarding/steps/WorkspaceFeaturesStep.jsx";
 export default function CustomerOnboardingPage() {
   const [step, setStep] = useState(1);
   const [subscription, setSubscription] = useState(null);
   const [modules, setModules] = useState(null);
+  const [workspaceFeatures, setWorkspaceFeatures] = useState(null);
   const [company,setCompany]=useState({
     companyName:"",
     companyCode:"AUTO",
@@ -109,15 +111,41 @@ if (step === 2) {
           </p>
         </div>
       </div>
+<ModuleStep
+  initialModules={modules?.moduleIds}
+  onPrevious={() => setStep(3)}
+  onNext={(selectedModules) => {
+    setModules(selectedModules);
+    setStep(5);
+  }}
+/>
+    </div>
+  );
+}
+  if (step === 5) {
+  return (
+    <div className="app-main">
+      <div className="module-hero">
+        <div>
+          <div className="eyebrow">Platform</div>
 
-      <ModuleStep
-        initialModules={modules?.moduleIds}
-        onPrevious={() => setStep(3)}
-        onNext={(selectedModules) => {
-          setModules(selectedModules);
+          <h1>Customer Onboarding</h1>
+
+          <p>
+            Configure workspace notifications, integrations,
+            intelligence and governance controls.
+          </p>
+        </div>
+      </div>
+
+      <WorkspaceFeaturesStep
+        initialFeatures={workspaceFeatures?.featureIds}
+        onPrevious={() => setStep(4)}
+        onNext={(selectedFeatures) => {
+          setWorkspaceFeatures(selectedFeatures);
 
           alert(
-            "Modules saved. Workspace Features will be added in Build 4C."
+            "Workspace features saved. Billing Summary will be added in Build 4D."
           );
         }}
       />
