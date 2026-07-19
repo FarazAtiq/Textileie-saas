@@ -1,3 +1,4 @@
+import CustomerOnboardingPage from "./pages/CustomerOnboardingPage";
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth.jsx';
 import { Layout } from './components/Layout.jsx';
@@ -64,7 +65,12 @@ function RedirectIfAuthed({ children }) {
 function AppRoutes() {
   return (
     <Routes>
+      
       <Route path="/login" element={<RedirectIfAuthed><AuthPage /></RedirectIfAuthed>} />
+      <Route
+    path="/platform/onboarding"
+    element={<CustomerOnboardingPage />}
+/>
 
       <Route path="/dashboard" element={<ProtectedModule module="dashboard"><Dashboard /></ProtectedModule>} />
       <Route path="/styles" element={<ProtectedModule module="styles"><StyleLibraryPage /></ProtectedModule>} />
