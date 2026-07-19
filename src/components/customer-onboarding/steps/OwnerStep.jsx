@@ -6,7 +6,7 @@
 import { useState } from "react";
 import { Eye, EyeOff, ShieldCheck, User, ArrowLeft, ArrowRight } from "lucide-react";
 
-export default function OwnerStepCard() {
+export default function OwnerStep({ onPrevious, onNext }) {
   const [show,setShow]=useState(false);
   const [owner,setOwner]=useState({
     firstName:"",
@@ -87,10 +87,31 @@ export default function OwnerStepCard() {
         This account will automatically become the Workspace Owner with full permissions.
       </div>
 
-      <div style={{display:"flex",justifyContent:"space-between",marginTop:20}}>
-        <button className="btn btn-secondary"><ArrowLeft size={16}/> Previous</button>
-        <button className="btn btn-primary">Next <ArrowRight size={16}/></button>
-      </div>
+      <div
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    marginTop: 20,
+  }}
+>
+  <button
+    type="button"
+    className="btn btn-secondary"
+    onClick={onPrevious}
+  >
+    <ArrowLeft size={16} />
+    Previous
+  </button>
+
+  <button
+    type="button"
+    className="btn btn-primary"
+    onClick={onNext}
+  >
+    Next
+    <ArrowRight size={16} />
+  </button>
+</div>
     </div>
   );
 }
