@@ -13,6 +13,28 @@ export default function CustomerOnboardingPage() {
   const [subscription, setSubscription] = useState(null);
   const [modules, setModules] = useState(null);
   const [workspaceFeatures, setWorkspaceFeatures] = useState(null);
+  const [workspace, setWorkspace] = useState({
+  workspaceName: "",
+  workspaceCode: "",
+  language: "English",
+  currency: "PKR",
+  timezone: "Asia/Karachi",
+  dateFormat: "DD/MM/YYYY",
+
+  measurementSystem: "Metric",
+  fabricUnit: "Meter",
+  weightUnit: "Kg",
+  widthUnit: "Inch",
+
+  theme: "Blue",
+
+  emailNotification: true,
+  activityLogs: true,
+  auditTrail: true,
+  autoBackup: true,
+  darkMode: false,
+  autoLogout: true,
+});
   const [company,setCompany]=useState({
     companyName:"",
     companyCode:"AUTO",
