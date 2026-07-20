@@ -4,6 +4,7 @@ import {
 } from "lucide-react";
 
 import OwnerStep from "../components/customer-onboarding/steps/OwnerStep.jsx";
+import WorkspaceStep from "../components/customer-onboarding/steps/WorkspaceStep";
 import SubscriptionStep from "../components/customer-onboarding/steps/SubscriptionStep.jsx";
 import ModuleStep from "../components/customer-onboarding/steps/ModuleStep.jsx";
 import WorkspaceFeaturesStep from "../components/customer-onboarding/steps/WorkspaceFeaturesStep.jsx";
@@ -143,15 +144,23 @@ if (step === 2) {
         onPrevious={() => setStep(4)}
         onNext={(selectedFeatures) => {
           setWorkspaceFeatures(selectedFeatures);
-
-          alert(
-            "Workspace features saved. Billing Summary will be added in Build 4D."
-          );
+          setStep(6);
         }}
       />
     </div>
   );
-}
+  }
+  if (step === 6) {
+  return (
+    <WorkspaceStep
+      companyName={company.companyName}
+      onPrevious={() => setStep(5)}
+      onNext={() => {
+        alert("Factory Setup will be added next.");
+      }}
+    />
+  );
+  }
   return (
     <div className="app-main">
       <div className="module-hero">
