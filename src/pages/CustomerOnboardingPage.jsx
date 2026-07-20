@@ -175,12 +175,14 @@ if (step === 2) {
   if (step === 6) {
   return (
     <WorkspaceStep
-      companyName={company.companyName}
-      onPrevious={() => setStep(5)}
-      onNext={() => {
-        alert("Factory Setup will be added next.");
-      }}
-    />
+  companyName={company.companyName}
+  initialWorkspace={workspace}
+  onPrevious={() => setStep(5)}
+  onNext={(workspaceData) => {
+    setWorkspace(workspaceData);
+    alert("Factory Setup will be added in Build 5.1");
+  }}
+/>
   );
   }
   return (
