@@ -526,7 +526,7 @@ export default function WorkspaceStep({
 
           <button
             className="btn btn-primary"
-            onClick={onNext}
+            onClick={() => onNext(workspace)}
             disabled={!workspace.workspaceName.trim()}
           >
             Continue to Factory Setup
