@@ -1,11 +1,14 @@
 import { useState } from "react";
-
 export default function WorkspaceStep({
   companyName = "",
+  initialWorkspace,
   onPrevious,
   onNext,
-}) {
-  const [workspace, setWorkspace] = useState({
+})
+
+ {
+  const [workspace, setWorkspace] = useState(
+  initialWorkspace || {
     workspaceName: companyName
       ? `${companyName} Workspace`
       : "",
@@ -28,8 +31,8 @@ export default function WorkspaceStep({
     autoBackup: true,
     darkMode: false,
     autoLogout: true,
-  });
-
+  }
+);
   const updateField = (field, value) => {
     setWorkspace((prev) => ({
       ...prev,
