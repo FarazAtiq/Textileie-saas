@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import {
   Building2, Save, ArrowRight, X, Upload
 } from "lucide-react";
-import SearchSelect from "../components/common/SearchSelect";
 
 import OwnerStep from "../components/customer-onboarding/steps/OwnerStep.jsx";
 import WorkspaceStep from "../components/customer-onboarding/steps/WorkspaceStep";
