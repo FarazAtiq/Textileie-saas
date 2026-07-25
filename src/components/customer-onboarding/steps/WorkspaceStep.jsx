@@ -1,5 +1,4 @@
 import { useState } from "react";
-import SearchSelect from "../../common/SearchSelect";
 export default function WorkspaceStep({
   companyName = "",
   initialWorkspace,
@@ -199,19 +198,18 @@ export default function WorkspaceStep({
               Currency
             </label>
 
-           <SearchSelect
-  label="Language"
-  value={workspace.language}
-  options={[
-    { value: "English", label: "English" },
-    { value: "Urdu", label: "Urdu" },
-    { value: "Arabic", label: "Arabic" },
-    { value: "Italian", label: "Italian" },
-  ]}
-  onChange={(value) =>
-    updateField("language", value)
+  <select
+  className="field"
+  value={workspace.currency}
+  onChange={(e) =>
+    updateField("currency", e.target.value)
   }
-/>
+>
+  <option value="PKR">PKR</option>
+  <option value="USD">USD</option>
+  <option value="EUR">EUR</option>
+  <option value="AED">AED</option>
+</select>
 
           </div>
 
