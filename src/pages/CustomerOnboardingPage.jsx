@@ -15,7 +15,7 @@ export default function CustomerOnboardingPage() {
   const [workspaceFeatures, setWorkspaceFeatures] = useState(null);
   const [workspace, setWorkspace] = useState({
   workspaceName: "",
-  workspaceCode: "",
+  workspaceCode: `TXT-${Date.now().toString().slice(-6)}`,
   language: "English",
   currency: "PKR",
   timezone: "Asia/Karachi",
