@@ -198,26 +198,19 @@ export default function WorkspaceStep({
               Currency
             </label>
 
-            <select
-              className="field"
-              value={workspace.currency}
-              onChange={(e) =>
-                updateField(
-                  "currency",
-                  e.target.value
-                )
-              }
-            >
-
-              <option>PKR</option>
-
-              <option>USD</option>
-
-              <option>EUR</option>
-
-              <option>SAR</option>
-
-            </select>
+           <SearchSelect
+  label="Language"
+  value={workspace.language}
+  options={[
+    { value: "English", label: "English" },
+    { value: "Urdu", label: "Urdu" },
+    { value: "Arabic", label: "Arabic" },
+    { value: "Italian", label: "Italian" },
+  ]}
+  onChange={(value) =>
+    updateField("language", value)
+  }
+/>
 
           </div>
 
