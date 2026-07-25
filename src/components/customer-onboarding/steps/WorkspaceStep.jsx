@@ -1,4 +1,5 @@
 import { useState } from "react";
+import SearchSelect from "../../common/SearchSelect";
 export default function WorkspaceStep({
   companyName = "",
   initialWorkspace,
