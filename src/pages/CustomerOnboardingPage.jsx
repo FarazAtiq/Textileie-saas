@@ -180,11 +180,26 @@ if (step === 2) {
   onPrevious={() => setStep(5)}
   onNext={(workspaceData) => {
     setWorkspace(workspaceData);
-    alert("Factory Setup will be added in Build 5.1");
+    setStep(7);
   }}
 />
   );
   }
+  // Step 7
+if (step === 7) {
+   return (
+      <BillingSummaryStep
+         company={company}
+         owner={owner}
+         subscription={subscription}
+         modules={modules}
+         workspace={workspace}
+         workspaceFeatures={workspaceFeatures}
+         onPrevious={() => setStep(6)}
+         onNext={() => setStep(8)}
+      />
+   );
+}
   return (
     <div className="app-main">
       <div className="module-hero">
