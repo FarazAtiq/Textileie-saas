@@ -1,5 +1,4 @@
 import CustomerOnboardingPage from "./pages/CustomerOnboardingPage";
-import SearchSelect from "../common/SearchSelect";
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth.jsx';
 import { Layout } from './components/Layout.jsx';
