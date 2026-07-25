@@ -12,7 +12,7 @@ export default function WorkspaceStep({
     workspaceName: companyName
       ? `${companyName} Workspace`
       : "",
-    workspaceCode: "TXT-000001",
+   workspaceCode: `TXT-${Date.now().toString().slice(-6)}`,
     language: "English",
     currency: "PKR",
     timezone: "Asia/Karachi",
@@ -39,6 +39,12 @@ export default function WorkspaceStep({
       [field]: value,
     }));
   };
+   const canContinue =
+  workspace.workspaceName.trim() &&
+  workspace.language &&
+  workspace.currency &&
+  workspace.timezone &&
+  workspace.dateFormat;
 
   return (
     <div className="app-main">
@@ -517,20 +523,25 @@ export default function WorkspaceStep({
             gap: 12,
           }}
         >
-          <button
-            className="btn btn-secondary"
-            type="button"
-          >
-            Save Draft
-          </button>
-
-          <button
-            className="btn btn-primary"
-            onClick={() => onNext(workspace)}
-            disabled={!workspace.workspaceName.trim()}
-          >
-            Continue to Factory Setup
-          </button>
+         <button
+  className="btn btn-secondary"
+  type="button"
+  onClick={() => {
+    console.log("Workspace Draft", workspace);
+    alert("Workspace draft saved locally.");
+  }}
+>
+  Save Draft
+</button>
+          
+<button
+  className="btn btn-primary"
+  type="button"
+  onClick={() => onNext(workspace)}
+  disabled={!canContinue}
+>
+  Continue to Factory Setup
+</button>
         </div>
       </div>
 
