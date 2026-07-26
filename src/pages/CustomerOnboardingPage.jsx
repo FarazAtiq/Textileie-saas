@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import {
   Building2, Save, ArrowRight, X, Upload
 } from "lucide-react";
-
+import BillingSummaryStep from "../components/customer-onboarding/steps/BillingSummaryStep";
 import OwnerStep from "../components/customer-onboarding/steps/OwnerStep.jsx";
 import WorkspaceStep from "../components/customer-onboarding/steps/WorkspaceStep";
 import SubscriptionStep from "../components/customer-onboarding/steps/SubscriptionStep.jsx";
@@ -186,19 +186,18 @@ if (step === 2) {
   );
   }
   // Step 7
-if (step === 7) {
-   return (
-      <BillingSummaryStep
-         company={company}
-         owner={owner}
-         subscription={subscription}
-         modules={modules}
-         workspace={workspace}
-         workspaceFeatures={workspaceFeatures}
-         onPrevious={() => setStep(6)}
-         onNext={() => setStep(8)}
-      />
-   );
+  if (step === 7) {
+  return (
+    <BillingSummaryStep
+      company={company}
+      subscription={subscription}
+      modules={modules}
+      workspace={workspace}
+      workspaceFeatures={workspaceFeatures}
+      onPrevious={() => setStep(6)}
+      onNext={() => setStep(8)}
+    />
+  );
 }
   return (
     <div className="app-main">
