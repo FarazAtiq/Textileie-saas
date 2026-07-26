@@ -6,23 +6,25 @@
 import { useState } from "react";
 import { Eye, EyeOff, ShieldCheck, User, ArrowLeft, ArrowRight } from "lucide-react";
 
-export default function OwnerStep({ onPrevious, onNext }) {
+const DEFAULT_OWNER = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  phone: "",
+  countryCode: "+92",
+  designation: "Owner",
+  username: "",
+  password: "",
+  confirmPassword: "",
+  twoFA: false,
+  verifyEmail: true,
+  forceChange: true,
+  accept: false,
+};
+
+export default function OwnerStep({ initialOwner, onPrevious, onNext }) {
   const [show,setShow]=useState(false);
-  const [owner,setOwner]=useState({
-    firstName:"",
-    lastName:"",
-    email:"",
-    phone:"",
-    countryCode:"+92",
-    designation:"Owner",
-    username:"",
-    password:"",
-    confirmPassword:"",
-    twoFA:false,
-    verifyEmail:true,
-    forceChange:true,
-    accept:false
-  });
+  const [owner,setOwner]=useState({ ...DEFAULT_OWNER, ...initialOwner });
 
   const update=(k,v)=>{
     const n={...owner,[k]:v};
@@ -35,6 +37,20 @@ export default function OwnerStep({ onPrevious, onNext }) {
   const strength = owner.password.length<8?"Weak":
     /[A-Z]/.test(owner.password)&&/\d/.test(owner.password)&&/[!@#$%^&*]/.test(owner.password)
     ?"Strong":"Medium";
+
+  const canContinue =
+    owner.firstName.trim() &&
+    owner.lastName.trim() &&
+    owner.email.trim() &&
+    owner.username.trim() &&
+    owner.password.length >= 8 &&
+    owner.password === owner.confirmPassword &&
+    owner.accept;
+
+  const handleNext = () => {
+    if (!canContinue) return;
+    onNext?.({ ...owner });
+  };
 
   return (
     <div className="card">
@@ -106,7 +122,8 @@ export default function OwnerStep({ onPrevious, onNext }) {
   <button
     type="button"
     className="btn btn-primary"
-    onClick={onNext}
+    onClick={handleNext}
+    disabled={!canContinue}
   >
     Next
     <ArrowRight size={16} />
