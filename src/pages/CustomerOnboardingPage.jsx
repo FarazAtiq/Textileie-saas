@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import {
   Building2, Save, ArrowRight, X, Upload
 } from "lucide-react";
-import BillingSummaryStep from "../components/customer-onboarding/steps/BillingSummaryStep";
+import BillingSummaryStep from "../components/customer-onboarding/steps/BillingSummaryStep/index.js";
 import OwnerStep from "../components/customer-onboarding/steps/OwnerStep.jsx";
 import WorkspaceStep from "../components/customer-onboarding/steps/WorkspaceStep";
 import SubscriptionStep from "../components/customer-onboarding/steps/SubscriptionStep.jsx";
@@ -37,6 +37,7 @@ export default function CustomerOnboardingPage() {
   autoLogout: true,
 });
   const [factory, setFactory] = useState(null);
+  const [owner, setOwner] = useState(null);
   const [company,setCompany]=useState({
     companyName:"",
     companyCode:"AUTO",
@@ -91,8 +92,12 @@ if (step === 2) {
         </div>
       </div>
 <OwnerStep
+  initialOwner={owner}
   onPrevious={() => setStep(1)}
-  onNext={() => setStep(3)}
+  onNext={(ownerData) => {
+    setOwner(ownerData);
+    setStep(3);
+  }}
 />
     </div>
   );
@@ -192,6 +197,7 @@ if (step === 2) {
   return (
     <BillingSummaryStep
       company={company}
+      owner={owner}
       subscription={subscription}
       modules={modules}
       workspace={workspace}
