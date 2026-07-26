@@ -8,6 +8,7 @@ import WorkspaceStep from "../components/customer-onboarding/steps/WorkspaceStep
 import SubscriptionStep from "../components/customer-onboarding/steps/SubscriptionStep.jsx";
 import ModuleStep from "../components/customer-onboarding/steps/ModuleStep.jsx";
 import WorkspaceFeaturesStep from "../components/customer-onboarding/steps/WorkspaceFeaturesStep.jsx";
+import FactoryStep from "../components/customer-onboarding/steps/FactoryStep";
 export default function CustomerOnboardingPage() {
   const [step, setStep] = useState(1);
   const [subscription, setSubscription] = useState(null);
@@ -35,6 +36,7 @@ export default function CustomerOnboardingPage() {
   darkMode: false,
   autoLogout: true,
 });
+  const [factory, setFactory] = useState(null);
   const [company,setCompany]=useState({
     companyName:"",
     companyCode:"AUTO",
@@ -196,6 +198,18 @@ if (step === 2) {
       workspaceFeatures={workspaceFeatures}
       onPrevious={() => setStep(6)}
       onNext={() => setStep(8)}
+    />
+  );
+}
+  if (step === 8) {
+  return (
+    <FactoryStep
+      initialFactory={factory}
+      onPrevious={() => setStep(7)}
+      onNext={(factoryData) => {
+        setFactory(factoryData);
+        setStep(9);
+      }}
     />
   );
 }
