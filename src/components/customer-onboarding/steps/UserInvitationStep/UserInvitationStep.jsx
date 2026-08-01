@@ -1,342 +1,276 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
-  Building2, Save, ArrowRight, X, Upload
+  UserPlus, Mail, Trash2, ArrowLeft, ArrowRight, ShieldCheck,
 } from "lucide-react";
-import BillingSummaryStep from "../components/customer-onboarding/steps/BillingSummaryStep.jsx";
-import OwnerStep from "../components/customer-onboarding/steps/OwnerStep.jsx";
-import WorkspaceStep from "../components/customer-onboarding/steps/WorkspaceStep";
-import SubscriptionStep from "../components/customer-onboarding/steps/SubscriptionStep.jsx";
-import ModuleStep from "../components/customer-onboarding/steps/ModuleStep.jsx";
-import WorkspaceFeaturesStep from "../components/customer-onboarding/steps/WorkspaceFeaturesStep.jsx";
-import FactoryStep from "../components/customer-onboarding/steps/FactoryStep";
-import DepartmentStep from "../components/customer-onboarding/steps/DepartmentStep";
-import UserInvitationStep from "../components/customer-onboarding/steps/UserInvitationStep";
-export default function CustomerOnboardingPage() {
-  const [step, setStep] = useState(1);
-  const [subscription, setSubscription] = useState(null);
-  const [modules, setModules] = useState(null);
-  const [workspaceFeatures, setWorkspaceFeatures] = useState(null);
-  const [workspace, setWorkspace] = useState({
-  workspaceName: "",
-  workspaceCode: `TXT-${Date.now().toString().slice(-6)}`,
-  language: "English",
-  currency: "PKR",
-  timezone: "Asia/Karachi",
-  dateFormat: "DD/MM/YYYY",
+import StatusBadge from "../../../master/StatusBadge.jsx";
+import { defaultRoles, defaultInvite } from "./userInvitationDefaults";
+import { validateInvite } from "./userInvitationValidation";
 
-  measurementSystem: "Metric",
-  fabricUnit: "Meter",
-  weightUnit: "Kg",
-  widthUnit: "Inch",
+export default function UserInvitationStep({
+  departments,
+  initialInvitations,
+  onPrevious,
+  onNext,
+}) {
+  const [invitations, setInvitations] = useState(
+    initialInvitations && initialInvitations.length ? initialInvitations : []
+  );
 
-  theme: "Blue",
+  const [draft, setDraft] = useState(defaultInvite);
+  const [draftErrors, setDraftErrors] = useState({});
 
-  emailNotification: true,
-  activityLogs: true,
-  auditTrail: true,
-  autoBackup: true,
-  darkMode: false,
-  autoLogout: true,
-});
-  const [factory, setFactory] = useState(null);
-  const [departments, setDepartments] = useState(null);
-  const [invitations, setInvitations] = useState(null);
-  const [owner, setOwner] = useState(null);
-  const [company,setCompany]=useState({
-    companyName:"",
-    companyCode:"AUTO",
-    legalName:"",
-    businessType:"Manufacturer",
-    industry:"Garments",
-    registrationNo:"",
-    taxNo:"",
-    website:"",
-    email:"",
-    phone:"",
-    country:"Pakistan",
-    province:"",
-    city:"",
-    postalCode:"",
-    address:"",
-    currency:"PKR",
-    timezone:"Asia/Karachi",
-    language:"English",
-    dateFormat:"DD/MM/YYYY",
-    fiscalYear:"January"
-  });
+  const roleName = (roleId) =>
+    defaultRoles.find((r) => r.id === roleId)?.name || "—";
 
-  const update=(k,v)=>{
-    const next={...company,[k]:v};
-    if(k==="companyName"){
-      const parts=v.trim().split(/\s+/).filter(Boolean);
-      const code=(parts.map(p=>p[0]).join("").toUpperCase()||"CMP")+"001";
-      next.companyCode=code;
+  const addInvite = () => {
+    const errors = validateInvite(draft, invitations);
+    if (Object.keys(errors).length > 0) {
+      setDraftErrors(errors);
+      return;
     }
-    setCompany(next);
+
+    setInvitations((prev) => [
+      ...prev,
+      { ...draft, email: draft.email.trim().toLowerCase(), status: "Pending" },
+    ]);
+    setDraft(defaultInvite);
+    setDraftErrors({});
   };
 
-  const required=["companyName","businessType","country","currency","timezone"];
-  const missing=useMemo(()=>required.filter(k=>!company[k]),[company]);
+  const removeInvite = (email) => {
+    setInvitations((prev) => prev.filter((i) => i.email !== email));
+  };
 
-  const field=(label,key,type="text")=>(
-    <div className="field" key={key}>
-      <label>{label}</label>
-      <input type={type} value={company[key]} onChange={e=>update(key,e.target.value)}/>
-      {required.includes(key)&&!company[key] && <small style={{color:"var(--red)"}}>Required</small>}
-    </div>
-  );
-if (step === 2) {
+  const handleContinue = () => {
+    onNext(invitations);
+  };
+
   return (
     <div className="app-main">
+
+      {/* Header */}
+
       <div className="module-hero">
         <div>
           <div className="eyebrow">Platform</div>
-          <h1>Customer Onboarding</h1>
-          <p>Configure the workspace owner and administrator account.</p>
-        </div>
-      </div>
-<OwnerStep
-  initialOwner={owner}
-  onPrevious={() => setStep(1)}
-  onNext={(ownerData) => {
-    setOwner(ownerData);
-    setStep(3);
-  }}
-/>
-    </div>
-  );
-}
-  if (step === 3) {
-  return (
-    <div className="app-main">
-      <div className="module-hero">
-        <div>
-          <div className="eyebrow">Platform</div>
-          <h1>Customer Onboarding</h1>
+          <h1>User Invitation</h1>
           <p>
-            Select the subscription plan and workspace limits.
+            Invite teammates to the workspace. You can skip this and invite
+            people later from Settings.
           </p>
         </div>
       </div>
 
-      <SubscriptionStep
-  initialPlan={subscription?.planId || "professional"}
-  initialBillingCycle={
-    subscription?.billingCycle || "monthly"
-  }
-  onPrevious={() => setStep(2)}
-  onNext={(selectedSubscription) => {
-    setSubscription(selectedSubscription);
-    setStep(4);
-  }}
-/>
-    </div>
-  );
-}
-  if (step === 4) {
-  return (
-    <div className="app-main">
-      <div className="module-hero">
-        <div>
-          <div className="eyebrow">Platform</div>
-          <h1>Customer Onboarding</h1>
-          <p>
-            Select the TextileIE modules for this workspace.
-          </p>
-        </div>
-      </div>
-<ModuleStep
-  initialModules={modules?.moduleIds}
-  onPrevious={() => setStep(3)}
-  onNext={(selectedModules) => {
-    setModules(selectedModules);
-    setStep(5);
-  }}
-/>
-    </div>
-  );
-}
-  if (step === 5) {
-  return (
-    <div className="app-main">
-      <div className="module-hero">
-        <div>
-          <div className="eyebrow">Platform</div>
+      {/* Progress */}
 
-          <h1>Customer Onboarding</h1>
-
-          <p>
-            Configure workspace notifications, integrations,
-            intelligence and governance controls.
-          </p>
+      <div className="card">
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 12,
+            fontWeight: 600,
+          }}
+        >
+          <span style={{ color: "#16a34a" }}>✓ Company</span>
+          <span style={{ color: "#16a34a" }}>✓ Owner</span>
+          <span style={{ color: "#16a34a" }}>✓ Workspace</span>
+          <span style={{ color: "#16a34a" }}>✓ Factory</span>
+          <span style={{ color: "#16a34a" }}>✓ Departments</span>
+          <span style={{ color: "#2563eb" }}>● Users</span>
+          <span style={{ color: "#9ca3af" }}>○ Review</span>
         </div>
       </div>
 
-      <WorkspaceFeaturesStep
-        initialFeatures={workspaceFeatures?.featureIds}
-        onPrevious={() => setStep(4)}
-        onNext={(selectedFeatures) => {
-          setWorkspaceFeatures(selectedFeatures);
-          setStep(6);
-        }}
-      />
-    </div>
-  );
-  }
-  if (step === 6) {
-  return (
-    <WorkspaceStep
-  companyName={company.companyName}
-  initialWorkspace={workspace}
-  onPrevious={() => setStep(5)}
-  onNext={(workspaceData) => {
-    setWorkspace(workspaceData);
-    setStep(7);
-  }}
-/>
-  );
-  }
-  // Step 7
-  if (step === 7) {
-  return (
-    <BillingSummaryStep
-      company={company}
-      owner={owner}
-      subscription={subscription}
-      modules={modules}
-      workspace={workspace}
-      workspaceFeatures={workspaceFeatures}
-      onPrevious={() => setStep(6)}
-      onNext={() => setStep(8)}
-    />
-  );
-}
-  if (step === 8) {
-  return (
-    <FactoryStep
-      initialFactory={factory}
-      onPrevious={() => setStep(7)}
-      onNext={(factoryData) => {
-        setFactory(factoryData);
-        setStep(9);
-      }}
-    />
-  );
-}
-  if (step === 9) {
-  return (
-    <DepartmentStep
-      factory={factory}
-      initialDepartments={departments}
-      onPrevious={() => setStep(8)}
-      onNext={(departmentData) => {
-        setDepartments(departmentData);
-        setStep(10);
-      }}
-    />
-  );
-}
-  if (step === 10) {
-  return (
-    <UserInvitationStep
-      departments={departments}
-      initialInvitations={invitations}
-      onPrevious={() => setStep(9)}
-      onNext={(invitationData) => {
-        setInvitations(invitationData);
-        setStep(11);
-      }}
-    />
-  );
-}
-  return (
-    <div className="app-main">
-      <div className="module-hero">
-        <div>
-          <div className="eyebrow">Platform</div>
-          <h1>Customer Onboarding</h1>
-          <p>Create a new TextileIE customer workspace.</p>
-        </div>
-        <div className="module-hero-actions">
-          <button className="btn btn-secondary"><Save size={15}/>Save Draft</button>
-          <button className="btn btn-primary">Continue <ArrowRight size={15}/></button>
+      {/* Roles reference */}
+
+      <div className="card">
+        <h2>
+          <ShieldCheck size={20} />
+          &nbsp; Available Roles
+        </h2>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
+            gap: 12,
+            marginTop: 16,
+          }}
+        >
+          {defaultRoles.map((role) => (
+            <div
+              key={role.id}
+              style={{
+                padding: 14,
+                border: "1px solid var(--border)",
+                borderRadius: 10,
+                background: "var(--bg)",
+              }}
+            >
+              <strong>{role.name}</strong>
+              <p style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 6 }}>
+                {role.description}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
 
-      <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:20}}>
-        <div className="card">
-          <h2 style={{marginBottom:16}}>Company Profile</h2>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-            {field("Company Name *","companyName")}
-            {field("Company Code","companyCode")}
-            {field("Legal Company Name","legalName")}
-            {field("Business Type *","businessType")}
-            {field("Industry","industry")}
-            {field("Registration No.","registrationNo")}
-            {field("Tax / NTN / VAT","taxNo")}
-            {field("Website","website")}
-            {field("Company Email","email","email")}
-            {field("Phone","phone")}
+      {/* Invite form */}
+
+      <div className="card">
+        <h2>
+          <UserPlus size={20} />
+          &nbsp; Invite a Teammate
+        </h2>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "2fr 1fr 1fr auto",
+            gap: 16,
+            marginTop: 16,
+            alignItems: "start",
+          }}
+        >
+          <div>
+            <label>Email *</label>
+            <input
+              type="email"
+              className="field"
+              value={draft.email}
+              onChange={(e) =>
+                setDraft((prev) => ({ ...prev, email: e.target.value }))
+              }
+            />
+            {draftErrors.email && (
+              <p style={{ color: "#dc2626", marginTop: 4 }}>{draftErrors.email}</p>
+            )}
           </div>
 
-          <div className="divider"></div>
-          <h2 style={{marginBottom:16}}>Address</h2>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-            {field("Country *","country")}
-            {field("Province","province")}
-            {field("City","city")}
-            {field("Postal Code","postalCode")}
-          </div>
-          <div className="field">
-            <label>Complete Address</label>
-            <textarea value={company.address} onChange={e=>update("address",e.target.value)} rows={3}/>
-          </div>
-
-          <div className="divider"></div>
-          <h2 style={{marginBottom:16}}>Regional Settings</h2>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-            {field("Currency *","currency")}
-            {field("Timezone *","timezone")}
-            {field("Language","language")}
-            {field("Date Format","dateFormat")}
-            {field("Fiscal Year","fiscalYear")}
+          <div>
+            <label>Role *</label>
+            <select
+              className="field"
+              value={draft.roleId}
+              onChange={(e) =>
+                setDraft((prev) => ({ ...prev, roleId: e.target.value }))
+              }
+            >
+              <option value="">Select role</option>
+              {defaultRoles.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+            {draftErrors.roleId && (
+              <p style={{ color: "#dc2626", marginTop: 4 }}>{draftErrors.roleId}</p>
+            )}
           </div>
 
-          <div className="divider"></div>
-          <button className="btn btn-secondary"><Upload size={15}/>Upload Company Logo</button>
-        </div>
+          <div>
+            <label>Department</label>
+            <select
+              className="field"
+              value={draft.departmentCode}
+              onChange={(e) =>
+                setDraft((prev) => ({ ...prev, departmentCode: e.target.value }))
+              }
+            >
+              <option value="">Unassigned</option>
+              {(departments || []).map((d) => (
+                <option key={d.code} value={d.code}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <div className="card">
-          <h2>Workspace Summary</h2>
-          <div className="divider"></div>
-          <p><strong>{company.companyName||"Company Name"}</strong></p>
-          <p>Code: {company.companyCode}</p>
-          <p>Business: {company.businessType}</p>
-          <p>Industry: {company.industry}</p>
-          <p>Country: {company.country}</p>
-          <p>Currency: {company.currency}</p>
-          <p>Timezone: {company.timezone}</p>
-          <div className="divider"></div>
-          <p>Subscription: <strong>Not Selected</strong></p>
-          <p>Modules: <strong>0 Selected</strong></p>
-          <p>Factories: <strong>0</strong></p>
-          <p>Users: <strong>0</strong></p>
-          <div className="divider"></div>
-          <p style={{color: missing.length?"var(--red)":"var(--green)"}}>
-            {missing.length?`${missing.length} required fields remaining`:"Company information complete"}
-          </p>
           <button
-  type="button"
-  className="btn btn-primary btn-full"
-  style={{ marginTop: 12 }}
-  onClick={() => setStep(2)}
-  disabled={missing.length > 0}
->
-  Continue to Owner
-</button>
-          <button className="btn btn-secondary btn-full" style={{marginTop:8}}><X size={15}/>Cancel</button>
+            type="button"
+            className="btn btn-primary"
+            style={{ marginTop: 22 }}
+            onClick={addInvite}
+          >
+            <Mail size={16} />
+            Invite
+          </button>
         </div>
       </div>
+
+      {/* Invitation list */}
+
+      <div className="card">
+        <h2>Invitations ({invitations.length})</h2>
+
+        {invitations.length === 0 ? (
+          <p style={{ color: "var(--text-secondary)", marginTop: 12 }}>
+            No invitations yet. This step is optional — you can continue
+            without inviting anyone.
+          </p>
+        ) : (
+          <table style={{ width: "100%", marginTop: 16, borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)" }}>
+                <th style={{ padding: "8px 4px" }}>Email</th>
+                <th style={{ padding: "8px 4px" }}>Role</th>
+                <th style={{ padding: "8px 4px" }}>Department</th>
+                <th style={{ padding: "8px 4px" }}>Status</th>
+                <th style={{ padding: "8px 4px" }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {invitations.map((i) => (
+                <tr key={i.email} style={{ borderBottom: "1px solid var(--border)" }}>
+                  <td style={{ padding: "8px 4px" }}>{i.email}</td>
+                  <td style={{ padding: "8px 4px" }}>{roleName(i.roleId)}</td>
+                  <td style={{ padding: "8px 4px" }}>
+                    {(departments || []).find((d) => d.code === i.departmentCode)?.name ||
+                      "Unassigned"}
+                  </td>
+                  <td style={{ padding: "8px 4px" }}>
+                    <StatusBadge status="Development" />
+                  </td>
+                  <td style={{ padding: "8px 4px", textAlign: "right" }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => removeInvite(i.email)}
+                      title="Remove invitation"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Navigation */}
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 12,
+          marginTop: 20,
+        }}
+      >
+        <button type="button" className="btn btn-secondary" onClick={onPrevious}>
+          <ArrowLeft size={16} />
+          Previous
+        </button>
+
+        <button type="button" className="btn btn-primary" onClick={handleContinue}>
+          Continue to Review
+          <ArrowRight size={16} />
+        </button>
+      </div>
+
     </div>
   );
 }
