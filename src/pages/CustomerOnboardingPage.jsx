@@ -10,6 +10,7 @@ import ModuleStep from "../components/customer-onboarding/steps/ModuleStep.jsx";
 import WorkspaceFeaturesStep from "../components/customer-onboarding/steps/WorkspaceFeaturesStep.jsx";
 import FactoryStep from "../components/customer-onboarding/steps/FactoryStep";
 import DepartmentStep from "../components/customer-onboarding/steps/DepartmentStep";
+import UserInvitationStep from "../components/customer-onboarding/steps/UserInvitationStep";
 export default function CustomerOnboardingPage() {
   const [step, setStep] = useState(1);
   const [subscription, setSubscription] = useState(null);
@@ -39,6 +40,7 @@ export default function CustomerOnboardingPage() {
 });
   const [factory, setFactory] = useState(null);
   const [departments, setDepartments] = useState(null);
+  const [invitations, setInvitations] = useState(null);
   const [owner, setOwner] = useState(null);
   const [company,setCompany]=useState({
     companyName:"",
@@ -230,6 +232,19 @@ if (step === 2) {
       onNext={(departmentData) => {
         setDepartments(departmentData);
         setStep(10);
+      }}
+    />
+  );
+}
+  if (step === 10) {
+  return (
+    <UserInvitationStep
+      departments={departments}
+      initialInvitations={invitations}
+      onPrevious={() => setStep(9)}
+      onNext={(invitationData) => {
+        setInvitations(invitationData);
+        setStep(11);
       }}
     />
   );
