@@ -9,6 +9,7 @@ import SubscriptionStep from "../components/customer-onboarding/steps/Subscripti
 import ModuleStep from "../components/customer-onboarding/steps/ModuleStep.jsx";
 import WorkspaceFeaturesStep from "../components/customer-onboarding/steps/WorkspaceFeaturesStep.jsx";
 import FactoryStep from "../components/customer-onboarding/steps/FactoryStep";
+import DepartmentStep from "../components/customer-onboarding/steps/DepartmentStep";
 export default function CustomerOnboardingPage() {
   const [step, setStep] = useState(1);
   const [subscription, setSubscription] = useState(null);
@@ -37,6 +38,7 @@ export default function CustomerOnboardingPage() {
   autoLogout: true,
 });
   const [factory, setFactory] = useState(null);
+  const [departments, setDepartments] = useState(null);
   const [owner, setOwner] = useState(null);
   const [company,setCompany]=useState({
     companyName:"",
@@ -215,6 +217,19 @@ if (step === 2) {
       onNext={(factoryData) => {
         setFactory(factoryData);
         setStep(9);
+      }}
+    />
+  );
+}
+  if (step === 9) {
+  return (
+    <DepartmentStep
+      factory={factory}
+      initialDepartments={departments}
+      onPrevious={() => setStep(8)}
+      onNext={(departmentData) => {
+        setDepartments(departmentData);
+        setStep(10);
       }}
     />
   );
