@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Building2, Save, ArrowRight } from "lucide-react";
+import {
+  Building2, MapPin, Users, ArrowLeft, ArrowRight,
+} from "lucide-react";
 import { defaultFactory } from "./factoryDefaults";
 import { validateFactory } from "./factoryValidation";
 
@@ -251,8 +253,307 @@ export default function FactoryStep({
 
       </div>
 
-      {/* CONTACT INFORMATION WILL BE ADDED IN PART 2 */}
+      {/* Contact & Address */}
+
+      <div className="card">
+
+        <h2>
+          <MapPin size={20} />
+          &nbsp; Contact &amp; Address
+        </h2>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(auto-fit,minmax(260px,1fr))",
+            gap: 16,
+            marginTop: 20,
+          }}
+        >
+
+          <div>
+            <label>Contact Person</label>
+            <input
+              className="field"
+              value={factory.contactPerson}
+              onChange={(e) => updateField("contactPerson", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label>Phone</label>
+            <input
+              className="field"
+              value={factory.phone}
+              onChange={(e) => updateField("phone", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label>Mobile</label>
+            <input
+              className="field"
+              value={factory.mobile}
+              onChange={(e) => updateField("mobile", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label>Email</label>
+            <input
+              type="email"
+              className="field"
+              value={factory.email}
+              onChange={(e) => updateField("email", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label>Website</label>
+            <input
+              className="field"
+              value={factory.website}
+              onChange={(e) => updateField("website", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label>Country *</label>
+            <input
+              className="field"
+              value={factory.country}
+              onChange={(e) => updateField("country", e.target.value)}
+            />
+            {errors.country && (
+              <p style={{ color: "#dc2626", marginTop: 4 }}>{errors.country}</p>
+            )}
+          </div>
+
+          <div>
+            <label>Province</label>
+            <input
+              className="field"
+              value={factory.province}
+              onChange={(e) => updateField("province", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label>City *</label>
+            <input
+              className="field"
+              value={factory.city}
+              onChange={(e) => updateField("city", e.target.value)}
+            />
+            {errors.city && (
+              <p style={{ color: "#dc2626", marginTop: 4 }}>{errors.city}</p>
+            )}
+          </div>
+
+          <div>
+            <label>Postal Code</label>
+            <input
+              className="field"
+              value={factory.postalCode}
+              onChange={(e) => updateField("postalCode", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label>Timezone</label>
+            <input
+              className="field"
+              value={factory.timezone}
+              onChange={(e) => updateField("timezone", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label>Currency</label>
+            <input
+              className="field"
+              value={factory.currency}
+              onChange={(e) => updateField("currency", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label>Financial Year Start</label>
+            <select
+              className="field"
+              value={factory.financialYear}
+              onChange={(e) => updateField("financialYear", e.target.value)}
+            >
+              <option>January</option>
+              <option>April</option>
+              <option>July</option>
+              <option>October</option>
+            </select>
+          </div>
+
+        </div>
+
+        <div className="field" style={{ marginTop: 16 }}>
+          <label>Complete Address</label>
+          <textarea
+            rows={3}
+            value={factory.address}
+            onChange={(e) => updateField("address", e.target.value)}
+          />
+        </div>
+
+      </div>
+
+      {/* Working Hours & Production Capacity */}
+
+      <div className="card">
+
+        <h2>
+          <Users size={20} />
+          &nbsp; Working Hours &amp; Production Capacity
+        </h2>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(auto-fit,minmax(260px,1fr))",
+            gap: 16,
+            marginTop: 20,
+          }}
+        >
+
+          <div>
+            <label>Working Days / Week</label>
+            <input
+              type="number"
+              min={1}
+              max={7}
+              className="field"
+              value={factory.workingDays}
+              onChange={(e) => updateField("workingDays", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label>Weekly Off</label>
+            <select
+              className="field"
+              value={factory.weeklyOff}
+              onChange={(e) => updateField("weeklyOff", e.target.value)}
+            >
+              <option>Sunday</option>
+              <option>Monday</option>
+              <option>Friday</option>
+              <option>Saturday</option>
+            </select>
+          </div>
+
+          <div>
+            <label>Total Employees</label>
+            <input
+              type="number"
+              min={0}
+              className="field"
+              value={factory.totalEmployees}
+              onChange={(e) => updateField("totalEmployees", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label>Total Floors</label>
+            <input
+              type="number"
+              min={0}
+              className="field"
+              value={factory.totalFloors}
+              onChange={(e) => updateField("totalFloors", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label>Production Lines</label>
+            <input
+              type="number"
+              min={0}
+              className="field"
+              value={factory.productionLines}
+              onChange={(e) => updateField("productionLines", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label>Cutting Tables</label>
+            <input
+              type="number"
+              min={0}
+              className="field"
+              value={factory.cuttingTables}
+              onChange={(e) => updateField("cuttingTables", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label>Sewing Machines</label>
+            <input
+              type="number"
+              min={0}
+              className="field"
+              value={factory.sewingMachines}
+              onChange={(e) => updateField("sewingMachines", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label>Finishing Lines</label>
+            <input
+              type="number"
+              min={0}
+              className="field"
+              value={factory.finishingLines}
+              onChange={(e) => updateField("finishingLines", e.target.value)}
+            />
+          </div>
+
+        </div>
+
+        <div className="field" style={{ marginTop: 16 }}>
+          <label>Notes</label>
+          <textarea
+            rows={3}
+            value={factory.notes}
+            onChange={(e) => updateField("notes", e.target.value)}
+          />
+        </div>
+
+      </div>
+
+      {/* Navigation */}
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 12,
+          marginTop: 20,
+        }}
+      >
+        <button type="button" className="btn btn-secondary" onClick={onPrevious}>
+          <ArrowLeft size={16} />
+          Previous
+        </button>
+
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={handleContinue}
+        >
+          Continue to Departments
+          <ArrowRight size={16} />
+        </button>
+      </div>
 
     </div>
   );
-}
+                  }
