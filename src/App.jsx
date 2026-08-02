@@ -69,7 +69,7 @@ function AppRoutes() {
       <Route path="/login" element={<RedirectIfAuthed><AuthPage /></RedirectIfAuthed>} />
       <Route
     path="/platform/onboarding"
-    element={<CustomerOnboardingPage />}
+    element={<PrivateRoute><CustomerOnboardingPage /></PrivateRoute>}
 />
 
       <Route path="/dashboard" element={<ProtectedModule module="dashboard"><Dashboard /></ProtectedModule>} />
