@@ -15,6 +15,7 @@ import UserInvitationStep from "../components/customer-onboarding/steps/UserInvi
 import ReviewWorkspaceStep from "../components/customer-onboarding/steps/ReviewWorkspaceStep";
 import { defaultRoles } from "../components/customer-onboarding/steps/UserInvitationStep/userInvitationDefaults.js";
 import { createCompanyWorkspace, finalizeOnboardingInvitations } from "../lib/db.js";
+import WelcomeStep from "../components/customer-onboarding/steps/WelcomeStep";
 export default function CustomerOnboardingPage() {
   const [step, setStep] = useState(1);
   const navigate = useNavigate();
@@ -274,28 +275,18 @@ if (step === 2) {
     />
   );
 }
-  if (step === 12) {
-  const runBootstrap = async () => {
-    setBootstrapStatus("working");
-    setBootstrapError(null);
-    try {
-      const result = await createCompanyWorkspace({
-        company,
-        subscription,
-        modules,
-        factory,
-        departments,
-      });
-      setBootstrapResult(result);
-      if (invitations && invitations.length > 0) {
-        await finalizeOnboardingInvitations(invitations, result, defaultRoles);
-      }
-      setBootstrapStatus("done");
-    } catch (err) {
-      setBootstrapError(err?.message || "Something went wrong creating your workspace.");
-      setBootstrapStatus("error");
-    }
-  };
+  if (step === 12 && bootstrapStatus === "done") {
+  return (
+    <WelcomeStep
+      company={company}
+      factory={factory}
+      departments={departments}
+      modules={modules}
+      invitations={invitations}
+      bootstrapResult={bootstrapResult}
+    />
+  );
+}
 
   return (
     <div className="app-main">
