@@ -18,7 +18,17 @@ import ReviewWorkspaceStep from "../components/customer-onboarding/steps/ReviewW
 import { defaultRoles } from "../components/customer-onboarding/steps/UserInvitationStep/userInvitationDefaults.js";
 import WelcomeStep from "../components/customer-onboarding/steps/WelcomeStep";
 import { createCompanyWorkspace, finalizeOnboardingInvitations } from "../lib/db.js";
+import { useAuth } from "../hooks/useAuth.jsx";
 export default function CustomerOnboardingPage() {
+  const { access } = useAuth();
+
+  // Internal TextileIE Team only — same guard pattern as
+  // PlatformAdminPage.jsx / PlatformDashboardPage.jsx. Ordinary
+  // customers get an automatic trial workspace on signup instead
+  // (see ensure_trial_workspace RPC) and never reach this wizard.
+  if (!access?.isPlatformAdmin) {
+    return <div className="empty-state"><p>TextileIE Platform Administrator access is required.</p></div>;
+  }
   const [step, setStep] = useState(1);
   const navigate = useNavigate();
   const [subscription, setSubscription] = useState(null);
