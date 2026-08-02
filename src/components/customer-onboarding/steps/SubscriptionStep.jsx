@@ -10,7 +10,7 @@ import {
   Sparkles,
 } from "lucide-react";
 
-const PLANS = [
+export const PLANS = [
   {
     id: "starter",
     name: "Starter",
