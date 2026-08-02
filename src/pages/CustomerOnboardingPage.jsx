@@ -118,6 +118,27 @@ export default function CustomerOnboardingPage() {
     () => masterData.languages.map((l) => ({ value: l.english_name, label: `${l.english_name} (${l.native_name})` })),
     [masterData.languages]
   );
+  // Small fixed enumeration — not global master data (no reuse
+  // value across other pages the way countries/currencies have),
+  // so a local list is the right call rather than another DB table.
+  const dateFormatOptions = useMemo(() => {
+    const today = new Date();
+    const dd = String(today.getDate()).padStart(2, "0");
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const yyyy = today.getFullYear();
+    const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const mmm = monthNames[today.getMonth()];
+
+    const patterns = [
+      { value: "DD/MM/YYYY", example: `${dd}/${mm}/${yyyy}` },
+      { value: "MM/DD/YYYY", example: `${mm}/${dd}/${yyyy}` },
+      { value: "YYYY-MM-DD", example: `${yyyy}-${mm}-${dd}` },
+      { value: "DD-MM-YYYY", example: `${dd}-${mm}-${yyyy}` },
+      { value: "DD.MM.YYYY", example: `${dd}.${mm}.${yyyy}` },
+      { value: "DD-MMM-YYYY", example: `${dd}-${mmm}-${yyyy}` },
+    ];
+    return patterns.map((p) => ({ value: p.value, label: `${p.value}  —  ${p.example}` }));
+  }, []);
 
   const update=(k,v)=>{
     const next={...company,[k]:v};
@@ -511,7 +532,13 @@ if (step === 2) {
               loading={masterDataLoading}
               onChange={(v) => update("language", v || "")}
             />
-            {field("Date Format","dateFormat")}
+            <SearchSelect
+              label="Date Format"
+              placeholder="Search date formats…"
+              options={dateFormatOptions}
+              value={company.dateFormat}
+              onChange={(v) => update("dateFormat", v || "")}
+            />
             {field("Fiscal Year","fiscalYear")}
           </div>
 
