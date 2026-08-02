@@ -6,6 +6,7 @@ import {
   signOut,
   getProfile,
   getMyAccessContext,
+  acceptPendingInvitations,
 } from '../lib/db.js';
 
 const AuthContext = createContext(null);
@@ -32,6 +33,16 @@ export function AuthProvider({ children }) {
       setProfile(null);
       setAccess(null);
       return;
+    }
+
+    // Pick up any pending invitation for this email before loading
+    // access, so a first-time login after accepting an invite
+    // reflects the new membership immediately. Non-fatal: normal
+    // login must still work even if this call fails.
+    try {
+      await acceptPendingInvitations();
+    } catch (err) {
+      console.error('acceptPendingInvitations error:', err);
     }
 
     const [profileResult, accessResult] = await Promise.allSettled([
