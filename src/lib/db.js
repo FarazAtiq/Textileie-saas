@@ -3094,3 +3094,15 @@ export async function finalizeOnboardingInvitations(invitations, bootstrapResult
   }
   return results;
 }
+/**
+ * Checks for any pending invitations matching the signed-in user's
+ * verified email and converts them into a company_users membership.
+ * Safe to call on every login/session load — it's a no-op once
+ * there's nothing left in 'Pending' status. See
+ * supabase/migrations/003_accept_invitations.sql.
+ */
+export async function acceptPendingInvitations() {
+  const { data, error } = await supabase.rpc('accept_pending_invitations');
+  if (error) throw error;
+  return data; // { accepted: [...], skipped: [...] }
+}
