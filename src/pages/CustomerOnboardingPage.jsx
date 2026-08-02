@@ -11,6 +11,7 @@ import WorkspaceFeaturesStep from "../components/customer-onboarding/steps/Works
 import FactoryStep from "../components/customer-onboarding/steps/FactoryStep";
 import DepartmentStep from "../components/customer-onboarding/steps/DepartmentStep";
 import UserInvitationStep from "../components/customer-onboarding/steps/UserInvitationStep";
+import ReviewWorkspaceStep from "../components/customer-onboarding/steps/ReviewWorkspaceStep";
 export default function CustomerOnboardingPage() {
   const [step, setStep] = useState(1);
   const [subscription, setSubscription] = useState(null);
@@ -247,6 +248,55 @@ if (step === 2) {
         setStep(11);
       }}
     />
+  );
+}
+  if (step === 11) {
+  return (
+    <ReviewWorkspaceStep
+      company={company}
+      owner={owner}
+      subscription={subscription}
+      modules={modules}
+      workspace={workspace}
+      workspaceFeatures={workspaceFeatures}
+      factory={factory}
+      departments={departments}
+      invitations={invitations}
+      onPrevious={() => setStep(10)}
+      onNext={() => setStep(12)}
+    />
+  );
+}
+  if (step === 12) {
+  return (
+    <div className="app-main">
+      <div className="module-hero">
+        <div>
+          <div className="eyebrow">Platform</div>
+          <h1>Creating Your Workspace</h1>
+          <p>
+            The Supabase transaction that writes this configuration to your
+            workspace is the next step being built — it isn't wired up yet.
+          </p>
+        </div>
+      </div>
+      <div className="card">
+        <p style={{ color: "var(--text-secondary)" }}>
+          Everything you entered (company, owner, subscription, modules,
+          workspace, factory, departments, and invitations) is held in this
+          wizard's state and ready to be sent to Supabase once that step is
+          implemented.
+        </p>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          style={{ marginTop: 16 }}
+          onClick={() => setStep(11)}
+        >
+          Back to Review
+        </button>
+      </div>
+    </div>
   );
 }
   return (
