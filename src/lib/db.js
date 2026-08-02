@@ -3149,3 +3149,17 @@ export async function getMasterLanguages() {
   if (error) throw error;
   return data || [];
 }
+/**
+ * Auto-provisions a 30-day trial workspace for ordinary self-
+ * registered customers on first login. No-op for pre-existing
+ * accounts, platform admins, or anyone who already has a
+ * company_users row. See
+ * supabase/migrations/005_auto_trial_workspace.sql — reuses
+ * create_company_workspace() internally rather than duplicating
+ * the bootstrap transaction.
+ */
+export async function ensureTrialWorkspace() {
+  const { data, error } = await supabase.rpc('ensure_trial_workspace');
+  if (error) throw error;
+  return data; // { provisioned: boolean, reason?, company_id?, factory_id?, ... }
+}
