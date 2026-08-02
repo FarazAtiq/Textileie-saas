@@ -278,6 +278,11 @@ if (step === 2) {
     <WorkspaceStep
   companyName={company.companyName}
   initialWorkspace={workspace}
+  languageOptions={languageOptions}
+  currencyOptions={currencyOptions}
+  timezoneOptions={timezoneOptions}
+  dateFormatOptions={dateFormatOptions}
+  masterDataLoading={masterDataLoading}
   onPrevious={() => setStep(5)}
   onNext={(workspaceData) => {
     setWorkspace(workspaceData);
