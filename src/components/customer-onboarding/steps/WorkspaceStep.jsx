@@ -1,9 +1,15 @@
 import { useState } from "react";
+import SearchSelect from "../../common/SearchSelect.jsx";
 export default function WorkspaceStep({
   companyName = "",
   initialWorkspace,
   onPrevious,
   onNext,
+  languageOptions = [],
+  currencyOptions = [],
+  timezoneOptions = [],
+  dateFormatOptions = [],
+  masterDataLoading = false,
 })
 
  {
@@ -168,115 +174,46 @@ export default function WorkspaceStep({
           </div>
 
           <div>
-
-            <label>
-              Language
-            </label>
-
-            <select
-              className="field"
+            <SearchSelect
+              label="Language"
+              placeholder="Search languages…"
+              options={languageOptions}
               value={workspace.language}
-              onChange={(e) =>
-                updateField(
-                  "language",
-                  e.target.value
-                )
-              }
-            >
-
-              <option>English</option>
-
-              <option>Urdu</option>
-
-            </select>
-
+              loading={masterDataLoading}
+              onChange={(v) => updateField("language", v || "")}
+            />
           </div>
 
           <div>
-
-            <label>
-              Currency
-            </label>
-
-  <select
-  className="field"
-  value={workspace.currency}
-  onChange={(e) =>
-    updateField("currency", e.target.value)
-  }
->
-  <option value="PKR">PKR</option>
-  <option value="USD">USD</option>
-  <option value="EUR">EUR</option>
-  <option value="AED">AED</option>
-</select>
-
+            <SearchSelect
+              label="Currency"
+              placeholder="Search currencies…"
+              options={currencyOptions}
+              value={workspace.currency}
+              loading={masterDataLoading}
+              onChange={(v) => updateField("currency", v || "")}
+            />
           </div>
 
           <div>
-
-            <label>
-              Time Zone
-            </label>
-
-            <select
-              className="field"
+            <SearchSelect
+              label="Time Zone"
+              placeholder="Search timezones…"
+              options={timezoneOptions}
               value={workspace.timezone}
-              onChange={(e) =>
-                updateField(
-                  "timezone",
-                  e.target.value
-                )
-              }
-            >
-
-              <option>
-                Asia/Karachi
-              </option>
-
-              <option>
-                Asia/Dubai
-              </option>
-
-              <option>
-                Europe/Rome
-              </option>
-
-            </select>
-
+              loading={masterDataLoading}
+              onChange={(v) => updateField("timezone", v || "")}
+            />
           </div>
 
           <div>
-
-            <label>
-              Date Format
-            </label>
-
-            <select
-              className="field"
+            <SearchSelect
+              label="Date Format"
+              placeholder="Search date formats…"
+              options={dateFormatOptions}
               value={workspace.dateFormat}
-              onChange={(e) =>
-                updateField(
-                  "dateFormat",
-                  e.target.value
-                )
-              }
-            >
-
-              <option>
-                DD/MM/YYYY
-              </option>
-
-              <option>
-                MM/DD/YYYY
-              </option>
-
-              <option>
-                YYYY-MM-DD
-              </option>
-
-            </select>
-
+              onChange={(v) => updateField("dateFormat", v || "")}
+            />
           </div>
 
         </div>
@@ -658,4 +595,4 @@ function ToggleOption({
       </div>
     </label>
   );
-}
+            }
