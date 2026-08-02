@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 export default function AuthPage() {
-  const [mode, setMode]   = useState('login');
+  const [searchParams] = useSearchParams();
+  const [mode, setMode]   = useState(searchParams.get('mode') === 'register' ? 'register' : 'login');
   const [form, setForm]   = useState({ email: '', password: '', full_name: '', company_name: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
