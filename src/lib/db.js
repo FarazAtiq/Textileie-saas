@@ -3016,3 +3016,100 @@ export async function setPlatformCompanyModule(companyId, moduleKey, enabled) {
   if (error) throw error;
   return data;
 }
+// ════════════════════════════════════════════════════════════
+// ONBOARDING BOOTSTRAP
+// Added for Customer Onboarding wizard. Reuses createUserInvitation()
+// above rather than duplicating invitation logic. Calls the
+// create_company_workspace RPC — see
+// supabase/migrations/002_bootstrap_workspace.sql for what it does
+// and why it has to be a SECURITY DEFINER function.
+// ════════════════════════════════════════════════════════════
+
+function parseLicensedUsers(limitsUsers) {
+  if (limitsUsers === null || limitsUsers === undefined) return null;
+  const digits = String(limitsUsers).match(/\d+/);
+  return digits ? parseInt(digits[0], 10) : null;
+}
+
+/**
+ * Atomically creates a new company workspace (company, factory,
+ * departments, default roles + permissions, owner membership,
+ * enabled modules) for the currently signed-in user, from the
+ * data collected across the onboarding wizard.
+ *
+ * Throws if the user already belongs to a workspace, or if any
+ * step of the bootstrap fails (the RPC rolls back as one
+ * transaction on the database side).
+ */
+export async function createCompanyWorkspace({
+  company,
+  subscription,
+  modules,
+  factory,
+  departments,
+}) {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error('Not logged in');
+
+  const payload = {
+    company: {
+      companyName: company?.companyName || '',
+      companyCode: company?.companyCode || '',
+      address: company?.address || null,
+      city: company?.city || null,
+      country: company?.country || null,
+      currency: company?.currency || null,
+      timezone: company?.timezone || null,
+    },
+    subscription: {
+      planId: subscription?.planId || null,
+      status: 'Trial',
+      licensedUsers: parseLicensedUsers(subscription?.limits?.users),
+      expiresAt: null,
+      trialEndsAt: null,
+    },
+    factory: {
+      factoryName: factory?.factoryName || '',
+      factoryCode: factory?.factoryCode || '',
+    },
+    departments: (departments || []).map((d) => ({
+      name: d.name,
+      code: d.code,
+    })),
+    moduleKeys: (modules?.modules || []).map((m) => m.id),
+  };
+
+  const { data, error } = await supabase.rpc('create_company_workspace', { payload });
+  if (error) throw error;
+  return data; // { company_id, factory_id, owner_role_id, role_ids, department_ids }
+}
+
+/**
+ * Sends the invitations collected in the User Invitation onboarding
+ * step, after the workspace has been created. Maps the wizard's
+ * local role codes / department codes to the real IDs returned by
+ * createCompanyWorkspace(), then reuses createUserInvitation() for
+ * each one (no duplicate insert logic).
+ */
+export async function finalizeOnboardingInvitations(invitations, bootstrapResult, roleDefs) {
+  const results = [];
+  for (const invite of invitations || []) {
+    const roleDef = (roleDefs || []).find((r) => r.id === invite.roleId);
+    const roleId = roleDef ? bootstrapResult?.role_ids?.[roleDef.code] : null;
+    const departmentId = invite.departmentCode
+      ? bootstrapResult?.department_ids?.[invite.departmentCode]
+      : null;
+
+    if (!roleId) continue; // skip invites we can't resolve a role for
+
+    // eslint-disable-next-line no-await-in-loop
+    const created = await createUserInvitation({
+      email: invite.email,
+      role_id: roleId,
+      factory_id: bootstrapResult?.factory_id || null,
+      department_id: departmentId,
+    });
+    results.push(created);
+  }
+  return results;
+}
