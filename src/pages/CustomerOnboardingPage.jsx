@@ -14,8 +14,8 @@ import DepartmentStep from "../components/customer-onboarding/steps/DepartmentSt
 import UserInvitationStep from "../components/customer-onboarding/steps/UserInvitationStep";
 import ReviewWorkspaceStep from "../components/customer-onboarding/steps/ReviewWorkspaceStep";
 import { defaultRoles } from "../components/customer-onboarding/steps/UserInvitationStep/userInvitationDefaults.js";
-import { createCompanyWorkspace, finalizeOnboardingInvitations } from "../lib/db.js";
 import WelcomeStep from "../components/customer-onboarding/steps/WelcomeStep";
+import { createCompanyWorkspace, finalizeOnboardingInvitations } from "../lib/db.js";
 export default function CustomerOnboardingPage() {
   const [step, setStep] = useState(1);
   const navigate = useNavigate();
@@ -287,6 +287,28 @@ if (step === 2) {
     />
   );
 }
+  if (step === 12) {
+  const runBootstrap = async () => {
+    setBootstrapStatus("working");
+    setBootstrapError(null);
+    try {
+      const result = await createCompanyWorkspace({
+        company,
+        subscription,
+        modules,
+        factory,
+        departments,
+      });
+      setBootstrapResult(result);
+      if (invitations && invitations.length > 0) {
+        await finalizeOnboardingInvitations(invitations, result, defaultRoles);
+      }
+      setBootstrapStatus("done");
+    } catch (err) {
+      setBootstrapError(err?.message || "Something went wrong creating your workspace.");
+      setBootstrapStatus("error");
+    }
+  };
 
   return (
     <div className="app-main">
@@ -295,9 +317,7 @@ if (step === 2) {
           <div className="eyebrow">Platform</div>
           <h1>Creating Your Workspace</h1>
           <p>
-            {bootstrapStatus === "done"
-              ? "Your workspace is ready."
-              : "This writes your company, factory, departments, roles, and modules to TextileIE in one step."}
+            This writes your company, factory, departments, roles, and modules to TextileIE in one step.
           </p>
         </div>
       </div>
@@ -335,24 +355,6 @@ if (step === 2) {
               onClick={runBootstrap}
             >
               Try Again
-            </button>
-          </>
-        )}
-
-        {bootstrapStatus === "done" && (
-          <>
-            <p style={{ color: "var(--text-secondary)" }}>
-              Company, factory, {departments?.length || 0} department
-              {departments?.length === 1 ? "" : "s"}, and default roles have
-              been created. You're now the workspace owner.
-            </p>
-            <button
-              type="button"
-              className="btn btn-primary"
-              style={{ marginTop: 16 }}
-              onClick={() => navigate("/dashboard")}
-            >
-              Continue to Dashboard
             </button>
           </>
         )}
@@ -459,4 +461,4 @@ if (step === 2) {
       </div>
     </div>
   );
-    }
+}
