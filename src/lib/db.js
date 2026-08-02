@@ -2996,3 +2996,23 @@ export async function setPlatformCompanyModule(companyId, moduleKey, enabled) {
   if (error) throw error;
   return data;
 }
+export async function setPlatformCompanyModule(companyId, moduleKey, enabled) {
+  const access = await getMyAccessContext();
+  if (!access?.isPlatformAdmin) throw new Error('TextileIE platform administrator access required');
+
+  const userId = await getCurrentUserId();
+  const { data, error } = await supabase
+    .from('company_modules')
+    .upsert({
+      company_id: companyId,
+      module_key: moduleKey,
+      enabled: Boolean(enabled),
+      enabled_at: enabled ? new Date().toISOString() : null,
+      enabled_by: enabled ? userId : null,
+    }, { onConflict: 'company_id,module_key' })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
