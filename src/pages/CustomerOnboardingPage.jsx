@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Building2, Save, ArrowRight, X, Upload
 } from "lucide-react";
@@ -12,8 +13,11 @@ import FactoryStep from "../components/customer-onboarding/steps/FactoryStep";
 import DepartmentStep from "../components/customer-onboarding/steps/DepartmentStep";
 import UserInvitationStep from "../components/customer-onboarding/steps/UserInvitationStep";
 import ReviewWorkspaceStep from "../components/customer-onboarding/steps/ReviewWorkspaceStep";
+import { defaultRoles } from "../components/customer-onboarding/steps/UserInvitationStep/userInvitationDefaults.js";
+import { createCompanyWorkspace, finalizeOnboardingInvitations } from "../lib/db.js";
 export default function CustomerOnboardingPage() {
   const [step, setStep] = useState(1);
+  const navigate = useNavigate();
   const [subscription, setSubscription] = useState(null);
   const [modules, setModules] = useState(null);
   const [workspaceFeatures, setWorkspaceFeatures] = useState(null);
@@ -42,6 +46,9 @@ export default function CustomerOnboardingPage() {
   const [factory, setFactory] = useState(null);
   const [departments, setDepartments] = useState(null);
   const [invitations, setInvitations] = useState(null);
+  const [bootstrapStatus, setBootstrapStatus] = useState("idle"); // idle | working | done | error
+  const [bootstrapError, setBootstrapError] = useState(null);
+  const [bootstrapResult, setBootstrapResult] = useState(null);
   const [owner, setOwner] = useState(null);
   const [company,setCompany]=useState({
     companyName:"",
@@ -268,6 +275,28 @@ if (step === 2) {
   );
 }
   if (step === 12) {
+  const runBootstrap = async () => {
+    setBootstrapStatus("working");
+    setBootstrapError(null);
+    try {
+      const result = await createCompanyWorkspace({
+        company,
+        subscription,
+        modules,
+        factory,
+        departments,
+      });
+      setBootstrapResult(result);
+      if (invitations && invitations.length > 0) {
+        await finalizeOnboardingInvitations(invitations, result, defaultRoles);
+      }
+      setBootstrapStatus("done");
+    } catch (err) {
+      setBootstrapError(err?.message || "Something went wrong creating your workspace.");
+      setBootstrapStatus("error");
+    }
+  };
+
   return (
     <div className="app-main">
       <div className="module-hero">
@@ -275,27 +304,77 @@ if (step === 2) {
           <div className="eyebrow">Platform</div>
           <h1>Creating Your Workspace</h1>
           <p>
-            The Supabase transaction that writes this configuration to your
-            workspace is the next step being built — it isn't wired up yet.
+            {bootstrapStatus === "done"
+              ? "Your workspace is ready."
+              : "This writes your company, factory, departments, roles, and modules to TextileIE in one step."}
           </p>
         </div>
       </div>
+
       <div className="card">
-        <p style={{ color: "var(--text-secondary)" }}>
-          Everything you entered (company, owner, subscription, modules,
-          workspace, factory, departments, and invitations) is held in this
-          wizard's state and ready to be sent to Supabase once that step is
-          implemented.
-        </p>
-        <button
-          type="button"
-          className="btn btn-secondary"
-          style={{ marginTop: 16 }}
-          onClick={() => setStep(11)}
-        >
-          Back to Review
-        </button>
+        {bootstrapStatus === "idle" && (
+          <>
+            <p style={{ color: "var(--text-secondary)" }}>
+              Everything you entered is ready to be created. This can't be
+              undone from this screen — you'll manage it from Settings
+              afterward.
+            </p>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ marginTop: 16 }}
+              onClick={runBootstrap}
+            >
+              Create Workspace
+            </button>
+          </>
+        )}
+
+        {bootstrapStatus === "working" && (
+          <p style={{ color: "var(--text-secondary)" }}>Creating your workspace…</p>
+        )}
+
+        {bootstrapStatus === "error" && (
+          <>
+            <p style={{ color: "#dc2626" }}>{bootstrapError}</p>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ marginTop: 16 }}
+              onClick={runBootstrap}
+            >
+              Try Again
+            </button>
+          </>
+        )}
+
+        {bootstrapStatus === "done" && (
+          <>
+            <p style={{ color: "var(--text-secondary)" }}>
+              Company, factory, {departments?.length || 0} department
+              {departments?.length === 1 ? "" : "s"}, and default roles have
+              been created. You're now the workspace owner.
+            </p>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ marginTop: 16 }}
+              onClick={() => navigate("/dashboard")}
+            >
+              Continue to Dashboard
+            </button>
+          </>
+        )}
       </div>
+
+      <button
+        type="button"
+        className="btn btn-secondary"
+        style={{ marginTop: 16 }}
+        onClick={() => setStep(11)}
+      >
+        Back to Review
+      </button>
     </div>
   );
 }
@@ -389,4 +468,4 @@ if (step === 2) {
       </div>
     </div>
   );
-}
+    }
