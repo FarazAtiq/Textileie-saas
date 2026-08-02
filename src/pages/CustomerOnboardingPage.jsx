@@ -305,6 +305,10 @@ if (step === 2) {
   return (
     <FactoryStep
       initialFactory={factory}
+      countryOptions={countryOptions}
+      currencyOptions={currencyOptions}
+      timezoneOptions={timezoneOptions}
+      masterDataLoading={masterDataLoading}
       onPrevious={() => setStep(7)}
       onNext={(factoryData) => {
         setFactory(factoryData);
@@ -312,7 +316,7 @@ if (step === 2) {
       }}
     />
   );
-}
+  }
   if (step === 9) {
   return (
     <DepartmentStep
