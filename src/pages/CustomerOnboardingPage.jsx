@@ -1,8 +1,10 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Building2, Save, ArrowRight, X, Upload
 } from "lucide-react";
+import SearchSelect from "../components/common/SearchSelect.jsx";
+import { getMasterCountries, getMasterCurrencies, getMasterTimezones, getMasterLanguages } from "../lib/db.js";
 import BillingSummaryStep from "../components/customer-onboarding/steps/BillingSummaryStep.jsx";
 import OwnerStep from "../components/customer-onboarding/steps/OwnerStep.jsx";
 import WorkspaceStep from "../components/customer-onboarding/steps/WorkspaceStep";
@@ -74,6 +76,49 @@ export default function CustomerOnboardingPage() {
     fiscalYear:"January"
   });
 
+  // ── Global Master Data (countries/currencies/timezones/languages) ──
+  // Single shared source of truth — see supabase/migrations/004_global_master_data.sql.
+  // Loaded once; other onboarding steps and future pages (Factory,
+  // Supplier, Buyer, etc.) should reuse this same pattern instead of
+  // hardcoding their own option lists.
+  const [masterData, setMasterData] = useState({
+    countries: [], currencies: [], timezones: [], languages: [],
+  });
+  const [masterDataLoading, setMasterDataLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    Promise.all([
+      getMasterCountries(),
+      getMasterCurrencies(),
+      getMasterTimezones(),
+      getMasterLanguages(),
+    ])
+      .then(([countries, currencies, timezones, languages]) => {
+        if (mounted) setMasterData({ countries, currencies, timezones, languages });
+      })
+      .catch((err) => console.error("Failed to load master data:", err))
+      .finally(() => { if (mounted) setMasterDataLoading(false); });
+    return () => { mounted = false; };
+  }, []);
+
+  const countryOptions = useMemo(
+    () => masterData.countries.map((c) => ({ value: c.name, label: `${c.flag_emoji} ${c.name}`, ...c })),
+    [masterData.countries]
+  );
+  const currencyOptions = useMemo(
+    () => masterData.currencies.map((c) => ({ value: c.code, label: `${c.code} — ${c.name} (${c.symbol})` })),
+    [masterData.currencies]
+  );
+  const timezoneOptions = useMemo(
+    () => masterData.timezones.map((t) => ({ value: t.iana_name, label: t.label })),
+    [masterData.timezones]
+  );
+  const languageOptions = useMemo(
+    () => masterData.languages.map((l) => ({ value: l.english_name, label: `${l.english_name} (${l.native_name})` })),
+    [masterData.languages]
+  );
+
   const update=(k,v)=>{
     const next={...company,[k]:v};
     if(k==="companyName"){
@@ -82,6 +127,21 @@ export default function CustomerOnboardingPage() {
       next.companyCode=code;
     }
     setCompany(next);
+  };
+
+  // Selecting a country auto-fills currency/timezone/language from
+  // master data — the person can still override each afterward via
+  // its own SearchSelect.
+  const updateCountry = (value, option) => {
+    setCompany((prev) => ({
+      ...prev,
+      country: value || "",
+      currency: option?.currency_code || prev.currency,
+      timezone: option?.default_timezone || prev.timezone,
+      language: option
+        ? (masterData.languages.find((l) => l.code === option.default_language)?.english_name || prev.language)
+        : prev.language,
+    }));
   };
 
   const required=["companyName","businessType","country","currency","timezone"];
@@ -404,7 +464,15 @@ if (step === 2) {
           <div className="divider"></div>
           <h2 style={{marginBottom:16}}>Address</h2>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-            {field("Country *","country")}
+            <SearchSelect
+              label="Country *"
+              required
+              placeholder="Search countries…"
+              options={countryOptions}
+              value={company.country}
+              loading={masterDataLoading}
+              onChange={updateCountry}
+            />
             {field("Province","province")}
             {field("City","city")}
             {field("Postal Code","postalCode")}
@@ -417,9 +485,32 @@ if (step === 2) {
           <div className="divider"></div>
           <h2 style={{marginBottom:16}}>Regional Settings</h2>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-            {field("Currency *","currency")}
-            {field("Timezone *","timezone")}
-            {field("Language","language")}
+            <SearchSelect
+              label="Currency *"
+              required
+              placeholder="Search currencies…"
+              options={currencyOptions}
+              value={company.currency}
+              loading={masterDataLoading}
+              onChange={(v) => update("currency", v || "")}
+            />
+            <SearchSelect
+              label="Timezone *"
+              required
+              placeholder="Search timezones…"
+              options={timezoneOptions}
+              value={company.timezone}
+              loading={masterDataLoading}
+              onChange={(v) => update("timezone", v || "")}
+            />
+            <SearchSelect
+              label="Language"
+              placeholder="Search languages…"
+              options={languageOptions}
+              value={company.language}
+              loading={masterDataLoading}
+              onChange={(v) => update("language", v || "")}
+            />
             {field("Date Format","dateFormat")}
             {field("Fiscal Year","fiscalYear")}
           </div>
@@ -461,4 +552,4 @@ if (step === 2) {
       </div>
     </div>
   );
-}
+        }
