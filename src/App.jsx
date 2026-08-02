@@ -1,4 +1,5 @@
 import CustomerOnboardingPage from "./pages/CustomerOnboardingPage";
+import LandingPage from "./pages/LandingPage.jsx";
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth.jsx';
 import { Layout } from './components/Layout.jsx';
@@ -93,7 +94,7 @@ function AppRoutes() {
       <Route path="/platform" element={<PrivateRoute><PlatformDashboardPage /></PrivateRoute>} />
       <Route path="/platform-admin" element={<PrivateRoute><PlatformAdminPage /></PrivateRoute>} />
 
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={<RedirectIfAuthed><LandingPage /></RedirectIfAuthed>} />
       <Route path="*" element={<PrivateRoute><NotFoundPage /></PrivateRoute>} />
     </Routes>
   );
