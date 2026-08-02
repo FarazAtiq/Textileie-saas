@@ -7,6 +7,7 @@ import {
   getProfile,
   getMyAccessContext,
   acceptPendingInvitations,
+  ensureTrialWorkspace,
 } from '../lib/db.js';
 
 const AuthContext = createContext(null);
@@ -43,6 +44,17 @@ export function AuthProvider({ children }) {
       await acceptPendingInvitations();
     } catch (err) {
       console.error('acceptPendingInvitations error:', err);
+    }
+
+    // If the invitation check above didn't enroll this user anywhere,
+    // and they're a genuinely new self-registered account (not a
+    // pre-existing user, not a platform admin), auto-provision their
+    // 30-day trial workspace. The RPC itself guards every one of
+    // those conditions — this call is safe to make unconditionally.
+    try {
+      await ensureTrialWorkspace();
+    } catch (err) {
+      console.error('ensureTrialWorkspace error:', err);
     }
 
     const [profileResult, accessResult] = await Promise.allSettled([
