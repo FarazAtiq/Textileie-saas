@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   Building2, MapPin, Users, ArrowLeft, ArrowRight,
 } from "lucide-react";
+import SearchSelect from "../../../common/SearchSelect.jsx";
 import { defaultFactory } from "./factoryDefaults";
 import { validateFactory } from "./factoryValidation";
 
@@ -9,6 +10,10 @@ export default function FactoryStep({
   initialFactory,
   onPrevious,
   onNext,
+  countryOptions = [],
+  currencyOptions = [],
+  timezoneOptions = [],
+  masterDataLoading = false,
 }) {
   const [factory, setFactory] = useState(
     initialFactory || defaultFactory
@@ -319,11 +324,14 @@ export default function FactoryStep({
           </div>
 
           <div>
-            <label>Country *</label>
-            <input
-              className="field"
+            <SearchSelect
+              label="Country *"
+              required
+              placeholder="Search countries…"
+              options={countryOptions}
               value={factory.country}
-              onChange={(e) => updateField("country", e.target.value)}
+              loading={masterDataLoading}
+              onChange={(v) => updateField("country", v || "")}
             />
             {errors.country && (
               <p style={{ color: "#dc2626", marginTop: 4 }}>{errors.country}</p>
@@ -361,20 +369,24 @@ export default function FactoryStep({
           </div>
 
           <div>
-            <label>Timezone</label>
-            <input
-              className="field"
+            <SearchSelect
+              label="Timezone"
+              placeholder="Search timezones…"
+              options={timezoneOptions}
               value={factory.timezone}
-              onChange={(e) => updateField("timezone", e.target.value)}
+              loading={masterDataLoading}
+              onChange={(v) => updateField("timezone", v || "")}
             />
           </div>
 
           <div>
-            <label>Currency</label>
-            <input
-              className="field"
+            <SearchSelect
+              label="Currency"
+              placeholder="Search currencies…"
+              options={currencyOptions}
               value={factory.currency}
-              onChange={(e) => updateField("currency", e.target.value)}
+              loading={masterDataLoading}
+              onChange={(v) => updateField("currency", v || "")}
             />
           </div>
 
@@ -556,4 +568,4 @@ export default function FactoryStep({
 
     </div>
   );
-                  }
+          }
