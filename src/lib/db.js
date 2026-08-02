@@ -3106,3 +3106,46 @@ export async function acceptPendingInvitations() {
   if (error) throw error;
   return data; // { accepted: [...], skipped: [...] }
 }
+// ════════════════════════════════════════════════════════════
+// GLOBAL MASTER DATA
+// Read-only reference data shared across every page — countries,
+// currencies, timezones, languages. See
+// supabase/migrations/004_global_master_data.sql. Never scoped by
+// company_id; never duplicated per company.
+// ════════════════════════════════════════════════════════════
+
+export async function getMasterCountries() {
+  const { data, error } = await supabase
+    .from('master_countries')
+    .select('*')
+    .order('name');
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getMasterCurrencies() {
+  const { data, error } = await supabase
+    .from('master_currencies')
+    .select('*')
+    .order('code');
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getMasterTimezones() {
+  const { data, error } = await supabase
+    .from('master_timezones')
+    .select('*')
+    .order('continent, utc_offset_minutes');
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getMasterLanguages() {
+  const { data, error } = await supabase
+    .from('master_languages')
+    .select('*')
+    .order('english_name');
+  if (error) throw error;
+  return data || [];
+}
