@@ -1172,6 +1172,23 @@ if (!userId) return null;
     Boolean(membership.is_factory_owner) ||
     roleCode === 'OWNER';
 
+  const rawSubscription = company ? {
+    plan: company.subscription_plan,
+    status: company.subscription_status,
+    licensedUsers: Number(company.licensed_users || 1),
+    startsAt: company.subscription_starts_at,
+    expiresAt: company.subscription_expires_at,
+    trialEndsAt: company.trial_ends_at,
+  } : null;
+
+  let trialDaysRemaining = null;
+  let isTrialExpired = false;
+  if (rawSubscription && String(rawSubscription.status).toLowerCase() === 'trial' && rawSubscription.trialEndsAt) {
+    const msRemaining = new Date(rawSubscription.trialEndsAt).getTime() - Date.now();
+    trialDaysRemaining = Math.ceil(msRemaining / (1000 * 60 * 60 * 24));
+    isTrialExpired = msRemaining <= 0;
+  }
+
   return {
     membership,
     company,
@@ -1180,14 +1197,7 @@ if (!userId) return null;
     role: membership.roles || null,
     permissions,
     enabledModules,
-    subscription: company ? {
-      plan: company.subscription_plan,
-      status: company.subscription_status,
-      licensedUsers: Number(company.licensed_users || 1),
-      startsAt: company.subscription_starts_at,
-      expiresAt: company.subscription_expires_at,
-      trialEndsAt: company.trial_ends_at,
-    } : null,
+    subscription: rawSubscription ? { ...rawSubscription, trialDaysRemaining, isTrialExpired } : null,
     seatSummary: seatResult.data?.[0] || null,
     isOwner,
     isPlatformAdmin: Boolean(platformAdmin),
