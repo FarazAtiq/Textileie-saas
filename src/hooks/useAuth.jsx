@@ -125,11 +125,16 @@ export function AuthProvider({ children }) {
     // Existing single-user installations remain fully usable until
     // enterprise access has been configured in Supabase.
     if (!access || !access.hasConfiguredAccess) return true;
-
-    // TextileIE platform admins are not blocked by factory role permissions.
+// TextileIE platform admins are not blocked by factory role permissions.
     if (access.isPlatformAdmin) return true;
 
+    // Expired trial: read-only. Data stays fully intact and visible
+    // (view still allowed) — only writes are blocked, until the
+    // workspace is upgraded to a paid subscription.
+    if (access.subscription?.isTrialExpired) return actionKey === 'view';
+
     // Subscription/module license is checked before role permission.
+    
     const subscriptionStatus = String(access.subscription?.status || 'Active').toLowerCase();
     if (['suspended', 'expired', 'cancelled'].includes(subscriptionStatus)) return false;
     if (access.enabledModules && access.enabledModules[moduleKey] === false) return false;
