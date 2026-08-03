@@ -1,5 +1,6 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import Logo from './common/Logo.jsx';
 import {
   Bell, Building2, ChevronDown, CircleHelp, Clock3, DollarSign,
   Factory, FileBarChart2, FolderKanban, Gauge, LayoutDashboard,
@@ -88,7 +89,9 @@ function SidebarContent({ profile, user, role, access, can, onNavigate, onLogout
   return (
     <>
       <div className="app-brand">
-        <div className="app-brand-mark">T</div>
+        <div style={{ width: 38, height: 38, borderRadius: 11, overflow: "hidden" }}>
+          <Logo size={38} radius={11} />
+        </div>
         <div>
           <div className="app-brand-name">TextileIE</div>
           <div className="app-brand-subtitle">Engineering Intelligence</div>
