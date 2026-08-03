@@ -3163,3 +3163,50 @@ export async function ensureTrialWorkspace() {
   if (error) throw error;
   return data; // { provisioned: boolean, reason?, company_id?, factory_id?, ... }
 }
+// ════════════════════════════════════════════════════════════
+// DEMO REQUESTS (landing page lead capture)
+// See supabase/migrations/006_demo_requests.sql. Public insert,
+// platform-admin-only read/update.
+// ════════════════════════════════════════════════════════════
+
+export async function submitDemoRequest({ full_name, email, company_name, phone, message }) {
+  const { data, error } = await supabase
+    .from('demo_requests')
+    .insert({
+      full_name,
+      email,
+      company_name: company_name || null,
+      phone: phone || null,
+      message: message || null,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function getDemoRequests() {
+  const access = await getMyAccessContext();
+  if (!access?.isPlatformAdmin) throw new Error('TextileIE platform administrator access required');
+
+  const { data, error } = await supabase
+    .from('demo_requests')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function updateDemoRequestStatus(id, status) {
+  const access = await getMyAccessContext();
+  if (!access?.isPlatformAdmin) throw new Error('TextileIE platform administrator access required');
+
+  const { data, error } = await supabase
+    .from('demo_requests')
+    .update({ status })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
