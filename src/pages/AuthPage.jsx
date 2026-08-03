@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 export default function AuthPage() {
@@ -90,4 +90,4 @@ export default function AuthPage() {
       </div>
     </div>
   );
-}
+          }
