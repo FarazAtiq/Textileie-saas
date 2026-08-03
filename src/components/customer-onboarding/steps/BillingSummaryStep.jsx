@@ -35,7 +35,7 @@ export default function BillingSummaryStep({
       <div className="module-hero">
         <div>
           <div className="eyebrow">Platform</div>
-          <h1>Customer Onboarding</h1>
+          <h1>Customer Provisioning Wizard</h1>
           <p>
             Review your workspace configuration and billing estimate before
             factory setup.
