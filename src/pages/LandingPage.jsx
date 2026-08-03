@@ -410,7 +410,10 @@ export default function LandingPage() {
             Start free trial
           </button>
           <a href="mailto:support@textileie.com" className="btn btn-secondary" style={{ padding: "12px 24px", background: "rgba(255,255,255,0.06)", color: "white", border: "1px solid rgba(255,255,255,0.2)" }}>
-            Contact sales
+            Email us
+          </a>
+          <a href="https://wa.me/923253272020" target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ padding: "12px 24px", background: "rgba(255,255,255,0.06)", color: "white", border: "1px solid rgba(255,255,255,0.2)" }}>
+            WhatsApp
           </a>
         </div>
       </section>
