@@ -5,7 +5,8 @@ import {
   BarChart3, ShieldCheck, Factory, Check, ChevronDown, Menu, X,
 } from "lucide-react";
 import { PLANS } from "../components/customer-onboarding/steps/SubscriptionStep.jsx";
-import { MODULE_KEYS } from "../lib/db.js";
+import { MODULE_KEYS, submitDemoRequest } from "../lib/db.js";
+import Logo from "../components/common/Logo.jsx";
 
 const MODULE_COPY = {
   styles: { icon: Ruler, title: "Style Master", desc: "Centralize every style, BOM, and cost sheet in one workspace." },
@@ -54,10 +55,7 @@ function NavBar({ onNavigate }) {
         display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{
-            width: 34, height: 34, background: "var(--teal)", borderRadius: 9,
-            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17,
-          }}>🧵</div>
+          <Logo size={34} />
           <span style={{ color: "white", fontWeight: 700, fontSize: 16, letterSpacing: "-0.01em" }}>TextileIE</span>
         </div>
 
@@ -120,10 +118,107 @@ function StitchDivider() {
   );
 }
 
+function DemoRequestModal({ onClose }) {
+  const [form, setForm] = useState({ full_name: "", email: "", company_name: "", phone: "", message: "" });
+  const [status, setStatus] = useState("idle");
+  const [error, setError] = useState("");
+
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setStatus("working");
+    setError("");
+    try {
+      await submitDemoRequest(form);
+      setStatus("done");
+    } catch (err) {
+      setError(err.message || "Something went wrong. Please try again.");
+      setStatus("error");
+    }
+  };
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Request a demo"
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 100,
+        background: "rgba(15,41,66,0.55)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 20,
+      }}
+    >
+      <div onClick={(e) => e.stopPropagation()} className="card" style={{ maxWidth: 440, width: "100%", padding: 28, position: "relative" }}>
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)" }}
+        >
+          <X size={20} />
+        </button>
+
+        {status === "done" ? (
+          <div style={{ textAlign: "center", padding: "20px 0" }}>
+            <Check size={32} color="var(--teal-dark)" style={{ marginBottom: 12 }} />
+            <h3 style={{ fontSize: 17 }}>Thanks — we've got it.</h3>
+            <p style={{ color: "var(--text-secondary)", fontSize: 13, marginTop: 8 }}>
+              Someone from TextileIE will reach out to schedule your demo shortly.
+            </p>
+            <button className="btn btn-primary" style={{ marginTop: 20 }} onClick={onClose}>Close</button>
+          </div>
+        ) : (
+          <>
+            <h3 style={{ fontSize: 18, marginBottom: 4 }}>Request a demo</h3>
+            <p style={{ color: "var(--text-secondary)", fontSize: 13, marginBottom: 20 }}>
+              Tell us a bit about your factory and we'll walk you through TextileIE live.
+            </p>
+            <form onSubmit={submit}>
+              <div className="field">
+                <label>Full name *</label>
+                <input value={form.full_name} onChange={set("full_name")} required />
+              </div>
+              <div className="field">
+                <label>Work email *</label>
+                <input type="email" value={form.email} onChange={set("email")} required />
+              </div>
+              <div className="field">
+                <label>Company / factory name</label>
+                <input value={form.company_name} onChange={set("company_name")} />
+              </div>
+              <div className="field">
+                <label>Phone</label>
+                <input value={form.phone} onChange={set("phone")} />
+              </div>
+              <div className="field" style={{ marginBottom: 20 }}>
+                <label>What would you like to see?</label>
+                <textarea rows={3} value={form.message} onChange={set("message")} placeholder="Optional" />
+              </div>
+
+              {status === "error" && (
+                <div style={{ color: "var(--red)", fontSize: 12, marginBottom: 12, padding: "8px 12px", background: "var(--red-light)", borderRadius: 8 }}>
+                  {error}
+                </div>
+              )}
+
+              <button type="submit" className="btn btn-primary btn-full" disabled={status === "working"}>
+                {status === "working" ? "Sending..." : "Request demo"}
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function LandingPage() {
   const navigate = useNavigate();
   const [openFaq, setOpenFaq] = useState(0);
   const [billing, setBilling] = useState("monthly");
+  const [showDemoModal, setShowDemoModal] = useState(false);
 
   return (
     <div style={{ background: "var(--bg)", minHeight: "100vh" }}>
@@ -153,9 +248,9 @@ export default function LandingPage() {
             <button onClick={() => navigate("/login?mode=register")} className="btn btn-primary" style={{ padding: "12px 24px", fontSize: 14 }}>
               Start free 30-day trial
             </button>
-            <a href="#contact" className="btn btn-secondary" style={{ padding: "12px 24px", fontSize: 14, background: "rgba(255,255,255,0.06)", color: "white", border: "1px solid rgba(255,255,255,0.2)" }}>
+            <button onClick={() => setShowDemoModal(true)} className="btn btn-secondary" style={{ padding: "12px 24px", fontSize: 14, background: "rgba(255,255,255,0.06)", color: "white", border: "1px solid rgba(255,255,255,0.2)" }}>
               Request a demo
-            </a>
+            </button>
           </div>
           <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, marginTop: 16 }}>
             No credit card required · Full access during your trial
@@ -325,6 +420,8 @@ export default function LandingPage() {
           © {new Date().getFullYear()} TextileIE. Built for the textile and apparel industry.
         </p>
       </footer>
+
+      {showDemoModal && <DemoRequestModal onClose={() => setShowDemoModal(false)} />}
     </div>
   );
 }
