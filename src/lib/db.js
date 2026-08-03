@@ -3054,9 +3054,24 @@ export async function createCompanyWorkspace({
     },
     subscription: {
       planId: subscription?.planId || null,
-      status: 'Trial',
+      // The Provisioning Wizard is for enterprise/paid customer
+      // activation (per its own purpose), not self-serve trials —
+      // those come from ensure_trial_workspace() on landing-page
+      // signup instead. Marking these 'Trial' with no expiry meant
+      // wizard-provisioned companies never counted down and never
+      // went read-only. Activate as a real paid subscription with a
+      // renewal date computed from the billing cycle instead.
+      status: 'Active',
       licensedUsers: parseLicensedUsers(subscription?.limits?.users),
-      expiresAt: null,
+      expiresAt: (() => {
+        const start = new Date();
+        if (subscription?.billingCycle === 'annual') {
+          start.setFullYear(start.getFullYear() + 1);
+        } else {
+          start.setMonth(start.getMonth() + 1);
+        }
+        return start.toISOString();
+      })(),
       trialEndsAt: null,
     },
     factory: {
