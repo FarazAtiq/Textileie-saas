@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import Logo from '../components/common/Logo.jsx';
 
 export default function AuthPage() {
   const [searchParams] = useSearchParams();
@@ -39,11 +40,11 @@ export default function AuthPage() {
       <div style={{ width: '100%', maxWidth: 420, padding: '0 16px' }}>
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{
-            width: 60, height: 60, background: 'var(--teal)', borderRadius: 16,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 30, margin: '0 auto 14px', boxShadow: '0 8px 24px rgba(13,122,107,0.4)'
-          }}>🧵</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
+            <div style={{ boxShadow: '0 8px 24px rgba(13,122,107,0.4)', borderRadius: 16 }}>
+              <Logo size={60} radius={16} />
+            </div>
+          </div>
           <h1 style={{ color: 'white', fontSize: 24 }}>TextileIE</h1>
           <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, marginTop: 4 }}>Industrial Engineering Suite</p>
         </div>
@@ -83,11 +84,7 @@ export default function AuthPage() {
             </button>
           </form>
         </div>
-
-        <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: 11, marginTop: 20 }}>
-          Powered by Supabase + Vercel · Made for Pakistan 🇵🇰 textile industry
-        </p>
       </div>
     </div>
   );
-          }
+}
