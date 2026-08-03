@@ -1,6 +1,7 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import Logo from './common/Logo.jsx';
+import TrialBanner from './common/TrialBanner.jsx';
 import {
   Bell, Building2, ChevronDown, CircleHelp, Clock3, DollarSign,
   Factory, FileBarChart2, FolderKanban, Gauge, LayoutDashboard,
@@ -612,6 +613,7 @@ export function Layout({ children }) {
         `}</style>
 
         <main className="app-main">
+          <TrialBanner />
           <div className="workspace-status">
             <div><ShieldCheck size={15} /> Enterprise workspace</div>
             <div><Sparkles size={15} /> Core platform + customizable modules</div>
