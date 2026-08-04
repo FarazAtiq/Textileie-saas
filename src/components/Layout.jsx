@@ -214,7 +214,7 @@ export function Layout({ children }) {
     ...computedNotifications,
     ...persistedNotifications.map((n) => ({
       id: n.id,
-      severity: n.severity,
+      severity: 'neutral',
       title: n.title,
       message: n.message,
       actionUrl: n.action_url,
