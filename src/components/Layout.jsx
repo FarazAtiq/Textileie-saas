@@ -2,6 +2,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import Logo from './common/Logo.jsx';
 import TrialBanner from './common/TrialBanner.jsx';
+import { getSubscriptionNotifications } from '../lib/subscriptionLifecycle.js';
 import {
   Bell, Building2, ChevronDown, CircleHelp, Clock3, DollarSign,
   Factory, FileBarChart2, FolderKanban, Gauge, LayoutDashboard,
@@ -191,6 +192,10 @@ export function Layout({ children }) {
   const pageTitle = useMemo(
     () => PAGE_TITLES[location.pathname] || 'TextileIE',
     [location.pathname]
+  );
+  const notifications = useMemo(
+    () => getSubscriptionNotifications(access?.subscription),
+    [access?.subscription]
   );
 
   const filteredSearchItems = useMemo(() => {
@@ -391,15 +396,43 @@ export function Layout({ children }) {
                 }}
               >
                 <Bell size={18} />
-                <span className="notification-dot" />
+                {notifications.length > 0 && <span className="notification-dot" />}
               </button>
 
               {notificationsOpen && (
                 <div className="header-popover header-small-popover">
                   <div className="header-popover-title">Notifications</div>
-                  <div className="header-popover-empty">
-                    No new notifications.
-                  </div>
+                  {notifications.length === 0 ? (
+                    <div className="header-popover-empty">
+                      No new notifications.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gap: 10, padding: '4px 2px' }}>
+                      {notifications.map((n) => (
+                        <div key={n.id} style={{
+                          padding: '10px 12px',
+                          borderRadius: 8,
+                          background: n.severity === 'urgent' ? 'var(--red-light, #fdecea)'
+                            : n.severity === 'warning' ? '#fff7ed' : 'var(--teal-light)',
+                          border: `1px solid ${n.severity === 'urgent' ? 'rgba(220,38,38,0.25)'
+                            : n.severity === 'warning' ? 'rgba(234,88,12,0.25)' : 'rgba(13,122,107,0.2)'}`,
+                        }}>
+                          <strong style={{ fontSize: 12.5, color: n.severity === 'urgent' ? '#991b1b' : n.severity === 'warning' ? '#9a3412' : 'var(--teal-dark)' }}>
+                            {n.title}
+                          </strong>
+                          <p style={{ fontSize: 11.5, marginTop: 4, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                            {n.message}
+                          </p>
+                          <a
+                            href="mailto:support@textileie.com"
+                            style={{ fontSize: 11, fontWeight: 600, color: 'var(--teal-dark)', textDecoration: 'none' }}
+                          >
+                            Contact TextileIE Sales →
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
