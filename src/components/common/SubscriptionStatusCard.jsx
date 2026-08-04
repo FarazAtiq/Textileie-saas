@@ -1,5 +1,5 @@
 import {
-  CreditCard, Users, LayoutGrid, Calendar, HardDrive,
+  CreditCard, Users, LayoutGrid, Calendar, HardDrive, Lock, CheckCircle2, Mail,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.jsx";
 import { PLANS } from "../customer-onboarding/steps/SubscriptionStep.jsx";
@@ -28,6 +28,20 @@ function inferBillingCycle(startsAt, expiresAt) {
   return days > 200 ? "Annual" : "Monthly";
 }
 
+function ProgressBar({ percent, color }) {
+  return (
+    <div style={{ height: 6, borderRadius: 4, background: "#eef1f4", overflow: "hidden" }}>
+      <div style={{
+        height: "100%",
+        width: `${Math.min(Math.max(percent, 0), 100)}%`,
+        background: color,
+        borderRadius: 4,
+        transition: "width 0.3s ease",
+      }} />
+    </div>
+  );
+}
+
 export default function SubscriptionStatusCard() {
   const { access } = useAuth();
   const subscription = access?.subscription;
@@ -38,73 +52,134 @@ export default function SubscriptionStatusCard() {
 
   const planInfo = PLANS.find((p) => p.id === subscription.plan);
   const planName = planInfo?.name || (subscription.plan === "trial" ? "Trial" : subscription.plan || "—");
-  const isTrial = subscription.effectiveStatus === "Trial" || subscription.effectiveStatus === "Expired";
+  const status = subscription.effectiveStatus;
+  const isTrial = status === "Trial" || status === "Expired";
   const daysRemaining = isTrial ? subscription.trialDaysRemaining : subscription.renewalDaysRemaining;
   const renewalDate = isTrial ? subscription.trialEndsAt : subscription.expiresAt;
   const billingCycle = isTrial ? null : inferBillingCycle(subscription.startsAt, subscription.expiresAt);
-  const colors = STATUS_COLORS[subscription.effectiveStatus] || STATUS_COLORS.Active;
+  const colors = STATUS_COLORS[status] || STATUS_COLORS.Active;
   const enabledCount = enabledModules ? Object.values(enabledModules).filter(Boolean).length : null;
+  const isReadOnly = status === "Expired" || status === "Suspended" || status === "Cancelled";
+
+  const seatPercent = seatSummary?.licensed_users
+    ? (seatSummary.active_users / seatSummary.licensed_users) * 100
+    : null;
+  const seatColor = seatPercent == null ? "var(--teal)"
+    : seatPercent >= 100 ? "#dc2626"
+    : seatPercent >= 80 ? "#ea580c"
+    : "var(--teal)";
+
+  const periodStart = subscription.startsAt;
+  const periodEnd = renewalDate;
+  let elapsedPercent = null;
+  if (periodStart && periodEnd) {
+    const total = new Date(periodEnd) - new Date(periodStart);
+    const elapsed = Date.now() - new Date(periodStart);
+    elapsedPercent = total > 0 ? (elapsed / total) * 100 : null;
+  }
+  const daysColor = daysRemaining == null ? "var(--teal)"
+    : daysRemaining <= 3 ? "#dc2626"
+    : daysRemaining <= 7 ? "#ea580c"
+    : "var(--teal)";
 
   return (
-    <div className="card">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <h2 style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 15 }}>
-          <CreditCard size={18} />
-          Subscription
-        </h2>
-        <span style={{
-          background: colors.bg, color: colors.fg,
-          fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20,
-        }}>
-          {subscription.effectiveStatus?.toUpperCase()}
+    <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+      <div style={{
+        padding: "20px 24px",
+        display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12,
+        borderBottom: "1px solid var(--border)",
+      }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text-secondary)", fontSize: 12, marginBottom: 4 }}>
+            <CreditCard size={14} /> SUBSCRIPTION
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 700 }}>{planName} Plan</div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {isReadOnly ? (
+            <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 600, color: "#991b1b" }}>
+              <Lock size={13} /> Read-only workspace
+            </span>
+          ) : (
+            <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 600, color: "var(--teal-dark)" }}>
+              <CheckCircle2 size={13} /> Fully active
+            </span>
+          )}
+          <span style={{
+            background: colors.bg, color: colors.fg,
+            fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 20,
+          }}>
+            {status?.toUpperCase()}
+          </span>
+        </div>
+      </div>
+
+      <div style={{ padding: "20px 24px" }}>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "var(--text-secondary)" }}>
+              <Calendar size={13} />
+              {isTrial ? "Trial ends" : "Renews"} {formatDate(renewalDate)}
+              {billingCycle && ` · ${billingCycle}`}
+            </div>
+            {daysRemaining != null && (
+              <strong style={{ fontSize: 13, color: daysColor }}>
+                {Math.max(daysRemaining, 0)} day{Math.max(daysRemaining, 0) === 1 ? "" : "s"} left
+              </strong>
+            )}
+          </div>
+          {elapsedPercent != null && <ProgressBar percent={elapsedPercent} color={daysColor} />}
+        </div>
+
+        {seatSummary && (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "var(--text-secondary)" }}>
+                <Users size={13} /> Seats used
+              </div>
+              <strong style={{ fontSize: 13, color: seatColor }}>
+                {seatSummary.active_users} / {seatSummary.licensed_users}
+              </strong>
+            </div>
+            {seatPercent != null && <ProgressBar percent={seatPercent} color={seatColor} />}
+            <div style={{ display: "flex", gap: 16, marginTop: 10, fontSize: 11.5, color: "var(--text-secondary)" }}>
+              <span>Pending: <strong style={{ color: "var(--text-primary)" }}>{seatSummary.pending_invitations}</strong></span>
+              <span>Available: <strong style={{ color: "var(--text-primary)" }}>{seatSummary.available_seats}</strong></span>
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 16 }}>
+          <StatChip icon={LayoutGrid} label="Enabled Modules" value={enabledCount != null ? enabledCount : "—"} />
+          <StatChip icon={HardDrive} label="Storage Usage" value="Not yet tracked" />
+        </div>
+      </div>
+
+      <div style={{
+        padding: "12px 24px",
+        background: "var(--bg)",
+        borderTop: "1px solid var(--border)",
+        display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8,
+      }}>
+        <span style={{ fontSize: 11.5, color: "var(--text-secondary)" }}>
+          Subscription changes are handled by the TextileIE team.
         </span>
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 16 }}>
-        <Field label="Plan" value={planName} />
-        <Field label="Type" value={isTrial ? "Trial" : "Paid"} />
-        {billingCycle && <Field label="Billing Cycle" value={billingCycle} />}
-        <Field
-          label={isTrial ? "Trial Ends" : "Renewal Date"}
-          value={formatDate(renewalDate)}
-          icon={Calendar}
-        />
-        <Field
-          label="Days Remaining"
-          value={daysRemaining != null ? Math.max(daysRemaining, 0) : "—"}
-        />
-      </div>
-
-      {seatSummary && (
-        <>
-          <div className="divider" />
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <Users size={15} />
-            <strong style={{ fontSize: 13 }}>Seats</strong>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(110px,1fr))", gap: 16 }}>
-            <Field label="Licensed" value={seatSummary.licensed_users} />
-            <Field label="Active" value={seatSummary.active_users} />
-            <Field label="Pending" value={seatSummary.pending_invitations} />
-            <Field label="Available" value={seatSummary.available_seats} />
-          </div>
-        </>
-      )}
-
-      <div className="divider" />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 16 }}>
-        <Field label="Enabled Modules" value={enabledCount != null ? enabledCount : "—"} icon={LayoutGrid} />
-        <Field label="Storage Usage" value="Not yet tracked" icon={HardDrive} />
+        <a
+          href="mailto:support@textileie.com"
+          style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "var(--teal-dark)", textDecoration: "none" }}
+        >
+          <Mail size={13} /> Contact TextileIE Sales
+        </a>
       </div>
     </div>
   );
 }
 
-function Field({ label, value, icon: Icon }) {
+function StatChip({ icon: Icon, label, value }) {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--text-secondary)", fontSize: 11.5, marginBottom: 4 }}>
-        {Icon && <Icon size={12} />}
+        <Icon size={12} />
         {label}
       </div>
       <strong style={{ fontSize: 14 }}>{value}</strong>
