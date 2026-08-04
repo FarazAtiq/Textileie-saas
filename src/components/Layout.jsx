@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import Logo from './common/Logo.jsx';
 import TrialBanner from './common/TrialBanner.jsx';
 import { getSubscriptionNotifications } from '../lib/subscriptionLifecycle.js';
+import { getNotifications, markNotificationRead, markAllNotificationsRead } from '../lib/db.js';
 import {
   Bell, Building2, ChevronDown, CircleHelp, Clock3, DollarSign,
   Factory, FileBarChart2, FolderKanban, Gauge, LayoutDashboard,
@@ -193,10 +194,46 @@ export function Layout({ children }) {
     () => PAGE_TITLES[location.pathname] || 'TextileIE',
     [location.pathname]
   );
-  const notifications = useMemo(
-    () => getSubscriptionNotifications(access?.subscription),
+  const computedNotifications = useMemo(
+    () => getSubscriptionNotifications(access?.subscription).map((n) => ({ ...n, source: 'computed' })),
     [access?.subscription]
   );
+
+  const [persistedNotifications, setPersistedNotifications] = useState([]);
+
+  useEffect(() => {
+    if (!user) return;
+    let mounted = true;
+    getNotifications()
+      .then((rows) => { if (mounted) setPersistedNotifications(rows); })
+      .catch((err) => console.error('getNotifications error:', err));
+    return () => { mounted = false; };
+  }, [user, notificationsOpen]);
+
+  const notifications = useMemo(() => [
+    ...computedNotifications,
+    ...persistedNotifications.map((n) => ({
+      id: n.id,
+      severity: n.severity,
+      title: n.title,
+      message: n.message,
+      actionUrl: n.action_url,
+      isRead: n.is_read,
+      source: 'persisted',
+    })),
+  ], [computedNotifications, persistedNotifications]);
+
+  const unreadCount = computedNotifications.length
+    + persistedNotifications.filter((n) => !n.is_read).length;
+
+  const handleMarkRead = async (id) => {
+    try {
+      await markNotificationRead(id);
+      setPersistedNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
+    } catch (err) {
+      console.error('markNotificationRead error:', err);
+    }
+  };
 
   const filteredSearchItems = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -394,14 +431,29 @@ export function Layout({ children }) {
                   setHelpOpen(false);
                   setProfileOpen(false);
                 }}
-              >
-                <Bell size={18} />
-                {notifications.length > 0 && <span className="notification-dot" />}
+              ><Bell size={18} />
+                {unreadCount > 0 && <span className="notification-dot" />}
               </button>
 
               {notificationsOpen && (
                 <div className="header-popover header-small-popover">
-                  <div className="header-popover-title">Notifications</div>
+                  <div className="header-popover-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    Notifications
+                    {persistedNotifications.some((n) => !n.is_read) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const unreadIds = persistedNotifications.filter((n) => !n.is_read).map((n) => n.id);
+                          markAllNotificationsRead(unreadIds).then(() => {
+                            setPersistedNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+                          }).catch((err) => console.error('markAllNotificationsRead error:', err));
+                        }}
+                        style={{ fontSize: 11, fontWeight: 600, color: 'var(--teal-dark)', background: 'none', border: 'none', cursor: 'pointer' }}
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
                   {notifications.length === 0 ? (
                     <div className="header-popover-empty">
                       No new notifications.
@@ -409,26 +461,46 @@ export function Layout({ children }) {
                   ) : (
                     <div style={{ display: 'grid', gap: 10, padding: '4px 2px' }}>
                       {notifications.map((n) => (
-                        <div key={n.id} style={{
-                          padding: '10px 12px',
-                          borderRadius: 8,
-                          background: n.severity === 'urgent' ? 'var(--red-light, #fdecea)'
-                            : n.severity === 'warning' ? '#fff7ed' : 'var(--teal-light)',
-                          border: `1px solid ${n.severity === 'urgent' ? 'rgba(220,38,38,0.25)'
-                            : n.severity === 'warning' ? 'rgba(234,88,12,0.25)' : 'rgba(13,122,107,0.2)'}`,
-                        }}>
-                          <strong style={{ fontSize: 12.5, color: n.severity === 'urgent' ? '#991b1b' : n.severity === 'warning' ? '#9a3412' : 'var(--teal-dark)' }}>
-                            {n.title}
-                          </strong>
+                        <div
+                          key={n.id}
+                          onClick={() => n.source === 'persisted' && !n.isRead && handleMarkRead(n.id)}
+                          style={{
+                            padding: '10px 12px',
+                            borderRadius: 8,
+                            cursor: n.source === 'persisted' && !n.isRead ? 'pointer' : 'default',
+                            opacity: n.source === 'persisted' && n.isRead ? 0.6 : 1,
+                            background: n.severity === 'urgent' ? 'var(--red-light, #fdecea)'
+                              : n.severity === 'warning' ? '#fff7ed' : 'var(--teal-light)',
+                            border: `1px solid ${n.severity === 'urgent' ? 'rgba(220,38,38,0.25)'
+                              : n.severity === 'warning' ? 'rgba(234,88,12,0.25)' : 'rgba(13,122,107,0.2)'}`,
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                            <strong style={{ fontSize: 12.5, color: n.severity === 'urgent' ? '#991b1b' : n.severity === 'warning' ? '#9a3412' : 'var(--teal-dark)' }}>
+                              {n.title}
+                            </strong>
+                            {n.source === 'persisted' && !n.isRead && (
+                              <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--teal-dark)', flexShrink: 0, marginTop: 4 }} />
+                            )}
+                          </div>
                           <p style={{ fontSize: 11.5, marginTop: 4, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
                             {n.message}
                           </p>
-                          <a
-                            href="mailto:support@textileie.com"
-                            style={{ fontSize: 11, fontWeight: 600, color: 'var(--teal-dark)', textDecoration: 'none' }}
-                          >
-                            Contact TextileIE Sales →
-                          </a>
+                          {n.source === 'computed' ? (
+                            <a
+                              href="mailto:support@textileie.com"
+                              style={{ fontSize: 11, fontWeight: 600, color: 'var(--teal-dark)', textDecoration: 'none' }}
+                            >
+                              Contact TextileIE Sales →
+                            </a>
+                          ) : n.actionUrl ? (
+                            <a
+                              href={n.actionUrl}
+                              style={{ fontSize: 11, fontWeight: 600, color: 'var(--teal-dark)', textDecoration: 'none' }}
+                            >
+                              View →
+                            </a>
+                          ) : null}
                         </div>
                       ))}
                     </div>
