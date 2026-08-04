@@ -3265,7 +3265,6 @@ export async function updateDemoRequestStatus(id, status) {
 // alerts) don't need schema changes to start using this — they
 // just call createNotification() with their own category string.
 // ════════════════════════════════════════════════════════════
-
 export async function getNotifications({ limit = 30 } = {}) {
   const { data, error } = await supabase
     .from('notifications')
@@ -3300,14 +3299,14 @@ export async function markAllNotificationsRead(ids) {
 
 export async function createNotification({
   companyId,
-  userId = null,
-  category,
-  severity = 'info',
+  recipientUserId,
+  notificationType,
   title,
   message,
-  actionUrl = null,
-  dedupeKey = null,
+  link = null,
 }) {
+  if (!recipientUserId) throw new Error('recipientUserId is required — this table has no broadcast/company-wide notification');
+
   let targetCompanyId = companyId;
   if (!targetCompanyId) {
     const access = await getMyAccessContext();
@@ -3319,13 +3318,11 @@ export async function createNotification({
     .from('notifications')
     .insert({
       company_id: targetCompanyId,
-      user_id: userId,
-      category,
-      severity,
+      recipient_user_id: recipientUserId,
+      notification_type: notificationType,
       title,
       message,
-      action_url: actionUrl,
-      dedupe_key: dedupeKey,
+      link,
     })
     .select()
     .single();
