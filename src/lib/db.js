@@ -3258,3 +3258,77 @@ export async function updateDemoRequestStatus(id, status) {
   if (error) throw error;
   return data;
 }
+// ════════════════════════════════════════════════════════════
+// NOTIFICATIONS (generic architecture)
+// See supabase/migrations/007_notifications.sql. category is free
+// text so future modules (factory/inventory/production/approval/ai
+// alerts) don't need schema changes to start using this — they
+// just call createNotification() with their own category string.
+// ════════════════════════════════════════════════════════════
+
+export async function getNotifications({ limit = 30 } = {}) {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function markNotificationRead(id) {
+  const { data, error } = await supabase
+    .from('notifications')
+    .update({ is_read: true, read_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function markAllNotificationsRead(ids) {
+  if (!ids || ids.length === 0) return [];
+  const { data, error } = await supabase
+    .from('notifications')
+    .update({ is_read: true, read_at: new Date().toISOString() })
+    .in('id', ids)
+    .select();
+  if (error) throw error;
+  return data || [];
+}
+
+export async function createNotification({
+  companyId,
+  userId = null,
+  category,
+  severity = 'info',
+  title,
+  message,
+  actionUrl = null,
+  dedupeKey = null,
+}) {
+  let targetCompanyId = companyId;
+  if (!targetCompanyId) {
+    const access = await getMyAccessContext();
+    targetCompanyId = access?.membership?.company_id || null;
+  }
+  if (!targetCompanyId) throw new Error('No company context to attach this notification to');
+
+  const { data, error } = await supabase
+    .from('notifications')
+    .insert({
+      company_id: targetCompanyId,
+      user_id: userId,
+      category,
+      severity,
+      title,
+      message,
+      action_url: actionUrl,
+      dedupe_key: dedupeKey,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
