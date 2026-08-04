@@ -44,6 +44,8 @@ export default function Dashboard() {
         subtitle={`${profile?.company_name || ''} · Industrial Engineering Suite`}
       />
 
+      <SubscriptionStatusCard />
+
       {/* KPI metrics */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
         {[
