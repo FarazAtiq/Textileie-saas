@@ -4,6 +4,7 @@ import { TrendingUp, Factory, Clock, Layers, FileText, ChevronRight, Scissors, D
 import { getReportStats } from '../lib/db.js';
 import { useAuth } from '../hooks/useAuth';
 import { PageHeader } from '../components/ResultCard';
+import SubscriptionStatusCard from '../components/common/SubscriptionStatusCard.jsx';
 
 const CALC_CARDS = [
   { to: '/efficiency', icon: TrendingUp, label: 'Efficiency',       desc: 'Line & operator %',        color: '#E4F4F1', ic: 'var(--teal)' },
