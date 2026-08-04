@@ -1183,10 +1183,26 @@ if (!userId) return null;
 
   let trialDaysRemaining = null;
   let isTrialExpired = false;
-  if (rawSubscription && String(rawSubscription.status).toLowerCase() === 'trial' && rawSubscription.trialEndsAt) {
-    const msRemaining = new Date(rawSubscription.trialEndsAt).getTime() - Date.now();
-    trialDaysRemaining = Math.ceil(msRemaining / (1000 * 60 * 60 * 24));
-    isTrialExpired = msRemaining <= 0;
+  let renewalDaysRemaining = null;
+  let isPendingRenewal = false;
+  let effectiveStatus = rawSubscription?.status || null;
+
+  if (rawSubscription) {
+    const status = String(rawSubscription.status || '').toLowerCase();
+
+    if (status === 'trial' && rawSubscription.trialEndsAt) {
+      const msRemaining = new Date(rawSubscription.trialEndsAt).getTime() - Date.now();
+      trialDaysRemaining = Math.ceil(msRemaining / (1000 * 60 * 60 * 24));
+      isTrialExpired = msRemaining <= 0;
+      effectiveStatus = isTrialExpired ? 'Expired' : 'Trial';
+    } else if (status === 'active' && rawSubscription.expiresAt) {
+      const msRemaining = new Date(rawSubscription.expiresAt).getTime() - Date.now();
+      renewalDaysRemaining = Math.ceil(msRemaining / (1000 * 60 * 60 * 24));
+      isPendingRenewal = msRemaining <= 0;
+      effectiveStatus = isPendingRenewal ? 'Pending Renewal' : 'Active';
+    } else if (['suspended', 'expired', 'cancelled'].includes(status)) {
+      effectiveStatus = rawSubscription.status;
+    }
   }
 
   return {
@@ -1197,7 +1213,14 @@ if (!userId) return null;
     role: membership.roles || null,
     permissions,
     enabledModules,
-    subscription: rawSubscription ? { ...rawSubscription, trialDaysRemaining, isTrialExpired } : null,
+    subscription: rawSubscription ? {
+      ...rawSubscription,
+      trialDaysRemaining,
+      isTrialExpired,
+      renewalDaysRemaining,
+      isPendingRenewal,
+      effectiveStatus,
+    } : null,
     seatSummary: seatResult.data?.[0] || null,
     isOwner,
     isPlatformAdmin: Boolean(platformAdmin),
