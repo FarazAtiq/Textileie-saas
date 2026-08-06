@@ -3331,3 +3331,48 @@ export async function createNotification({
   if (error) throw error;
   return data;
 }
+export async function recordSubscriptionTransaction({
+  companyId,
+  provider = 'manual',
+  providerReference = null,
+  amount = null,
+  currency = null,
+  status = 'recorded',
+  billingCycle = null,
+  notes = null,
+}) {
+  const access = await getMyAccessContext();
+  if (!access?.isPlatformAdmin) throw new Error('TextileIE platform administrator access required');
+
+  const userId = await getCurrentUserId();
+  const { data, error } = await supabase
+    .from('subscription_transactions')
+    .insert({
+      company_id: companyId,
+      provider,
+      provider_reference: providerReference,
+      amount,
+      currency,
+      status,
+      billing_cycle: billingCycle,
+      recorded_by: userId,
+      notes,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function getSubscriptionTransactions(companyId) {
+  const access = await getMyAccessContext();
+  if (!access?.isPlatformAdmin) throw new Error('TextileIE platform administrator access required');
+
+  const { data, error } = await supabase
+    .from('subscription_transactions')
+    .select('*')
+    .eq('company_id', companyId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
