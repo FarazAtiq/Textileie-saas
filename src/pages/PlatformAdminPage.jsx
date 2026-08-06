@@ -11,7 +11,7 @@ import { useToast } from '../hooks/useToast.jsx';
 import { PageHeader } from '../components/ResultCard.jsx';
 import SearchSelect from '../components/common/SearchSelect.jsx';
 import { PLANS } from '../components/customer-onboarding/steps/SubscriptionStep.jsx';
-
+import ActivityTimeline from '../components/ActivityTimeline.jsx';
 export default function PlatformAdminPage() {
   const { access } = useAuth();
   const { toast, ToastContainer } = useToast();
@@ -173,6 +173,10 @@ export default function PlatformAdminPage() {
                   </label>
                 ))}
               </div>
+            </div>
+
+            <div className="card">
+              <ActivityTimeline companyId={selectedId} />
             </div>
           </div>
         )}
