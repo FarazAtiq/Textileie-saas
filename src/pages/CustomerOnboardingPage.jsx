@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Building2, Save, ArrowRight, X, Upload
@@ -17,7 +17,7 @@ import UserInvitationStep from "../components/customer-onboarding/steps/UserInvi
 import ReviewWorkspaceStep from "../components/customer-onboarding/steps/ReviewWorkspaceStep";
 import { defaultRoles } from "../components/customer-onboarding/steps/UserInvitationStep/userInvitationDefaults.js";
 import WelcomeStep from "../components/customer-onboarding/steps/WelcomeStep";
-import { createCompanyWorkspace, finalizeOnboardingInvitations } from "../lib/db.js";
+import { createCompanyWorkspace, finalizeOnboardingInvitations, getProvisioningDrafts, saveProvisioningDraft, completeProvisioningDraft, deleteProvisioningDraft } from "../lib/db.js";
 import { useAuth } from "../hooks/useAuth.jsx";
 export default function CustomerOnboardingPage() {
   const { access } = useAuth();
@@ -177,14 +177,124 @@ export default function CustomerOnboardingPage() {
 
   const required=["companyName","businessType","country","currency","timezone"];
   const missing=useMemo(()=>required.filter(k=>!company[k]),[company]);
-
-  const field=(label,key,type="text")=>(
+const field=(label,key,type="text")=>(
     <div className="field" key={key}>
       <label>{label}</label>
       <input type={type} value={company[key]} onChange={e=>update(key,e.target.value)}/>
       {required.includes(key)&&!company[key] && <small style={{color:"var(--red)"}}>Required</small>}
     </div>
   );
+
+  // ── Save Draft & Resume ──────────────────────────────────
+  // The wizard used to hold everything in React state only — a
+  // refresh or closed tab lost all progress. This persists the
+  // full working state so any TextileIE team member can resume
+  // exactly where provisioning stopped (see
+  // supabase/migrations/010_provisioning_drafts.sql).
+  const TOTAL_STEPS = 12;
+  const draftIdRef = useRef(null);
+  const [checkingDrafts, setCheckingDrafts] = useState(true);
+  const [availableDrafts, setAvailableDrafts] = useState([]);
+  const [resumeChoiceMade, setResumeChoiceMade] = useState(false);
+  const saveTimerRef = useRef(null);
+
+  useEffect(() => {
+    getProvisioningDrafts()
+      .then((drafts) => {
+        if (drafts.length > 0) setAvailableDrafts(drafts);
+        else setResumeChoiceMade(true);
+      })
+      .catch((err) => { console.error('getProvisioningDrafts error:', err); setResumeChoiceMade(true); })
+      .finally(() => setCheckingDrafts(false));
+  }, []);
+
+  const resumeDraft = (draft) => {
+    const d = draft.draft_data || {};
+    if (d.company) setCompany(d.company);
+    if (d.owner) setOwner(d.owner);
+    if (d.subscription) setSubscription(d.subscription);
+    if (d.modules) setModules(d.modules);
+    if (d.workspace) setWorkspace(d.workspace);
+    if (d.workspaceFeatures) setWorkspaceFeatures(d.workspaceFeatures);
+    if (d.factory) setFactory(d.factory);
+    if (d.departments) setDepartments(d.departments);
+    if (d.invitations) setInvitations(d.invitations);
+    draftIdRef.current = draft.id;
+    setStep(draft.current_step || 1);
+    setResumeChoiceMade(true);
+  };
+
+  const discardDraft = async (id) => {
+    try {
+      await deleteProvisioningDraft(id);
+      setAvailableDrafts((prev) => prev.filter((d) => d.id !== id));
+    } catch (err) {
+      console.error('deleteProvisioningDraft error:', err);
+    }
+  };
+
+  const startFresh = () => setResumeChoiceMade(true);
+
+  // Debounced auto-save — fires ~1.2s after the last change to any
+  // wizard field, rather than on every keystroke.
+  useEffect(() => {
+    if (!resumeChoiceMade) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      const completionPercent = Math.round((step / TOTAL_STEPS) * 100);
+      saveProvisioningDraft({
+        id: draftIdRef.current,
+        currentStep: step,
+        completionPercent,
+        companyName: company?.companyName || null,
+        draftData: { company, owner, subscription, modules, workspace, workspaceFeatures, factory, departments, invitations },
+      })
+        .then((saved) => { draftIdRef.current = saved.id; })
+        .catch((err) => console.error('saveProvisioningDraft error:', err));
+    }, 1200);
+    return () => clearTimeout(saveTimerRef.current);
+  }, [resumeChoiceMade, step, company, owner, subscription, modules, workspace, workspaceFeatures, factory, departments, invitations]);
+
+  if (checkingDrafts) return null;
+
+  if (!resumeChoiceMade) {
+    return (
+      <div className="app-main">
+        <div className="module-hero">
+          <div>
+            <div className="eyebrow">Platform</div>
+            <h1>Resume Provisioning?</h1>
+            <p>
+              {availableDrafts.length === 1
+                ? "There's an unfinished provisioning in progress."
+                : `There are ${availableDrafts.length} unfinished provisionings in progress.`}
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gap: 12 }}>
+          {availableDrafts.map((draft) => (
+            <div key={draft.id} className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+              <div>
+                <strong>{draft.company_name || "Untitled provisioning"}</strong>
+                <p style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>
+                  Step {draft.current_step} of {TOTAL_STEPS} · {draft.completion_percent}% complete · updated {new Date(draft.updated_at).toLocaleString()}
+                </p>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button type="button" className="btn btn-secondary" onClick={() => discardDraft(draft.id)}>Discard</button>
+                <button type="button" className="btn btn-primary" onClick={() => resumeDraft(draft)}>Resume</button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <button type="button" className="btn btn-secondary" style={{ marginTop: 16 }} onClick={startFresh}>
+          Start New Provisioning Instead
+        </button>
+      </div>
+    );
+  }
 if (step === 2) {
   return (
     <div className="app-main">
@@ -404,6 +514,9 @@ if (step === 2) {
         await finalizeOnboardingInvitations(invitations, result, defaultRoles);
       }
       setBootstrapStatus("done");
+      if (draftIdRef.current) {
+        completeProvisioningDraft(draftIdRef.current).catch((err) => console.error('completeProvisioningDraft error:', err));
+      }
     } catch (err) {
       setBootstrapError(err?.message || "Something went wrong creating your workspace.");
       setBootstrapStatus("error");
