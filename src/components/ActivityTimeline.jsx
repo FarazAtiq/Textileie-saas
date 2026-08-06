@@ -9,7 +9,7 @@ function humanize(value) {
     .replace(/\b\w/g, letter => letter.toUpperCase());
 }
 
-export default function ActivityTimeline() {
+export default function ActivityTimeline({ companyId = null }) {
   const { toast, ToastContainer } = useToast();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -17,7 +17,7 @@ export default function ActivityTimeline() {
   const load = async () => {
     setLoading(true);
     try {
-      setRows(await getActivityLogs({ limit: 150 }));
+      setRows(await getActivityLogs({ limit: 150, companyId }));
     } catch (error) {
       toast('Failed to load activity: ' + error.message, 'error');
     } finally {
@@ -25,8 +25,7 @@ export default function ActivityTimeline() {
     }
   };
 
-  useEffect(() => { load(); }, []);
-
+  useEffect(() => { load(); }, [companyId]);
   return (
     <div>
       <ToastContainer />
