@@ -56,7 +56,7 @@ export default function SubscriptionStatusCard() {
   const isTrial = status === "Trial" || status === "Expired";
   const daysRemaining = isTrial ? subscription.trialDaysRemaining : subscription.renewalDaysRemaining;
   const renewalDate = isTrial ? subscription.trialEndsAt : subscription.expiresAt;
-  const billingCycle = isTrial ? null : inferBillingCycle(subscription.startsAt, subscription.expiresAt);
+  const billingCycle = isTrial ? null : (subscription.billingCycle || inferBillingCycle(subscription.startsAt, subscription.expiresAt));
   const colors = STATUS_COLORS[status] || STATUS_COLORS.Active;
   const enabledCount = enabledModules ? Object.values(enabledModules).filter(Boolean).length : null;
   const isReadOnly = status === "Expired" || status === "Suspended" || status === "Cancelled";
