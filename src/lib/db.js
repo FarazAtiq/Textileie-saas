@@ -1179,6 +1179,7 @@ if (!userId) return null;
     startsAt: company.subscription_starts_at,
     expiresAt: company.subscription_expires_at,
     trialEndsAt: company.trial_ends_at,
+    billingCycle: company.billing_cycle || null,
   } : null;
 
   let trialDaysRemaining = null;
@@ -2971,9 +2972,9 @@ export async function getPlatformCompanies() {
   const { data, error } = await supabase
     .from('companies')
     .select(`
-      id, name, code, subscription_plan, subscription_status,
+      id, name, code, subscription_plan, subscription_status, billing_cycle,
       licensed_users, subscription_starts_at, subscription_expires_at,
-      trial_ends_at, city, country, created_at,
+      trial_ends_at, suspension_reason, city, country, created_at,
       company_users(id, status),
       company_modules(id, module_key, enabled)
     `)
@@ -2982,7 +2983,6 @@ export async function getPlatformCompanies() {
   if (error) throw error;
   return data || [];
 }
-
 export async function updatePlatformCompanySubscription(companyId, updates) {
   const access = await getMyAccessContext();
   if (!access?.isPlatformAdmin) throw new Error('TextileIE platform administrator access required');
@@ -2992,6 +2992,7 @@ export async function updatePlatformCompanySubscription(companyId, updates) {
     .update({
       subscription_plan: updates.subscription_plan,
       subscription_status: updates.subscription_status,
+      billing_cycle: updates.billing_cycle || null,
       licensed_users: Number(updates.licensed_users || 1),
       subscription_starts_at: updates.subscription_starts_at || null,
       subscription_expires_at: updates.subscription_expires_at || null,
@@ -3085,6 +3086,7 @@ export async function createCompanyWorkspace({
       // went read-only. Activate as a real paid subscription with a
       // renewal date computed from the billing cycle instead.
       status: 'Active',
+      billingCycle: subscription?.billingCycle === 'annual' ? 'Annual' : 'Monthly',
       licensedUsers: parseLicensedUsers(subscription?.limits?.users),
       expiresAt: (() => {
         const start = new Date();
