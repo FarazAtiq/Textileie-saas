@@ -9,6 +9,8 @@ import {
 } from '../lib/db.js';
 import { useToast } from '../hooks/useToast.jsx';
 import { PageHeader } from '../components/ResultCard.jsx';
+import SearchSelect from '../components/common/SearchSelect.jsx';
+import { PLANS } from '../components/customer-onboarding/steps/SubscriptionStep.jsx';
 
 export default function PlatformAdminPage() {
   const { access } = useAuth();
@@ -38,13 +40,14 @@ export default function PlatformAdminPage() {
   useEffect(() => {
     if (!selected) return;
     setForm({
-      subscription_plan: selected.subscription_plan || 'Starter',
+      subscription_plan: selected.subscription_plan || '',
       subscription_status: selected.subscription_status || 'Active',
+      billing_cycle: selected.billing_cycle || 'Monthly',
       licensed_users: Number(selected.licensed_users || 1),
       subscription_starts_at: selected.subscription_starts_at?.slice(0, 10) || '',
       subscription_expires_at: selected.subscription_expires_at?.slice(0, 10) || '',
       trial_ends_at: selected.trial_ends_at?.slice(0, 10) || '',
-      suspension_reason: '',
+      suspension_reason: selected.suspension_reason || '',
     });
   }, [selected]);
 
@@ -53,6 +56,13 @@ export default function PlatformAdminPage() {
   }
 
   const save = async () => {
+    const isBlocking = ['Suspended', 'Cancelled'].includes(form.subscription_status);
+    if (isBlocking) {
+      const confirmed = window.confirm(
+        `This will set ${selected.name} to "${form.subscription_status}" and block write access to their workspace. Continue?`
+      );
+      if (!confirmed) return;
+    }
     setSaving(true);
     try {
       await updatePlatformCompanySubscription(selectedId, form);
@@ -120,14 +130,32 @@ export default function PlatformAdminPage() {
                 <Building2 size={16} /> {selected.name}
               </h3>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 12 }}>
-                <div className="field"><label>Plan</label><input value={form.subscription_plan || ''} onChange={e => setForm(p => ({ ...p, subscription_plan: e.target.value }))} /></div>
+                <SearchSelect
+                  label="Plan"
+                  placeholder="Search plans…"
+                  options={PLANS.map(p => ({ value: p.id, label: p.name }))}
+                  value={form.subscription_plan || ''}
+                  onChange={(v) => setForm(p => ({ ...p, subscription_plan: v || '' }))}
+                />
                 <div className="field"><label>Status</label><select value={form.subscription_status || 'Active'} onChange={e => setForm(p => ({ ...p, subscription_status: e.target.value }))}><option>Trial</option><option>Active</option><option>Suspended</option><option>Expired</option><option>Cancelled</option></select></div>
+                <div className="field"><label>Billing cycle</label><select value={form.billing_cycle || 'Monthly'} onChange={e => setForm(p => ({ ...p, billing_cycle: e.target.value }))}><option>Monthly</option><option>Annual</option></select></div>
                 <div className="field"><label>Licensed users</label><input type="number" min="1" value={form.licensed_users || 1} onChange={e => setForm(p => ({ ...p, licensed_users: Number(e.target.value || 1) }))} /></div>
                 <div className="field"><label>Starts</label><input type="date" value={form.subscription_starts_at || ''} onChange={e => setForm(p => ({ ...p, subscription_starts_at: e.target.value }))} /></div>
                 <div className="field"><label>Expires</label><input type="date" value={form.subscription_expires_at || ''} onChange={e => setForm(p => ({ ...p, subscription_expires_at: e.target.value }))} /></div>
                 <div className="field"><label>Trial ends</label><input type="date" value={form.trial_ends_at || ''} onChange={e => setForm(p => ({ ...p, trial_ends_at: e.target.value }))} /></div>
               </div>
-              <button className="btn btn-primary" onClick={save} disabled={saving}><Save size={14} />{saving ? 'Saving...' : 'Save Subscription'}</button>
+              {['Suspended', 'Cancelled'].includes(form.subscription_status) && (
+                <div className="field" style={{ marginTop: 12 }}>
+                  <label>Reason ({form.subscription_status.toLowerCase()})</label>
+                  <textarea
+                    rows={2}
+                    value={form.suspension_reason || ''}
+                    onChange={e => setForm(p => ({ ...p, suspension_reason: e.target.value }))}
+                    placeholder="Internal note — not shown to the customer"
+                  />
+                </div>
+              )}
+              <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={save} disabled={saving}><Save size={14} />{saving ? 'Saving...' : 'Save Subscription'}</button>
             </div>
 
             <div className="card">
