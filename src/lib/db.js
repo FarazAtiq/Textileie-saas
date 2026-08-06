@@ -2764,15 +2764,15 @@ export async function getCompanySubscriptionSummary() {
   };
 }
 
-export async function getActivityLogs({ limit = 100, module_key = '' } = {}) {
+export async function getActivityLogs({ limit = 100, module_key = '', companyId = null } = {}) {
   const access = await getMyAccessContext();
-  const companyId = access?.membership?.company_id;
-  if (!companyId) return [];
+  const targetCompanyId = (companyId && access?.isPlatformAdmin) ? companyId : access?.membership?.company_id;
+  if (!targetCompanyId) return [];
 
   let query = supabase
     .from('activity_logs')
     .select('*')
-    .eq('company_id', companyId)
+    .eq('company_id', targetCompanyId)
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -2784,6 +2784,7 @@ export async function getActivityLogs({ limit = 100, module_key = '' } = {}) {
 }
 
 export async function logActivity({
+  companyId = null,
   module_key,
   entity_type,
   entity_id = null,
@@ -2793,14 +2794,14 @@ export async function logActivity({
   reason = null,
 }) {
   const access = await getMyAccessContext();
-  const companyId = access?.membership?.company_id;
+  const targetCompanyId = companyId || access?.membership?.company_id;
   const actorUserId = await getCurrentUserId();
-  if (!companyId || !actorUserId) return null;
+  if (!targetCompanyId || !actorUserId) return null;
 
   const { data, error } = await supabase
     .from('activity_logs')
     .insert({
-      company_id: companyId,
+      company_id: targetCompanyId,
       actor_user_id: actorUserId,
       module_key,
       entity_type,
@@ -2819,7 +2820,6 @@ export async function logActivity({
   }
   return data;
 }
-
 export async function getProductionLines() {
   const access = await getMyAccessContext();
   const companyId = access?.membership?.company_id;
@@ -2987,6 +2987,12 @@ export async function updatePlatformCompanySubscription(companyId, updates) {
   const access = await getMyAccessContext();
   if (!access?.isPlatformAdmin) throw new Error('TextileIE platform administrator access required');
 
+  const { data: before } = await supabase
+    .from('companies')
+    .select('subscription_plan, subscription_status, billing_cycle, licensed_users, subscription_expires_at, trial_ends_at, suspension_reason')
+    .eq('id', companyId)
+    .maybeSingle();
+
   const { data, error } = await supabase
     .from('companies')
     .update({
@@ -3007,9 +3013,28 @@ export async function updatePlatformCompanySubscription(companyId, updates) {
     .single();
 
   if (error) throw error;
+
+  await logActivity({
+    companyId,
+    module_key: 'administration',
+    entity_type: 'subscription',
+    entity_id: companyId,
+    action_key: 'edit',
+    old_values: before || null,
+    new_values: {
+      subscription_plan: data.subscription_plan,
+      subscription_status: data.subscription_status,
+      billing_cycle: data.billing_cycle,
+      licensed_users: data.licensed_users,
+      subscription_expires_at: data.subscription_expires_at,
+      trial_ends_at: data.trial_ends_at,
+      suspension_reason: data.suspension_reason,
+    },
+    reason: updates.suspension_reason || null,
+  });
+
   return data;
 }
-
 export async function setPlatformCompanyModule(companyId, moduleKey, enabled) {
   const access = await getMyAccessContext();
   if (!access?.isPlatformAdmin) throw new Error('TextileIE platform administrator access required');
@@ -3028,9 +3053,18 @@ export async function setPlatformCompanyModule(companyId, moduleKey, enabled) {
     .single();
 
   if (error) throw error;
+
+  await logActivity({
+    companyId,
+    module_key: 'administration',
+    entity_type: 'company_module',
+    entity_id: moduleKey,
+    action_key: enabled ? 'enable' : 'disable',
+    new_values: { module_key: moduleKey, enabled: Boolean(enabled) },
+  });
+
   return data;
 }
-
 // ════════════════════════════════════════════════════════════
 // ONBOARDING BOOTSTRAP
 // Added for Customer Onboarding wizard. Reuses createUserInvitation()
