@@ -3376,3 +3376,72 @@ export async function getSubscriptionTransactions(companyId) {
   if (error) throw error;
   return data || [];
 }
+export async function getProvisioningDrafts() {
+  const { data, error } = await supabase
+    .from('provisioning_drafts')
+    .select('*')
+    .eq('status', 'draft')
+    .order('updated_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function saveProvisioningDraft({
+  id = null,
+  currentStep,
+  completionPercent,
+  companyName = null,
+  draftData,
+}) {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error('Not logged in');
+
+  const row = {
+    updated_by: userId,
+    current_step: currentStep,
+    completion_percent: completionPercent,
+    company_name: companyName,
+    draft_data: draftData,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (id) {
+    const { data, error } = await supabase
+      .from('provisioning_drafts')
+      .update(row)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  const { data, error } = await supabase
+    .from('provisioning_drafts')
+    .insert({ ...row, created_by: userId })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function completeProvisioningDraft(id) {
+  if (!id) return null;
+  const { data, error } = await supabase
+    .from('provisioning_drafts')
+    .update({ status: 'completed', updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteProvisioningDraft(id) {
+  const { error } = await supabase
+    .from('provisioning_drafts')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
+  return true;
+}
